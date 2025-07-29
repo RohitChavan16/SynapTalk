@@ -75,7 +75,7 @@ export const markMessageSeen = async (req, res) => {
 
 
 
-export const sendMessage = async () => {
+export const sendMessage = async (req, res) => {
     try {
 
 const {text, image} = req.body;

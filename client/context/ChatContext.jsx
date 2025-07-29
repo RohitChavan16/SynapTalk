@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { AuthContext } from "./AuthContext";
+import toast from "react-hot-toast";
 
 export const ChatContext = createContext();
 
@@ -32,7 +33,7 @@ setUnseenMessages(data.unseenMessages);
 const getMessages = async (userId)=>{
 
 try {
-const { data } = await axios.get('/api/messages/${userId}');
+const { data } = await axios.get(`/api/messages/${userId}`);
 
 if (data.success){
 setMessages(data.messages);
@@ -93,7 +94,7 @@ return ()=> unsubscribeFromMessages();
 
 
 const value = {
-messages, users, selectedUser, getUsers, setMessages, sendMessage, setSelectedUser, unseenMessages, setUnseenMessages
+messages, users, selectedUser, getUsers, getMessages, sendMessage, setSelectedUser, unseenMessages, setUnseenMessages
 }
 
 return (
