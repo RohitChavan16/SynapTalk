@@ -15,7 +15,12 @@
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "crypto": "^1.0.1",
+    "dotenv": "^17.2.1",
     "express": "^5.1.0",
+    "ffmpeg": "^0.0.4",
+    "mongoose": "^8.17.0",
+    "multer": "^2.0.2",
+    "nodemailer": "^7.0.5",
     "twilio": "^5.8.0",
     "uuid": "^11.1.0"
   },

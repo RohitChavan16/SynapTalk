@@ -4,7 +4,7 @@
 // Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 model User {
-  id        String     @id @default(uuid())
+  customerId        String     @id @default(uuid())
   email     String     @unique
   phone     String     @unique
   password  String
@@ -19,7 +19,7 @@ model KYC {
   id           String     @id @default(uuid())
   dateOfBirth  DateTime
   panNumber    String     @unique
-  aadhaar      String     @unique
+  aadhaarNumber      String     @unique
   address      String
   status       KYCStatus  @default(PENDING)
   createdAt    DateTime   @default(now())
@@ -38,9 +38,10 @@ model Account {
   accountNumber String        @unique
   type          AccountType
   balance       Float         @default(0.0)
+  branch        String 
   ifscCode      String
   userId        String
-  user          User          @relation(fields: [userId], references: [id])
+  user          User          @relation(fields: [userId], references: [customerId])
   transactionsSent     Transaction[] @relation("SentTransactions")
   transactionsReceived Transaction[] @relation("ReceivedTransactions")
   createdAt     DateTime      @default(now())
@@ -49,10 +50,11 @@ model Account {
 model Transaction {
   id              String     @id @default(uuid())
   amount          Float
-  description     String?
+  paymentMethod   String
+  message     String?
   timestamp       DateTime   @default(now())
   type            TransactionType
-
+  kind            String
   fromAccountId   String
   toAccountId     String
 

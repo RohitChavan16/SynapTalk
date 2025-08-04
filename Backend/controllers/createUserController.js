@@ -1,10 +1,9 @@
 const { PrismaClient } = require("../generate/prisma");
 const bcrypt = require("bcrypt");
 const prisma = new PrismaClient();
-const twilio = require("twilio");
 const { v4: uuid } = require("uuid");
-const client = twilio(process.env.ACCOUNTS_ID, process.env.AUTH_TOKEN);
 const { setUser } = require("../tempStorage");
+const {sendOTP, sendEmailOTP, generateOTP, phoneOTPVerification} = require('../utils/otpFunctions')
 
 const unverified_Data_Map = new Map();
 const setUnVerifiedUser = (id, user)=> {
@@ -33,17 +32,17 @@ const createUser = async (req, res) => {
   try {
     const hashedPwd = await bcrypt.hash(password, 10);
     const tempID = uuid();
-
     setUnVerifiedUser(
       tempID,
       {
         name,
         email,
+        phone,
         hashedPwd,
         expires_in: Date.now() + 15 * 60 * 1000,
       }
     );
-    sendOtp(phone);
+    sendOTP(phone);
    
     res.cookie("tempID", tempID, {
         httpOnly : false,
@@ -60,54 +59,88 @@ const createUser = async (req, res) => {
 const verifyPhone = async (req, res) => {
   const otp = req.body.otp;
   const tempID = req.cookies.tempID;
-  if (!otp || !tempID) {
-    res.status(401).json({ error: "credentials required" });
+  if (!tempID) {
+    res.status(401).json({
+      status: "error" ,
+      message : "Fill the form." 
+    });
     return;
   }
-  if (!getUniverifiedUser(tempID)) {
-    res.status(401).send({ error: "otp Expired" });
+  if(!otp){
+    res.status(401).json({
+      status : "error",
+      message: "Credentials required"
+    })
   }
-  if(getUniverifiedUser(tempID).expires_in < Date.now){
+  const unverified_user = getUniverifiedUser(tempID)
+  if (!unverified_user) {
+    res.status(401).send({ error: "First fill the form" });
+  }
+  if(unverified_user.expires_in < Date.now){
     deleteUnverifiedUserData(tempID)
-    res.status(400).send({error : "otp Expired"})
+    res.status(400).send({error : "otp Expired. Fill the form again"})
   }
-  const verificationCheck = await client.verify.v2
-    .services(process.env.SERVICE)
-    .verificationChecks.create({
-      code: `${otp}`,
-      to: `+91${getUniverifiedUser(tempID).phone}`,
-    });
+  const verificationCheck = await phoneOTPVerification(otp, unverified_user.phone)
   console.log(verificationCheck.status);
-  try {
-    if (verificationCheck.status === "approved") {
+  if(verificationCheck.status === 'approved'){
+    const email_OTP = generateOTP()
+    const info = await sendEmailOTP(unverified_user, email_OTP)
+    console.log(info.messageId)
+    unverified_Data_Map.set(tempID, {...unverified_user, phone_verified: true, email_OTP: email_OTP})
+    res.status(200).json({
+      status : "success",
+      message: "phone number verified move to email verification"
+    })
+  }
+};
+
+const verifyEmail = async (req, res) => {
+  const otp = req.body.otp;
+  const tempID = req.cookies.tempID;
+  let unverified_user = unverified_Data_Map.get(tempID);
+  if(!unverified_user || unverified_user.expires_in < Date.now || !unverified_user.phone_verified
+    || !unverified_user.email_OTP
+  ){
+    res.status(400).json({
+      status : "error",
+      message: "phone number unverified"
+    })
+  }
+  else if(unverified_user.email_OTP != otp){
+    res.status(401).json({
+      status: "failure",
+      message : "wrong otp"
+    })
+  }
+  else{
+    try {
       await prisma.user.create({
         data: getUniverifiedUser(tempID),
       });
       const sessionID = uuid()
-      let verified_user_data = getUniverifiedUser(tempID)
-      delete verified_user_data.password
-      setUser(sessionID, verified_user_data)
+      delete unverified_user.password
+      delete unverified_user.email_OTP
+      delete unverified_user.verified_phone
+      setUser(sessionID, unverified_user)
       deleteUnverifiedUserData(tempID)
       res.cookie('sessionID', sessionID)
       res.cookie('tempID', '')
       res.status(200).json({ success: "user created successfully" });
-    } else {
-      res.status(400).json({ failure: "incorrect OTP" });
-    }
   } catch (err) {
     res.cookie('tempID', '')
     deleteUnverifiedUserData(tempID)
     console.log(err);
     res.status(500).json({ error: "Internal Server Error" });
   }
-};
+  }
+  console.log("Message sent:", info.messageId);
+}
+
+module.exports = { createUser, verifyPhone, verifyEmail };
 
 
 
-const sendOtp = (phone) => {
-  client.verify.v2
-    .services("VA1cc220171c25de3e81684bbda9e6c610")
-    .verifications.create({ to: `+91${phone}`, channel: "sms" })
-    .then((verification) => console.log(verification.sid));
-};
-module.exports = { createUser, verifyPhone };
+
+
+
+
