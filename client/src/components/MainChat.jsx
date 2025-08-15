@@ -7,7 +7,7 @@ import toast from 'react-hot-toast';
 
 const MainChat = () => {
 
-  const {messages, selectedUser, setSelectedUser, sendMessage, getMessages} = useContext(ChatContext);
+  const {messages, selectedUser, setSelectedUser, sendMessage, getMessages, selectedProfile, setSelectedProfile} = useContext(ChatContext);
   const {authUser, onlineUsers} = useContext(AuthContext);
   const scrollEnd = useRef();
 
@@ -53,12 +53,16 @@ reader.onloadend = async () => {
   },[messages]);
 
   return selectedUser ? (
-        <div className='h-full overflow-scroll relative backdrop-blur-lg'>
+        <div className='h-full bg-[url("./src/assets/chatbg.png")] overflow-scroll relative backdrop-blur-lg'>
 
-<div className='flex items-center gap-3 py-3 mx-4 border-b border-stone-500'>
-<img src={selectedUser.profilePic || assets.avatar_icon} alt="" className="w-8 rounded-full"/>
+<div className='flex items-center gap-3 backdrop-blur-[2px] py-3 mx-1 border-b border-stone-500'>
+<img 
+onClick={() => setSelectedProfile(prev => !prev)}
+src={selectedUser.profilePic || assets.avatar_icon} alt="" className="w-8 cursor-pointer rounded-full ml-3"/>
 
-<p className='flex-1 text-lg text-white flex items-center gap-2'>
+<p 
+onClick={() => setSelectedProfile(prev => !prev)}
+className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
 {selectedUser.fullName}
 {onlineUsers.includes(selectedUser._id) && 
   <span className="w-2 h-2 rounded-full bg-green-500"></span>}
@@ -66,7 +70,7 @@ reader.onloadend = async () => {
 
 
 <img onClick={()=> setSelectedUser(null)} src={assets.arrow_icon} alt="" className='md:hidden max-w-7'/>
-<img src={assets.help_icon} alt="" className='max-md:hidden max-w-5'/>
+<img src={assets.help_icon} alt="" className='max-md:hidden max-w-5 mx-3'/>
 </div>
 {/*Chat Area*/}
 <div  className="flex flex-col h-[calc(100%-120px)] overflow-y-scroll p-3 pb-6">
@@ -76,7 +80,7 @@ reader.onloadend = async () => {
        }`}>
         {mes.image ? (
           <img src={mes.image} alt="Proflie Pic" className="max-w-[230px] border border-gray-700 rounded-lg overflow-hidden mb-8 ml-2" />) : (
-          <p className={`p-2 max-w-[200px] md:text-sm font-light rounded-lg mb-8 break-all bg-violet-500/30 text-white *
+          <p className={`p-2 max-w-[200px] md:text-sm font-light rounded-b-lg rounded-tr-lg mb-8 break-all bg-violet-600/60 border-2 border-[#9e72c4] text-white *
             ${mes.senderId === authUser._id} ? "rounded-br-none " : "rounded-bl-none"`}>
         {mes.text}</p>
         ) }
@@ -97,10 +101,10 @@ reader.onloadend = async () => {
           <input onChange={(e)=>setInput(e.target.value)} value={input} onKeyDown={(e) => e.key === "Enter" ? handleSendMessage(e) : null } type="text" placeholder="Send a message" className='flex-1 text-sm p-3 border-none rounded-lg outline-none text-white placeholder-gray-400'/>
           <input onChange={handleSendImage} type="file" id='image' accept='image/png, image/jpeg' hidden/>
           <label htmlFor="image">
-                  <img src={assets.gallery_icon} alt="" className="w-5 mr-2 cursor-pointer"/>
+                  <img src={assets.gallery_icon} alt="" className="w-5 mr-2 hover:w-5.5 cursor-pointer"/>
           </label>
 </div>
-<img onClick={handleSendMessage} src={assets.send_button} alt="" className="w-7 cursor-pointer" />
+<img onClick={handleSendMessage} src={assets.send_button} alt="" className="w-9 cursor-pointer hover:opacity-89" />
 </div>
 
 </div>

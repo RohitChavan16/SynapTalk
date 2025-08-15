@@ -49,6 +49,10 @@ try {
 const { email, password } = req.body;
 const userData = await User.findOne({email});
 
+ if (!userData) {
+      return res.json({ success: false, message: "User not found, Please create a account" });
+    }
+
 const isPasswordCorrect = await bcrypt.compare(password, userData.password);
 
 if(!isPasswordCorrect){

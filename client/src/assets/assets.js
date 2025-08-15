@@ -22,6 +22,7 @@ import pic4 from './pic4.png'
 import img1 from './img1.jpg'
 import img2 from './img2.jpg'
 import logo from './logo.svg'
+import bg from './bgsnaptalk.avif'
 
 const assets = {
     avatar_icon,
@@ -37,7 +38,8 @@ const assets = {
     arrow_icon,
     code,
     bgImage,
-    profile_martin
+    profile_martin,
+    bg
 }
 
 export default assets;

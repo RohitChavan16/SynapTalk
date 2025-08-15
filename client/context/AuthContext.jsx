@@ -99,7 +99,7 @@ newSocket.connect();
 setSocket(newSocket);
 
 newSocket.on("getOnlineUsers", (userIds)=>{
-setOnlineUsers (userIds);
+setOnlineUsers(userIds);
 })
 }
 
