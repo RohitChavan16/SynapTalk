@@ -122,7 +122,7 @@ const ProfileSidebar = () => {
   );
 
   return selectedUser && (
-    <div className={`bg-[#8185B2]/10 text-white w-full relative h-[100%] overflow-y-scroll ${selectedUser ? "max-md:hidden": ""}`}>
+    <div className={`bg-[#8185B2]/10 text-white w-full relative border-l-2 border-l-gray-600 h-[100%] overflow-y-scroll ${selectedUser ? "max-md:hidden": ""}`}>
       
       {/* Existing Profile Header - Unchanged */}
       <div className='pt-10 flex flex-col items-center gap-2 text-xs font-light mx-auto'>

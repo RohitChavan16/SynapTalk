@@ -10,6 +10,8 @@ isOAuthUser: {type: Boolean, default: false},
 lastLogin: {type: Date, default: null},
 bio: {type: String},
 location: {type: String},
+googleAccessToken: { type: String, default: null },
+googleRefreshToken: { type: String, default: null },
 socialLinks: {
     linkedin: {type: String, default: ""},
     youtube: {type: String, default: ""},

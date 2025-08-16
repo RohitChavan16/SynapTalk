@@ -20,10 +20,10 @@ const ChatSidebar = () => {
   }, [onlineUsers]);
 
   return (
-    <div className={`bg-transparent h-full p-5 rounded-r-xl overflow-y-scroll text-white 
+    <div className={`bg-transparent h-full p-5 overflow-y-scroll border-r-2 border-r-gray-600 text-white  
       ${selectedUser ? "max-md:hidden" : ""} 
       scrollbar-thin scrollbar-thumb-violet-500 scrollbar-track-transparent`}>
-
+       
       {/* Header */}
       <div className="pb-5">
         <div className="flex justify-between items-center">
@@ -89,11 +89,24 @@ const ChatSidebar = () => {
 
               {/* Profile Picture */}
               <div className="relative">
+               {user?.profilePic ? (
                 <img
-                  src={user?.profilePic || assets.avatar_icon}
-                  alt={user.fullName}
-                  className="w-[42px] h-[42px] rounded-full object-cover border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)]"
+                src={user.profilePic}
+                alt={user.fullName}
+                className="w-[42px] h-[42px] rounded-full object-cover border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)]"
                 />
+               ) : (
+                     <div className="w-[42px] h-[42px] rounded-full flex items-center justify-center 
+                      text-white text-sm font-bold border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)] 
+                      bg-gradient-to-r from-[#ff4800] via-pink-500 to-[#d31b74]">
+                      {user?.fullName
+                      ?.split(" ")
+                      .map((n) => n[0])
+                      .join("")
+                      .toUpperCase()
+                      .slice(0, 2)}
+                     </div>
+                    )}
                 {isOnline && (
                   <span className="absolute bottom-0 right-0 h-3 w-3 bg-green-400 rounded-full border border-gray-900 animate-ping"></span>
                 )}
