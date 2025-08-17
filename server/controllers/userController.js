@@ -53,6 +53,15 @@ const userData = await User.findOne({email});
       return res.json({ success: false, message: "User not found, Please create a account" });
     }
 
+
+      if (userData.isOAuthUser && !userData.password) {
+      return res.status(400).json({
+        success: false,
+        message: "This email is registered via Google. Please login with Google."
+      });
+    }
+
+
 const isPasswordCorrect = await bcrypt.compare(password, userData.password);
 
 if(!isPasswordCorrect){

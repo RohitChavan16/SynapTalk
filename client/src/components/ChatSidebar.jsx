@@ -3,6 +3,7 @@ import assets from '../assets/assets';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 import { ChatContext } from '../../context/ChatContext';
+import { UserPlus } from "lucide-react";
 
 const ChatSidebar = () => {
 
@@ -10,6 +11,10 @@ const ChatSidebar = () => {
   const { logout, onlineUsers } = useContext(AuthContext);
   const navigate = useNavigate();
   const [input, setInput] = useState('');
+
+  const handleClick = () => {
+    navigate("/contacts"); // redirect to contacts page
+  };
 
   const filteredUsers = input
     ? users.filter((user) => user.fullName.toLowerCase().includes(input.toLowerCase()))
@@ -49,6 +54,13 @@ const ChatSidebar = () => {
                 className="cursor-pointer text-sm hover:text-red-400 transition-colors"
               >
                 🚪 Logout
+              </p>
+              <hr className="my-2 border-violet-500/30" />
+              <p 
+                onClick={handleClick} 
+                className="cursor-pointer text-sm hover:text-red-400 transition-colors"
+              >
+                Add User
               </p>
             </div>
           </div>
@@ -131,6 +143,10 @@ const ChatSidebar = () => {
           );
         })}
       </div>
+     
+      {/* Plus sign overlay */}
+      
+    
     </div>
   )
 }

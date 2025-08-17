@@ -55,7 +55,14 @@ placeholder='provide a short bio...' required></textarea>)
 <button type='submit' className="py-3 bg-gradient-to-r from-purple-400 to-violet-600 text-white rounded-md cursor-pointer hover:opacity-80">
 {currState === "Sign up" ? "Create Account": "Login Now"}
 </button>
-
+<button
+  onClick={() => {
+    window.location.href = "http://localhost:5001/api/auth/google";
+  }}
+  className="bg-blue-500 text-white hover:text-white hover:font-bold px-4 py-3 cursor-pointer hover:opacity-89 rounded"
+>
+  Login with Google
+</button>
 <div className="flex item-center gap-2 text-sm text-gray-300">
 <input type="checkbox" />
 <p>Agree to the terms of use & privacy policy.</p>

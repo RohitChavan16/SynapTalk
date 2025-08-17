@@ -1,90 +1,104 @@
-import express from 'express'
+import express from 'express';
 import { checkAuth, login, signup, updateProfile } from '../controllers/userController.js';
 import { protectRoute } from '../middleware/auth.js';
-import passport from 'passport';
-
-
+import passport from "passport";
+import { google } from "googleapis";
+import { generateToken } from "../utils/jwtToken.js";
+import User from '../models/User.js';
+import jwt from "jsonwebtoken";
 const userRouter = express.Router();
+
+// Standard auth routes
 userRouter.post("/signup", signup);
 userRouter.post("/login", login);
 userRouter.put("/update-profile", protectRoute, updateProfile);
 userRouter.get("/check", protectRoute, checkAuth);
 
-
+// Google OAuth login
 userRouter.get(
   "/google",
   passport.authenticate("google", {
-    scope: [
-      "profile",
-      "email",
-      "https://www.googleapis.com/auth/contacts.readonly"
-    ],
-    accessType: "offline",  // ask for refresh token
-    prompt: "consent"       // force Google to show consent (gets refresh on first time)
+    scope: ["profile", "email", "https://www.googleapis.com/auth/contacts.readonly"],
+    accessType: "offline",
+    prompt: "consent",
   })
 );
 
-// -------- Google OAuth: callback --------
+// Google callback
 userRouter.get(
   "/google/callback",
-  passport.authenticate("google", { failureRedirect: "/login" }),
-  async (req, res) => {
-    try {
-      // At this point, Passport has verified the user.
-      // If you capture tokens in passport strategy, save them to session here.
-      // If not, you can exchange code manually. Since we're using passport,
-      // put tokens onto the session from req.user if you saved them there.
-      // Fallback: just keep user logged in and redirect to your frontend UI.
-      res.redirect("http://localhost:3000/contacts"); // your frontend page
-    } catch (e) {
-      console.error(e);
-      res.redirect("/login");
-    }
+  passport.authenticate("google", { failureRedirect: "/" }),
+  (req, res) => {
+    const token = generateToken(req.user._id); // server JWT
+
+    res.redirect(`http://localhost:5173/?token=${token}`);
   }
 );
 
-// -------- Fetch contacts for the logged-in user --------
+// Google contacts API
 userRouter.get("/google/contacts", async (req, res) => {
   try {
-    // We expect to have tokens saved on the session OR fetch them from DB.
-    // If you saved tokens in req.user (via passport), you can use them directly.
-    const { googleAccessToken, googleRefreshToken } = req.user || {};
+    console.log("Incoming headers:", req.headers);
 
-    if (!googleAccessToken && !googleRefreshToken) {
-      return res.status(401).json({ message: "Google not connected for this user" });
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      console.log("❌ No Authorization header");
+      return res.status(401).json({ message: "No token provided" });
     }
 
-    const oauth2Client = makeOAuthClient();
+    const token = authHeader.split(" ")[1];
+    console.log("Extracted JWT:", token);
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log("Decoded JWT:", decoded);
+
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      console.log("❌ User not found");
+      return res.status(401).json({ message: "User not found" });
+    }
+
+    if (!user.googleAccessToken) {
+      console.log("❌ Missing Google Access Token");
+      return res.status(400).json({ message: "Google login required" });
+    }
+
+    console.log("✅ Google tokens found");
+
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      process.env.GOOGLE_REDIRECT_URI
+    );
     oauth2Client.setCredentials({
-      access_token: googleAccessToken,
-      refresh_token: googleRefreshToken,
+      access_token: user.googleAccessToken,
+      refresh_token: user.googleRefreshToken,
     });
 
-    const people = google.people({ version: "v1", auth: oauth2Client });
+    console.log("✅ OAuth2 client set");
 
+    const people = google.people({ version: "v1", auth: oauth2Client });
     const response = await people.people.connections.list({
       resourceName: "people/me",
-      pageSize: 200, // adjust as needed
+      pageSize: 20,
       personFields: "names,emailAddresses,phoneNumbers,photos",
     });
 
-    const connections = response.data.connections || [];
+    console.log("✅ Google response:", response.data);
 
-    const normalized = connections.map((c) => ({
+    const contacts = (response.data.connections || []).map((c) => ({
       name: c.names?.[0]?.displayName || "",
       email: c.emailAddresses?.[0]?.value || "",
       phone: c.phoneNumbers?.[0]?.value || "",
       avatar: c.photos?.[0]?.url || "",
     }));
 
-    res.json({ contacts: normalized, nextPageToken: response.data.nextPageToken || null });
+    res.json({ contacts });
   } catch (err) {
-    console.error("Contacts fetch error:", err.response?.data || err.message);
-    res.status(500).json({ message: "Failed to fetch contacts" });
+    console.error("🔥 ERROR in /google/contacts:", err);
+    res.status(500).json({ message: "Failed to fetch contacts", error: err.message });
   }
 });
-
-
 
 
 
