@@ -14,7 +14,8 @@ export const AuthProvider = ({ children }) => {
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [socket, setSocket] = useState(null);
   const [loading, setLoading] = useState(true);
-
+  const [privateKey, setPrivateKey] = useState(localStorage.getItem("privateKey"));
+  
   // -----------------------
   // Socket connection
   // -----------------------
@@ -53,7 +54,7 @@ export const AuthProvider = ({ children }) => {
   // -----------------------
   const handleGoogleLogin = async () => {
     const params = new URLSearchParams(window.location.search);
-    const jwtToken = params.get("token"); // Backend JWT
+    const jwtToken = params.get("token");
     if (!jwtToken) return false;
 
     localStorage.setItem("token", jwtToken);
@@ -83,6 +84,20 @@ export const AuthProvider = ({ children }) => {
 
       setAuthUser(data.userData);
       connectSocket(data.userData);
+
+      if (state === "signup" && data.privateKey) {
+        // Store private key as PEM string directly (don't convert)
+        localStorage.setItem("privateKey", data.privateKey);
+        setPrivateKey(data.privateKey);
+      } else if (state === "login") {
+        const storedPrivateKey = localStorage.getItem("privateKey");
+        if (storedPrivateKey) {
+          setPrivateKey(storedPrivateKey);
+        } else {
+          toast.error("Private key not found. Messages cannot be decrypted on this device.");
+        }
+      }
+
       toast.success(data.message);
     } catch (error) {
       toast.error(error.response?.data?.message || error.message);
@@ -94,8 +109,10 @@ export const AuthProvider = ({ children }) => {
   // -----------------------
   const logout = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("privateKey"); // Also remove private key
     setToken(null);
     setAuthUser(null);
+    setPrivateKey(null);
     setOnlineUsers([]);
     axios.defaults.headers.common["Authorization"] = null;
     socket?.disconnect();
@@ -122,9 +139,9 @@ export const AuthProvider = ({ children }) => {
   // -----------------------
   useEffect(() => {
     const initAuth = async () => {
-      const googleLoggedIn = await handleGoogleLogin(); // backend JWT from Google
+      const googleLoggedIn = await handleGoogleLogin();
       if (!googleLoggedIn && token) {
-        await checkAuth(token); // manual login token
+        await checkAuth(token);
       }
       setLoading(false);
     };
@@ -140,7 +157,9 @@ export const AuthProvider = ({ children }) => {
     logout,
     updateProfile,
     loading,
-    token
+    token,
+    privateKey,
+    setPrivateKey 
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

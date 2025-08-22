@@ -21,6 +21,8 @@ const userSchema = new mongoose.Schema({
     github: { type: String, default: "" },
     personalWebsite: { type: String, default: "" },
   },
+  publicKey: { type: String, required: true },  // ECC public key
+  privateKey: { type: String, default: null },  
 }, { timestamps: true });
 
 const User = mongoose.model('User', userSchema);

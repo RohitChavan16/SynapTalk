@@ -11,7 +11,7 @@ const [users, setUsers] = useState([]);
 const [selectedUser, setSelectedUser] = useState(null);
 const [selectedProfile, setSelectedProfile] = useState(false);
 const [unseenMessages, setUnseenMessages] = useState({});
-const {socket, axios} = useContext(AuthContext);
+const {socket, axios, privateKey} = useContext(AuthContext);
 
 // function to get all users for sidebar
 
@@ -34,7 +34,9 @@ setUnseenMessages(data.unseenMessages);
 const getMessages = async (userId)=>{
 
 try {
-const { data } = await axios.get(`/api/messages/${userId}`);
+const { data } = await axios.post(`/api/messages/${userId}`, {
+        privateKey: privateKey
+      });
 
 if (data.success){
 setMessages(data.messages);
@@ -50,13 +52,27 @@ toast.error(error.message);
 
 const sendMessage = async (messageData)=>{
 try {
-const {data} = await axios.post(`/api/messages/send/${selectedUser._id}`, messageData);
+    if(!selectedUser) return;
+     if (!selectedUser.publicKey) {
+        toast.error("Unable to encrypt message: recipient's public key not found");
+        return;
+      }
+    const payload = {
+      ...messageData,
+      receiverPublicKey: selectedUser.publicKey  // 🔹 add this
+    };
 
-if(data.success){
-    setMessages((prevMessages) => [...prevMessages, data.newMessage]);
-} else {
+    const {data} = await axios.post(`/api/messages/send/${selectedUser._id}`, payload);
+
+    if(data.success){
+    const displayMessage = {
+          ...data.newMessage,
+          text: messageData.text // Keep original text for immediate display
+    };
+    setMessages((prevMessages) => [...prevMessages, displayMessage]);
+    } else {
     toast.error(data.message);
-}
+    }
 
 } catch (error) {
    toast.error(error.message);
@@ -65,42 +81,71 @@ if(data.success){
 
 
 const subscribeToMessages = async () => {
+    if(!socket) return;
 
-if(!socket) return;
+    socket.on("newMessage", async (newMessage) => {
+      if(selectedUser && newMessage.senderId === selectedUser._id) {
+        // Try to decrypt the message if it's encrypted
+        let displayMessage = newMessage;
+        
+        if (newMessage.encryptedMessage && newMessage.encryptedKey && privateKey) {
+          try {
+            // Client-side decryption would require crypto libraries
+            // For now, we'll request decryption from backend
+            const { data } = await axios.post(`/api/messages/decrypt`, {
+              messageId: newMessage._id,
+              privateKey: privateKey
+            });
+            
+            if (data.success) {
+              displayMessage = { ...newMessage, text: data.decryptedText };
+            }
+          } catch (error) {
+            console.error('Failed to decrypt message:', error);
+            displayMessage = { ...newMessage, text: '[Unable to decrypt message]' };
+          }
+        }
 
-socket.on("newMessage", (newMessage)=>{
-if(selectedUser && newMessage.senderId === selectedUser._id){
-newMessage.seen = true;
-setMessages((prevMessages)=> [...prevMessages, newMessage]);
-axios.put(`/api/messages/mark/${newMessage._id}`);
-} else {
-setUnseenMessages((prevUnseenMessages)=>({
-...prevUnseenMessages, [newMessage.senderId] : prevUnseenMessages[newMessage.senderId] ? prevUnseenMessages[newMessage.senderId] + 1 : 1
-}))
-}
-})
-}
+        displayMessage.seen = true;
+        setMessages((prevMessages) => [...prevMessages, displayMessage]);
+        axios.put(`/api/messages/mark/${newMessage._id}`);
+      } else {
+        setUnseenMessages((prevUnseenMessages) => ({
+          ...prevUnseenMessages, 
+          [newMessage.senderId]: prevUnseenMessages[newMessage.senderId] 
+            ? prevUnseenMessages[newMessage.senderId] + 1 
+            : 1
+        }));
+      }
+    });
+  }
 
+  const unsubscribeFromMessages = () => {
+    if(socket) socket.off("newMessage");
+  }
 
-const unsubscribeFromMessages = () => {
+  useEffect(() => {
+    subscribeToMessages();
+    return () => unsubscribeFromMessages();
+  }, [socket, selectedUser, privateKey])
 
-if(socket) socket.off("newMessage");
+  const value = {
+    messages, 
+    users, 
+    selectedUser, 
+    getUsers, 
+    getMessages, 
+    sendMessage, 
+    setSelectedUser, 
+    unseenMessages, 
+    setUnseenMessages, 
+    selectedProfile, 
+    setSelectedProfile
+  }
 
-}
-
-useEffect(()=>{
-subscribeToMessages();
-return ()=> unsubscribeFromMessages();
-}, [socket, selectedUser])
-
-
-const value = {
-messages, users, selectedUser, getUsers, getMessages, sendMessage, setSelectedUser, unseenMessages, setUnseenMessages, selectedProfile, setSelectedProfile
-}
-
-return (
-<ChatContext.Provider value={value}>
-{ children }
-</ChatContext.Provider>
-)
+  return (
+    <ChatContext.Provider value={value}>
+      {children}
+    </ChatContext.Provider>
+  )
 }

@@ -15,12 +15,23 @@ const MainChat = () => {
 
   // Handle sending a message
 
-const handleSendMessage = async (e)=>{
-e.preventDefault();
-if(input.trim() === "") return null;
-await sendMessage({text: input.trim()});
-setInput("");
-}
+const handleSendMessage = async (e) => {
+  e.preventDefault();
+  if (input.trim() === "") return;
+
+  // Make sure selectedUser has a publicKey
+  if (!selectedUser?.publicKey) {
+    toast.error("Receiver's public key not available!");
+    return;
+  }
+
+  await sendMessage({
+    text: input.trim(),
+    receiverPublicKey: selectedUser.publicKey // 🔹 required for encryption
+  });
+
+  setInput("");
+};
 
 // Handle sending an image
 

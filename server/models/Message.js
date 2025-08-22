@@ -4,6 +4,9 @@ const messageSchema = new mongoose.Schema({
 senderId: {type: mongoose.Schema.Types.ObjectId, ref: "User", required: true},
 receiverId: {type: mongoose.Schema.Types.ObjectId, ref: "User", required: true},
 text: {type: String },
+encryptedMessage: { type: String }, 
+encryptedKey: { type: String },     
+hmac: { type: String }, 
 image: {type: String },
 reactions: [{ emoji: String, reactedBy: {type: mongoose.Schema.Types.ObjectId, ref: 'User'}}],
 seen: {type: Boolean, default: false}
