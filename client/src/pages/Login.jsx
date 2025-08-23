@@ -10,17 +10,29 @@ const Login = () => {
   const [password, setPassword] = useState("")
   const [bio, setBio] = useState("")
   const [isDataSubmitted, setIsDataSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const {login} = useContext(AuthContext);
 
   const onSubmitHandler = (event)=>{
+    setLoading(true);
     event.preventDefault();
     if (currState === 'Sign up' && !isDataSubmitted) {
        setIsDataSubmitted(true);
+       setLoading(false);
        return;
     }
     login(currState === "Sign up" ? "signup" : "login", {fullName, email, password, bio});
+    setLoading(false);
  }
+
+
+
+ const handleGoogleLogin = () => {
+  setGoogleLoading(true);
+  window.location.href = "http://localhost:5001/api/auth/google";
+};
 
 
   return (
@@ -52,17 +64,47 @@ const Login = () => {
 placeholder='provide a short bio...' required></textarea>)
 }
 
-<button type='submit' className="py-3 bg-gradient-to-r from-purple-400 to-violet-600 text-white rounded-md cursor-pointer hover:opacity-80">
-{currState === "Sign up" ? "Create Account": "Login Now"}
-</button>
+{/* First Button */}
 <button
-  onClick={() => {
-    window.location.href = "http://localhost:5001/api/auth/google";
-  }}
-  className="bg-blue-500 text-white hover:text-white hover:font-bold px-4 py-3 cursor-pointer hover:opacity-89 rounded"
+  type="submit"
+  onClick={onSubmitHandler}        // your submit handler
+  disabled={loading}            // disable while loading
+  className="py-3 bg-gradient-to-r from-purple-400 to-violet-600 text-white rounded-md cursor-pointer hover:opacity-80 flex items-center justify-center disabled:cursor-not-allowed disabled:opacity-60"
 >
-  Login with Google
+  {loading && (
+    <svg
+      className="animate-spin h-5 w-5 mr-2 text-white"
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+    >
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+    </svg>
+  )}
+  {currState === "Sign up" ? (loading ? "Creating..." : "Create Account") : (loading ? "Logging in..." : "Login Now")}
 </button>
+
+{/* Google Button */}
+<button
+  onClick={handleGoogleLogin}  // your Google handler
+  disabled={googleLoading}      // disable while redirecting
+  className="bg-blue-500 text-white hover:text-white hover:font-bold px-4 py-3 cursor-pointer hover:opacity-89 rounded flex items-center justify-center disabled:cursor-not-allowed disabled:opacity-60"
+>
+  {googleLoading && (
+    <svg
+      className="animate-spin h-5 w-5 mr-2 text-white"
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+    >
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+    </svg>
+  )}
+  {googleLoading ? "Redirecting..." : "Login with Google"}
+</button>
+
 <div className="flex item-center gap-2 text-sm text-gray-300">
 <input type="checkbox" />
 <p>Agree to the terms of use & privacy policy.</p>

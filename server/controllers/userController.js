@@ -50,6 +50,11 @@ export const signup = async (req, res) => {
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
+    
+    if(!email || !password){
+        return res.json({success: false, message: "Fill all required data"});
+    }
+
     const userData = await User.findOne({email});
 
     if (!userData) {
