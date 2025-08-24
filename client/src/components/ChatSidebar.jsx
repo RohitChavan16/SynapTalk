@@ -9,6 +9,7 @@ const ChatSidebar = () => {
 
   const { getUsers, users, selectedUser, setSelectedUser, unseenMessages, setUnseenMessages } = useContext(ChatContext);
   const { logout, onlineUsers } = useContext(AuthContext);
+  const [dropDown, setDropDown] = useState(false);
   const navigate = useNavigate();
   const [input, setInput] = useState('');
 
@@ -37,11 +38,14 @@ const ChatSidebar = () => {
           />
 
           {/* Dropdown Menu */}
+          
           <div className="relative group">
             <img src={assets.menu_icon} alt="MenuIcon" 
-              className="w-8 h-8 cursor-pointer hover:scale-110 transition-transform duration-200 rounded-full shadow-[0_0_10px_rgba(255,255,255,0.5)]"
+            onClick={() => setDropDown(prev => !prev)}  
+            className="w-8 h-8 cursor-pointer hover:scale-110 transition-transform duration-200 rounded-full shadow-[0_0_10px_rgba(255,255,255,0.5)]"
             />
-            <div className="absolute top-full right-0 z-20 w-40 mt-2 rounded-lg shadow-[0_0_25px_rgba(138,43,226,0.6)] bg-[#2B2548]/80 border border-violet-500 text-gray-200 hidden group-hover:block p-4 backdrop-blur-md">
+            {dropDown &&
+            <div className="absolute top-full right-0 z-20 w-40 mt-2 rounded-lg shadow-[0_0_25px_rgba(138,43,226,0.6)] bg-[#2B2548]/80 border border-violet-500 text-gray-200 p-4 backdrop-blur-md">
               <p 
                 onClick={() => { navigate('/profile') }} 
                 className="cursor-pointer text-sm hover:text-violet-400 transition-colors"
@@ -63,8 +67,11 @@ const ChatSidebar = () => {
                 Add User
               </p>
             </div>
+            }
           </div>
+           
         </div>
+          
 
         {/* Search Bar */}
         <div className="bg-gradient-to-r from-purple-700/30 to-pink-500/30 rounded-full flex items-center gap-3 py-2.5 px-4 mt-5 border border-violet-500/40 focus-within:border-pink-400 transition-colors backdrop-blur-md">

@@ -4,13 +4,14 @@ import { formatMessageTime } from '../lib/formatDateTime';
 import { ChatContext } from '../../context/ChatContext';
 import { AuthContext } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
+import Loading from './Loading';
 
 const MainChat = () => {
 
   const {messages, selectedUser, setSelectedUser, sendMessage, getMessages, selectedProfile, setSelectedProfile} = useContext(ChatContext);
   const {authUser, onlineUsers} = useContext(AuthContext);
   const scrollEnd = useRef();
-
+  const [loading, setLoading] = useState(true);
   const [input, setInput] = useState('');
 
   // Handle sending a message
@@ -53,7 +54,9 @@ reader.onloadend = async () => {
 
   useEffect(() => {
     if(selectedUser){
+      setLoading(true); 
       getMessages(selectedUser._id);
+      setTimeout(() => setLoading(false), 1000);
     }
   }, [selectedUser]);
 
@@ -84,7 +87,11 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
 <img src={assets.help_icon} alt="" className='max-md:hidden max-w-5 mx-3'/>
 </div>
 {/*Chat Area*/}
-
+{loading ? (
+      <div className="flex h-[calc(100%-120px)] items-center justify-center">
+        <Loading size="lg" color="blue" text="Loading messages..." />
+      </div>
+    ) : (
 <div className="flex flex-col h-[calc(100%-120px)] overflow-y-scroll p-4 pb-6 space-y-4 scrollbar-thin scrollbar-thumb-purple-600/30 scrollbar-track-transparent">
   {messages.map((mes, i) => (
     <div 
@@ -171,7 +178,7 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
   ))}
   <div ref={scrollEnd}></div>
 </div>
-
+    )}
 
 
 

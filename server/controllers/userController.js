@@ -54,7 +54,7 @@ export const login = async (req, res) => {
     if(!email || !password){
         return res.json({success: false, message: "Fill all required data"});
     }
-
+    
     const userData = await User.findOne({email});
 
     if (!userData) {
