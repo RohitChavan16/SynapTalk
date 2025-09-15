@@ -8,7 +8,7 @@ import toast from 'react-hot-toast';
 
 const ChatSidebar = () => {
 
-  const { getUsers, users, selectedUser, setSelectedUser, unseenMessages, setUnseenMessages } = useContext(ChatContext);
+  const { getUsers, users, selectedUser, setSelectedUser, unseenMessages, setUnseenMessages, newGroupHandle } = useContext(ChatContext);
   const { logout, onlineUsers } = useContext(AuthContext);
   const [dropDown, setDropDown] = useState(false);
   const navigate = useNavigate();
@@ -19,6 +19,7 @@ const ChatSidebar = () => {
   const [groupName, setGroupName] = useState("");
   const [groupDesc, setGroupDesc] = useState("");
   const [groupPrivacy, setGroupPrivacy] = useState("");
+  const [selectedGrpImg, setSelectedGrpImg] = useState("");
 
   const handleClickContact = () => {
     navigate("/contacts"); // redirect to contacts page
@@ -30,31 +31,55 @@ const ChatSidebar = () => {
       setDropDown(false);
   }
 
-   const handleCheckboxChange = (id) => {
-    if (selectedNewGroupMembers.includes(id)) {
+   const handleCheckboxChange = (user) => {
+    if (selectedNewGroupMembers.includes(user)) {
       // if already selected → remove
-      setSelectedNewGroupMembers(selectedNewGroupMembers.filter((m) => m !== id));
+      setSelectedNewGroupMembers(selectedNewGroupMembers.filter((m) => m !== user));
     } else {
       // if not selected → add
-      setSelectedNewGroupMembers([...selectedNewGroupMembers, id]);
+      setSelectedNewGroupMembers([...selectedNewGroupMembers, user]);
     }
   };
 
   const CreateNewGroup = () => {
-      if(selectedNewGroupMembers.length < 1){
+      if(selectedNewGroupMembers.length <= 1){
         toast.error("Select atleast any 2 member for a group");
-      }
+      } else {
       setNewGroup(false);
       setShowModal(true);
+      }
   }
 
-  const handleCreateGroup = () => {
+  const cancelNewGroup = () => {
+     setShowModal(false);
+     setSelectedNewGroupMembers([]);
+     setSelectedGrpImg("");
+  }
+
+  const handleCreateGroup = async(e) => {
+    e.preventDefault();
     const groupData = {
       name: groupName,
       description: groupDesc,
-      members: selectedMembers,
+      privacy: groupPrivacy,
+      
+      members: selectedNewGroupMembers,
     };
     setShowModal(false);
+    setSelectedNewGroupMembers([]);
+    
+    if(!selectedGrpImg){
+      await newGroupHandle({groupData});
+      navigate("/");
+      return;
+    }
+    const reader = new FileReader();
+    reader.readAsDataURL(selectedGrpImg);
+    reader.onload = async () => {
+      const base64Image = reader.result;
+      await newGroupHandle({groupPic: base64Image, groupData});
+      navigate("/");
+    }
   }
 
   const filteredUsers = input
@@ -174,8 +199,8 @@ const ChatSidebar = () => {
           <input
             type="checkbox"
             id={`user-${user._id}`}
-            checked={selectedNewGroupMembers.includes(user._id)}
-            onChange={() => handleCheckboxChange(user._id)}
+            checked={selectedNewGroupMembers.includes(user)}
+            onChange={() => handleCheckboxChange(user)}
             className={`w-4 h-4 cursor-pointer ${newGroup ? "" : "hidden"}`}
           />
              
@@ -228,76 +253,104 @@ const ChatSidebar = () => {
       {/* Plus sign overlay */}
 
 
+
+
+
+
   {showModal && (
   <div className="absolute inset-0 bg-black/50 rounded-xl backdrop-blur-sm flex justify-center items-center z-20">
     <div className="bg-violet-500/30 backdrop-blur-3xl border border-blue-600  p-6 rounded-lg w-80 shadow-[1px_4px_60px_-12px_rgba(14,165,233,0.5)] ">
       <h2 className="text-xl font-bold mb-4">Create New Group</h2>
-      <input type="text" placeholder="Enter group name" value={groupName} onChange={(e) => setGroupName(e.target.value)} className="border w-full p-2 mb-3 rounded" /> 
-      <textarea placeholder="Enter group description (optional)" value={groupDesc} onChange={(e) => setGroupDesc(e.target.value)} className="border w-full p-2 mb-3 rounded" />
-
+     
       <div className="mb-4">
-          <label className="block text-gray-600 text-sm mb-1">Group Name</label>
+          <label className="block text-gray-400 text-sm mb-1">Group Name</label>
           <input
             type="text"
             value={groupName}
             onChange={(e) => setGroupName(e.target.value)}
-            className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-sky-500"
+            className="w-full border focus:outline-none focus:ring-0 border-[#858ad4b7] rounded-lg p-2 "
             placeholder="Enter group name"
           />
         </div>
 
         {/* Group Description */}
         <div className="mb-4">
-          <label className="block text-gray-600 text-sm mb-1">Description</label>
+          <label className="block text-gray-400 text-sm mb-1">Description</label>
           <textarea
             value={groupDesc}
             onChange={(e) => setGroupDesc(e.target.value)}
-            className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-sky-500"
+            className="w-full border focus:outline-none focus:ring-0 border-[#858ad4b7]  rounded-lg p-2"
             placeholder="Write something about the group..."
           />
         </div>
         
 
         {/* Privacy Setting */}
-        <div className="mb-4">
-          <label className="block text-gray-600 text-sm mb-1">Privacy</label>
+        <div className="mb-2">
+          <label className="block text-gray-400 text-sm mb-1">Privacy</label>
           <select
             value={groupPrivacy}
             onChange={(e) => setGroupPrivacy(e.target.value)}
-            className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-sky-500"
+            className="w-full border cursor-pointer focus:outline-none focus:ring-0 border-[#858ad4b7] rounded-lg p-2 "
           >
-            <option value="public">🌍 Public</option>
-            <option value="private">🔒 Private</option>
-            <option value="hidden">🙈 Hidden</option>
+            <option value="public" className="bg-orange-500 cursor-pointer ">🌍 Public</option>
+            <option value="private" className="bg-orange-400 cursor-pointer">🔒 Private</option>
           </select>
         </div>
+         
+
+
+        {/* Group Profile Photo */}
+ 
+         <div className="mb-2">
+          <label className="block text-gray-300 text-sm mb-2">Group Photo</label>
+            <label htmlFor="avatar" className='flex items-center gap-3 cursor-pointer'>
+             <input onChange={(e)=>setSelectedGrpImg(e.target.files[0])} type="file" id='avatar' accept='.png, .jpg, .jpeg' hidden/>
+              <img src={selectedGrpImg ? URL.createObjectURL(selectedGrpImg) : assets.avatar_icon } alt="" className={`w-12 h-12 ${selectedGrpImg && "rounded-full"}`} />
+               Upload Image
+             </label>
+         </div>
+
+
 
         {/* Members Section */}
         <div className="mb-4">
-          <label className="block text-gray-600 text-sm mb-2">Members</label>
+          <label className="block text-gray-300 text-sm mb-2">Members</label>
           <div className="flex flex-wrap gap-3">
             {selectedNewGroupMembers.map((member) => (
               <div
                 key={member.id}
-                className="flex items-center gap-2 bg-gray-100 rounded-full px-3 py-1"
+                className="flex items-center gap-1 rounded-full"
               >
+                 {member?.profilePic ? (
                 <img
-                  src={member.avatar}
-                  alt={member.name}
-                  className="w-8 h-8 rounded-full"
+                src={member.profilePic}
+                alt={member.fullName}
+                className="w-[42px] h-[42px] rounded-full object-cover border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)]"
                 />
-                <span className="text-sm font-medium">{member.name}</span>
+               ) : (
+                     <div className="w-[42px] h-[42px] rounded-full flex items-center justify-center 
+                      text-white text-sm font-bold border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)] 
+                      bg-gradient-to-r from-[#ff4800] via-pink-500 to-[#d31b74]">
+                      {member?.fullName
+                      ?.split(" ")
+                      .map((n) => n[0])
+                      .join("")
+                      .toUpperCase()
+                      .slice(0, 2)}
+                     </div>
+                    )}
               </div>
             ))}
           </div>
         </div>
 
-      <div className="flex justify-end space-x-7">
+      <div className="flex justify-end space-x-13">
         
         <button onClick={handleCreateGroup} className="px-4 py-2 cursor-pointer bg-green-600 text-white rounded">
-          ✅ Create Group
+          Create Group
         </button>
-        <button onClick={() => setShowModal(false)} className="px-4 py-2 bg-red-600/90 cursor-pointer rounded">
+        <button onClick={cancelNewGroup} className="px-4 py-2 bg-red-600/90  cursor-pointer rounded">
           Cancel
         </button>
       </div>

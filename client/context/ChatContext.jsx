@@ -124,6 +124,27 @@ const subscribeToMessages = async () => {
     if(socket) socket.off("newMessage");
   }
 
+
+  const newGroupHandle = async({groupPic, groupData}) => {
+      try{
+
+        const payload = { ...groupData };
+      if (groupPic) {
+        payload.groupPic = groupPic;
+      }
+
+        const formed = await axios.post("/api/group/new-group", payload);
+        if(formed.success){
+           toast.success("Group created successfully");
+           return ;
+        }
+        toast.error(data.message);
+      } catch(error) {
+         toast.error(error.message);
+      }
+  }
+
+
   useEffect(() => {
     subscribeToMessages();
     return () => unsubscribeFromMessages();
@@ -140,7 +161,8 @@ const subscribeToMessages = async () => {
     unseenMessages, 
     setUnseenMessages, 
     selectedProfile, 
-    setSelectedProfile
+    setSelectedProfile,
+    newGroupHandle,
   }
 
   return (
