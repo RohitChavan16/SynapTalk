@@ -62,7 +62,6 @@ const ChatSidebar = () => {
       name: groupName,
       description: groupDesc,
       privacy: groupPrivacy,
-      
       members: selectedNewGroupMembers,
     };
     setShowModal(false);
@@ -79,6 +78,7 @@ const ChatSidebar = () => {
       const base64Image = reader.result;
       await newGroupHandle({groupPic: base64Image, groupData});
       navigate("/");
+      
     }
   }
 

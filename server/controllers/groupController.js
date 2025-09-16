@@ -1,6 +1,7 @@
 import express from 'express';
+import Group from '../models/Group.js';
 
-export const newGroup = async () => {
+export const newGroup = async (req, res) => {
        try {
     const { name, description, privacy, members, groupPic } = req.body;
 
@@ -13,8 +14,8 @@ export const newGroup = async () => {
       description,
       privacy,
       members,
-      groupPic, // optional: can be base64 or a URL
-      admin: req.user._id, // if you want creator as admin
+      groupPic, 
+      admins: [req.user._id],
     });
 
     const savedGroup = await group.save();

@@ -138,7 +138,7 @@ const subscribeToMessages = async () => {
            toast.success("Group created successfully");
            return ;
         }
-        toast.error(data.message);
+        toast.error(formed.message);
       } catch(error) {
          toast.error(error.message);
       }
