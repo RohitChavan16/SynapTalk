@@ -8,7 +8,7 @@ import toast from 'react-hot-toast';
 
 const ChatSidebar = () => {
 
-  const { getUsers, users, selectedUser, setSelectedUser, unseenMessages, setUnseenMessages, newGroupHandle } = useContext(ChatContext);
+  const { getUsers, users, selectedUser, setSelectedUser, unseenMessages, setUnseenMessages, newGroupHandle, groups, setGroups, fetchGroups, selectedGrp, setSelectedGrp } = useContext(ChatContext);
   const { logout, onlineUsers } = useContext(AuthContext);
   const [dropDown, setDropDown] = useState(false);
   const navigate = useNavigate();
@@ -18,7 +18,7 @@ const ChatSidebar = () => {
   const [showModal, setShowModal] = useState(false);
   const [groupName, setGroupName] = useState("");
   const [groupDesc, setGroupDesc] = useState("");
-  const [groupPrivacy, setGroupPrivacy] = useState("");
+  const [groupPrivacy, setGroupPrivacy] = useState("public");
   const [selectedGrpImg, setSelectedGrpImg] = useState("");
 
   const handleClickContact = () => {
@@ -77,6 +77,7 @@ const ChatSidebar = () => {
     reader.onload = async () => {
       const base64Image = reader.result;
       await newGroupHandle({groupPic: base64Image, groupData});
+      await fetchGroups(); 
       navigate("/");
       
     }
@@ -88,6 +89,7 @@ const ChatSidebar = () => {
 
   useEffect(() => {
     getUsers();
+    fetchGroups();
   }, [onlineUsers]);
 
   return (
@@ -185,6 +187,7 @@ const ChatSidebar = () => {
               onClick={() => {
                 if(!newGroup){
                 setSelectedUser(user);
+                setSelectedGrp(null);
                 setUnseenMessages((prev) => ({ ...prev, [user._id]: 0 }));
                 }
               }}
@@ -249,6 +252,97 @@ const ChatSidebar = () => {
           );
         })}
       </div>
+
+
+
+
+
+
+
+
+
+
+
+    <div className="flex flex-col divide-y divide-violet-500/20">
+        {groups.map((group) => {
+          const isSelected = selectedGrp?._id === group._id;
+          //const unseenCount = unseenMessages[user._id] || 0;
+          //const isOnline = onlineUsers.includes(user._id);
+
+          return (
+            <div
+              key={group._id}
+              onClick={() => {
+                setSelectedGrp(group);
+                setSelectedUser(null);
+                //setUnseenMessages((prev) => ({ ...prev, [user._id]: 0 }));
+                
+              }}
+              className={`relative flex items-center gap-3 p-3 cursor-pointer transition-all duration-300 rounded-lg
+                ${isSelected
+                  ? "bg-gradient-to-r from-violet-600/40 to-[#049cb0c6] shadow-[0_0_15px_rgba(255,0,255,0.5)]" 
+                  : "hover:bg-gradient-to-r hover:from-violet-500/30 hover:to-[#09a3efb4] hover:shadow-[0_0_10px_rgba(255,0,255,0.3)]"
+                }`}
+            >
+             
+
+              {/* Profile Picture */}
+              <div className="relative">
+               {group?.groupPic ? (
+                <img
+                src={group.groupPic}
+                alt={group.name}
+                className="w-[42px] h-[42px] rounded-full object-cover border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)]"
+                />
+               ) : (
+                     <div className="w-[42px] h-[42px] rounded-full flex items-center justify-center 
+                      text-white text-sm font-bold border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)] 
+                      bg-gradient-to-r from-[#ff4800] via-pink-500 to-[#d31b74]">
+                      {group?.name
+                      ?.split(" ")
+                      .map((n) => n[0])
+                      .join("")
+                      .toUpperCase()
+                      .slice(0, 2)}
+                     </div>
+                    )}
+                {/*{isOnline && (
+                  <span className="absolute bottom-0 right-0 h-3 w-3 bg-green-400 rounded-full border border-gray-900 animate-ping"></span>
+                )}*/}
+              </div>
+
+              {/* Name + Status */}
+              <div className="flex-1 min-w-0">
+                <p className="truncate font-semibold text-sm drop-shadow-[0_0_4px_rgba(255,255,255,0.6)]">{group.name}</p>
+                {/*<p className={`text-xs ${isOnline ? "text-green-400" : "text-gray-400"}`}>
+                  {isOnline ? "🟢 Online" : "⚫ Offline"}
+                </p> */}
+              </div>
+
+              {/* Unseen Messages Badge 
+              {unseenCount > 0 && (
+                <span className="absolute top-1/2 -translate-y-1/2 right-4 text-xs h-5 w-5 flex items-center justify-center rounded-full bg-gradient-to-r from-violet-500 to-pink-500 shadow-[0_0_10px_rgba(255,0,255,0.8)] text-white font-bold">
+                  {unseenCount}
+                </span>
+              )}
+                */}
+
+            </div>
+          );
+        })}
+      </div>
+
+
+
+
+
+
+
+
+
+
+
+
      
       {/* Plus sign overlay */}
 
@@ -319,7 +413,7 @@ const ChatSidebar = () => {
           <div className="flex flex-wrap gap-3">
             {selectedNewGroupMembers.map((member) => (
               <div
-                key={member.id}
+                key={member._id}
                 className="flex items-center gap-1 rounded-full"
               >
                  {member?.profilePic ? (

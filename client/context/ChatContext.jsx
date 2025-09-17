@@ -9,9 +9,11 @@ export const ChatProvider = ({ children })=>{
 const [messages, setMessages] = useState([]);
 const [users, setUsers] = useState([]);
 const [selectedUser, setSelectedUser] = useState(null);
+const [selectedGrp, setSelectedGrp] = useState(null);
 const [selectedProfile, setSelectedProfile] = useState(false);
 const [unseenMessages, setUnseenMessages] = useState({});
 const {socket, axios, privateKey} = useContext(AuthContext);
+ const [groups, setGroups] = useState([]);
 
 // function to get all users for sidebar
 
@@ -29,6 +31,17 @@ setUnseenMessages(data.unseenMessages);
     toast.error(error.message);
 }
 }
+
+const fetchGroups = async () => {
+      try {
+        const { data } = await axios.get("/api/group/get-groups");
+        if (data.success) {
+          setGroups(data.groups);
+        }
+      } catch (error) {
+        console.error("Error fetching groups:", error.message);
+      }
+    };
 
 
 const getMessages = async (userId)=>{
@@ -133,12 +146,12 @@ const subscribeToMessages = async () => {
         payload.groupPic = groupPic;
       }
 
-        const formed = await axios.post("/api/group/new-group", payload);
-        if(formed.success){
+        const { data } = await axios.post("/api/group/new-group", payload);
+        if(data.success){
            toast.success("Group created successfully");
            return ;
         }
-        toast.error(formed.message);
+        toast.error(data.message);
       } catch(error) {
          toast.error(error.message);
       }
@@ -163,6 +176,11 @@ const subscribeToMessages = async () => {
     selectedProfile, 
     setSelectedProfile,
     newGroupHandle,
+    fetchGroups,
+    groups,
+    setGroups,
+    selectedGrp,
+    setSelectedGrp,
   }
 
   return (

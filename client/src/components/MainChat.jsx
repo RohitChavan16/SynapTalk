@@ -8,7 +8,7 @@ import Loading from './Loading';
 
 const MainChat = () => {
 
-  const {messages, selectedUser, setSelectedUser, sendMessage, getMessages, selectedProfile, setSelectedProfile} = useContext(ChatContext);
+  const {messages, selectedUser, setSelectedUser, sendMessage, getMessages, selectedProfile, setSelectedProfile, selectedGrp, setSelectedGrp} = useContext(ChatContext);
   const {authUser, onlineUsers} = useContext(AuthContext);
   const scrollEnd = useRef();
   const [loading, setLoading] = useState(true);
@@ -21,14 +21,15 @@ const handleSendMessage = async (e) => {
   if (input.trim() === "") return;
 
   // Make sure selectedUser has a publicKey
-  if (!selectedUser?.publicKey) {
+  if (selectedUser && !selectedUser?.publicKey) {
     toast.error("Receiver's public key not available!");
     return;
   }
 
   await sendMessage({
     text: input.trim(),
-    receiverPublicKey: selectedUser.publicKey // 🔹 required for encryption
+    receiverPublicKey: selectedUser.publicKey
+    //groupId: selectedGrp?._id  send groupId if group chat 🔹 required for encryption
   });
 
   setInput("");
@@ -57,8 +58,12 @@ reader.onloadend = async () => {
       setLoading(true); 
       getMessages(selectedUser._id);
       setTimeout(() => setLoading(false), 1000);
-    }
-  }, [selectedUser]);
+    } else if (selectedGrp) {
+    setLoading(true);
+    getMessages(selectedGrp._id, true); // pass a flag to indicate group chat
+    setTimeout(() => setLoading(false), 1000);
+  }
+  }, [selectedUser, selectedGrp]);
 
   useEffect(() => {
         if(scrollEnd.current && messages){ 
@@ -66,20 +71,21 @@ reader.onloadend = async () => {
         }
   },[messages]);
 
-  return selectedUser ? (
+  return selectedUser || selectedGrp ? (
         <div className='h-full bg-[url("./src/assets/chatbg.png")] overflow-scroll relative backdrop-blur-lg'>
 
 <div className='flex items-center gap-3 backdrop-blur-[2px] py-3 mx-1 border-b border-stone-500'>
 <img 
 onClick={() => setSelectedProfile(prev => !prev)}
-src={selectedUser.profilePic || assets.avatar_icon} alt="" className="w-8 cursor-pointer rounded-full ml-3"/>
+src={selectedGrp ? assets.avatar_icon : selectedUser.profilePic || assets.avatar_icon} alt="" className="w-8 cursor-pointer rounded-full ml-3"/>
 
 <p 
 onClick={() => setSelectedProfile(prev => !prev)}
 className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
-{selectedUser.fullName}
-{onlineUsers.includes(selectedUser._id) && 
-  <span className="w-2 h-2 rounded-full bg-green-500"></span>}
+{selectedUser ? selectedUser.fullName : selectedGrp?.name}
+ {selectedUser && onlineUsers.includes(selectedUser._id) && 
+    <span className="w-2 h-2 rounded-full bg-green-500"></span>
+  }
 </p>
 
 
