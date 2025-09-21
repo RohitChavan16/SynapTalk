@@ -1,6 +1,7 @@
 import express from 'express';
 import Group from '../models/Group.js';
 import User from '../models/User.js';
+import { GroupMessage } from '../models/GroupMsg.js';
 
 export const newGroup = async (req, res) => {
        try {
@@ -59,3 +60,66 @@ export const getGroups = async(req, res) => {
       res.status(500).json({ success: false, message: error.message });
     }
 }
+
+
+
+
+
+export const sendGrpMsg = async (req, res) => {
+  try {
+    const { groupId, text, image } = req.body;
+
+    if (!groupId || (!text && !image)) {
+      return res.status(400).json({ error: "groupId and message required" });
+    }
+
+    // Ensure user is part of the group
+    const group = await Group.findById(groupId).populate("members", "_id");
+    if (!group) return res.status(404).json({ error: "Group not found" });
+
+    const isMember = group.members.some(
+      (m) => m._id.toString() === req.user._id.toString()
+    );
+    if (!isMember) {
+      return res.status(403).json({ error: "You are not a member of this group" });
+    }
+
+    // Save plain message
+    const message = await GroupMessage.create({
+      senderId: req.user._id,
+      groupId,
+      text,
+      image
+    });
+
+    // Populate sender for frontend display
+    const populatedMsg = await message.populate("senderId", "username avatar");
+
+    // 🔔 Emit to group socket room
+    req.io.to(groupId.toString()).emit("receiveGrpMsg", populatedMsg);
+
+    res.status(201).json(populatedMsg);
+  } catch (err) {
+    console.error("Error in sendGrpMsg:", err);
+    res.status(500).json({ error: "Failed to send group message" });
+  }
+};
+
+
+
+
+
+
+export const getGrpMessages = async (req, res) => {
+  try {
+    const { groupId } = req.params;
+
+    const messages = await GroupMessage.find({ groupId })
+      .populate("senderId", "fullName profilePic")
+      .sort({ createdAt: 1 });
+
+    res.json(messages);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch group messages" });
+  }
+};

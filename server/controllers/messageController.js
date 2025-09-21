@@ -3,6 +3,7 @@ import Message from "../models/Message.js";
 import cloudinary from "../lib/cloudinary.js";
 import {io, userSocketMap} from "../server.js";
 import { aes, ecc, hmac } from "../crypto/crypto.js"; 
+import Group from "../models/Group.js";
 
 export const getUsersForSidebar = async (req, res) => {
   try {
@@ -216,6 +217,27 @@ export const getMessages = async (req, res) => {
     res.json({success: false, message: error.message});
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 export const markMessageSeen = async (req, res) => {
   try{

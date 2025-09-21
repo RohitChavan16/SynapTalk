@@ -93,8 +93,57 @@ try {
 }
 
 
+
+
+
+
+const sendGrpMsg = async ({ text, image, groupId }) => {
+  try {
+    const payload = { text, image, groupId };
+    const { data } = await axios.post("/api/group/send-grpmsg", payload, { withCredentials: true });
+    if (data) {
+      setMessages((prev) => [...prev, data]); // <--- add message to local state
+    }
+    return data;
+  } catch (err) {
+    toast.error(err.message);
+  }
+};
+
+
+
+const getGrpMessages = async (groupId) => {
+  try {
+    const { data } = await axios.get(`/api/group/get-grpmsg/${groupId}`, { withCredentials: true });
+     if (data) {
+      setMessages(data); // <--- update messages state
+    }
+    return data;
+  } catch (err) {
+    console.error("Error fetching group messages:", err);
+    return [];
+  }
+};
+
+
+
 const subscribeToMessages = async () => {
     if(!socket) return;
+
+    socket.on("newGroupMessage", (newMessage) => {
+  if (selectedGrp && newMessage.groupId === selectedGrp._id) {
+    setMessages((prev) => [...prev, newMessage]);
+  } else {
+    // 🔹 Optionally: add unseen group counter
+    setUnseenMessages((prev) => ({
+      ...prev,
+      [newMessage.groupId]: prev[newMessage.groupId] 
+        ? prev[newMessage.groupId] + 1 
+        : 1
+    }));
+  }
+});
+
 
     socket.on("newMessage", async (newMessage) => {
       if(selectedUser && newMessage.senderId === selectedUser._id) {
@@ -134,7 +183,10 @@ const subscribeToMessages = async () => {
   }
 
   const unsubscribeFromMessages = () => {
-    if(socket) socket.off("newMessage");
+    if (socket) {
+  socket.off("newMessage");
+  socket.off("newGroupMessage"); // <--- new
+}
   }
 
 
@@ -161,7 +213,7 @@ const subscribeToMessages = async () => {
   useEffect(() => {
     subscribeToMessages();
     return () => unsubscribeFromMessages();
-  }, [socket, selectedUser, privateKey])
+  }, [socket, selectedUser, privateKey, selectedGrp])
 
   const value = {
     messages, 
@@ -181,6 +233,8 @@ const subscribeToMessages = async () => {
     setGroups,
     selectedGrp,
     setSelectedGrp,
+    sendGrpMsg,
+    getGrpMessages,
   }
 
   return (

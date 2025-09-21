@@ -8,7 +8,7 @@ import Loading from './Loading';
 
 const MainChat = () => {
 
-  const {messages, selectedUser, setSelectedUser, sendMessage, getMessages, selectedProfile, setSelectedProfile, selectedGrp, setSelectedGrp} = useContext(ChatContext);
+  const {messages, selectedUser, setSelectedUser, sendMessage, getMessages, selectedProfile, setSelectedProfile, selectedGrp, setSelectedGrp, sendGrpMsg, getGrpMessages} = useContext(ChatContext);
   const {authUser, onlineUsers} = useContext(AuthContext);
   const scrollEnd = useRef();
   const [loading, setLoading] = useState(true);
@@ -21,6 +21,7 @@ const handleSendMessage = async (e) => {
   if (input.trim() === "") return;
 
   // Make sure selectedUser has a publicKey
+  if (selectedUser) {
   if (selectedUser && !selectedUser?.publicKey) {
     toast.error("Receiver's public key not available!");
     return;
@@ -31,6 +32,13 @@ const handleSendMessage = async (e) => {
     receiverPublicKey: selectedUser.publicKey
     //groupId: selectedGrp?._id  send groupId if group chat 🔹 required for encryption
   });
+} else if (selectedGrp) {
+    // group chat (plain)
+    await sendGrpMsg({
+      text: input.trim(),
+      groupId: selectedGrp._id
+    });
+  }
 
   setInput("");
 };
@@ -47,11 +55,21 @@ return;
 
 const reader = new FileReader();
 reader.onloadend = async () => {
+  if (selectedUser) {
     await sendMessage({image: reader.result});
+  } else if (selectedGrp) {
+      await sendGrpMsg({ image: reader.result, groupId: selectedGrp._id });
+    }
     e.target.value = ""
-}
+} 
   reader.readAsDataURL(file);
 }
+
+
+const getSenderId = (mes) => {
+  return typeof mes.senderId === "object" ? mes.senderId._id : mes.senderId;
+};
+
 
   useEffect(() => {
     if(selectedUser){
@@ -60,7 +78,7 @@ reader.onloadend = async () => {
       setTimeout(() => setLoading(false), 1000);
     } else if (selectedGrp) {
     setLoading(true);
-    getMessages(selectedGrp._id, true); // pass a flag to indicate group chat
+    getGrpMessages(selectedGrp._id, true); // pass a flag to indicate group chat
     setTimeout(() => setLoading(false), 1000);
   }
   }, [selectedUser, selectedGrp]);
@@ -103,30 +121,44 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
     <div 
       key={i} 
       className={`flex items-end gap-3 transition-all duration-300 ease-out animate-fadeIn ${
-        mes.senderId !== authUser._id ? "justify-start" : "justify-end"
+        getSenderId(mes) !== authUser._id ? "justify-start" : "justify-end"
       }`}
       style={{animationDelay: `${i * 0.05}s`}}
     >
       {/* Avatar for received messages (left side) */}
-      {mes.senderId !== authUser._id && (
-        <div className="flex flex-col items-center gap-1 flex-shrink-0">
-          <img 
-            src={
-              selectedUser?.profilePic || assets.avatar_icon
-            } 
-            alt="" 
-            className="w-8 h-8 rounded-full border-2 border-white/20 shadow-lg hover:border-purple-400/50 transition-all duration-300" 
-          />
-          <p className="text-xs text-gray-400 font-medium">{formatMessageTime(mes.createdAt)}</p>
-        </div>
-      )}
+      {getSenderId(mes) !== authUser._id && (
+  <div className="flex flex-col items-center gap-1 flex-shrink-0">
+    <img 
+      src={mes.senderId?.profilePic || assets.avatar_icon} 
+      alt="" 
+      className="w-8 h-8 rounded-full border-2 border-white/20 shadow-lg hover:border-purple-400/50 transition-all duration-300" 
+    />
+    {/* Show sender name in group chat */}
+    {selectedGrp && (
+      <p className="text-xs text-purple-400 font-semibold">
+        {mes.senderId?.fullName || "Unknown"}
+      </p>
+    )}
+    <p className="text-xs text-gray-400 font-medium">
+      {formatMessageTime(mes.createdAt)}
+    </p>
+  </div>
+)}
+
 
       {/* Message Content */}
       <div className={`flex flex-col max-w-[320px] ${mes.senderId === authUser._id ? 'items-end' : 'items-start'}`}>
         {/* Message Image (if exists) */}
+        {selectedGrp &&
+    getSenderId(mes) !== authUser._id &&
+    mes.senderId?.fullName && (
+      <span className="">
+        
+      </span>
+    )}
         {mes.image ? (
           <div className={`relative group overflow-hidden rounded-2xl shadow-xl border-2 transition-all duration-300 hover:shadow-2xl hover:scale-[1.02] ${
-            mes.senderId === authUser._id 
+            getSenderId(mes) === authUser._id 
               ? 'border-purple-500/40 bg-gradient-to-br from-purple-600/10 to-violet-600/10' 
               : 'border-gray-600/40 bg-gradient-to-br from-gray-700/10 to-gray-800/10'
           }`}>
@@ -153,7 +185,7 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
           <div className="relative">
             <p 
               className={`px-4 py-3 max-w-[280px] text-sm font-light rounded-2xl shadow-lg backdrop-blur-sm transition-all duration-300 hover:shadow-xl break-words leading-relaxed ${
-                mes.senderId === authUser._id 
+                getSenderId(mes) === authUser._id 
                   ? "bg-gradient-to-br from-[#296dff] to-[#4f029d] border-2 border-purple-400/30 text-white rounded-br-md shadow-purple-500/20" 
                   : "bg-gradient-to-br from-gray-600/80 to-gray-900/90 border-2 border-gray-600/30 text-white rounded-bl-md shadow-gray-500/20"
               }`}
@@ -168,7 +200,7 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
       </div>
 
       {/* Avatar + Time for sent messages (right side) */}
-      {mes.senderId === authUser._id && (
+      {getSenderId(mes) === authUser._id && (
         <div className="flex flex-col items-center gap-1 flex-shrink-0">
           <img 
             src={
@@ -177,6 +209,11 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
             alt="" 
             className="w-8 h-8 rounded-full border-2 border-white/20 shadow-lg hover:border-purple-400/50 transition-all duration-300" 
           />
+          {selectedGrp && (
+      <p className="text-xs text-purple-400 font-semibold">
+        {"You"}
+      </p>
+    )}
           <p className="text-xs text-gray-400 font-medium">{formatMessageTime(mes.createdAt)}</p>
         </div>
       )}

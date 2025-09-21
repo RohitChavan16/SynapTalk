@@ -21,6 +21,12 @@ export const io = new Server(server, {
   },
 });
 
+app.use((req, res, next) => {
+  req.io = io;  // attach socket.io to every request
+  next();
+});
+
+
 // Store online users
 export const userSocketMap = {};
 
@@ -36,6 +42,19 @@ io.on("connection", (socket) => {
   // Emit online users to all connected clients
   io.emit("getOnlineUsers", Object.keys(userSocketMap));
 
+    // 🔹 Join Group Room
+  socket.on("joinGroup", (groupId) => {
+    console.log(`User ${userId} joined group ${groupId}`);
+    socket.join(groupId); // join socket room
+  });
+
+  // 🔹 Leave Group Room (optional, on switching)
+  socket.on("leaveGroup", (groupId) => {
+    console.log(`User ${userId} left group ${groupId}`);
+    socket.leave(groupId);
+  });
+
+  
   socket.on("disconnect", () => {
     console.log("User Disconnected", userId);
     delete userSocketMap[userId];

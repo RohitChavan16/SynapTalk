@@ -7,6 +7,7 @@ import { Toaster } from "react-hot-toast"
 import { useContext } from 'react'
 import { AuthContext } from '../context/AuthContext'
 import Contacts from './pages/Contact'
+import VideoCalling from './pages/VideoCalling'
 
 const App = () => {
 
@@ -26,6 +27,7 @@ const App = () => {
         <Route path="/login" element={!authUser ? <Login /> : <Navigate to="/" />} />
         <Route path="/profile" element={authUser ? <Profile /> : <Navigate to="/login" />} />
         <Route path="/contacts" element={authUser ? <Contacts /> : <Navigate to="/login" />} />
+        <Route path="/call" element={authUser ? <VideoCalling /> : <Navigate to="/login" />} />
       </Routes>
     </div>
   )
