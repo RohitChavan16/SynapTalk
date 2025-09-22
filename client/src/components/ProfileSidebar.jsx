@@ -25,6 +25,7 @@ import {
   Music,
   Video as VideoIcon
 } from 'lucide-react';
+import { CallContext } from '../../context/CallContext';
 
 const ProfileSidebar = () => {
   const {selectedUser, messages} = useContext(ChatContext);
@@ -35,6 +36,14 @@ const ProfileSidebar = () => {
   const [msgAudios, setMsgAudios] = useState([]);
   const [msgVideos, setMsgVideos] = useState([]);
   const [isNotificationMuted, setIsNotificationMuted] = useState(false);
+  const { handleJoinCall, isInCall } = useContext(CallContext);
+
+  const profileUserId = selectedUser?._id;
+
+  const onCallClick = () => {
+    if (!profileUserId) return;
+    handleJoinCall(profileUserId);
+  };
   
   useEffect(()=>{
     setMsgImages(
@@ -136,19 +145,19 @@ const ProfileSidebar = () => {
 
       {/* Quick Action Buttons */}
       <div className="flex items-center justify-around py-4 px-5">
-        <button className="flex flex-col items-center gap-1 p-2 hover:bg-white/10 rounded-lg transition-colors">
+        <button className="flex flex-col items-center cursor-pointer gap-1 p-2 hover:bg-white/10 rounded-lg transition-colors">
           <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
             <Phone className="w-5 h-5 text-white" />
           </div>
           <span className="text-xs text-white/70">Audio</span>
         </button>
-        <button className="flex flex-col items-center gap-1 p-2 hover:bg-white/10 rounded-lg transition-colors">
+        <button onClick={onCallClick} disabled={isInCall} className="flex flex-col cursor-pointer items-center gap-1 p-2 hover:bg-white/10 rounded-lg transition-colors">
           <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
             <Video className="w-5 h-5 text-white" />
           </div>
           <span className="text-xs text-white/70">Video</span>
         </button>
-        <button className="flex flex-col items-center gap-1 p-2 hover:bg-white/10 rounded-lg transition-colors">
+        <button className="flex flex-col items-center gap-1 p-2 cursor-pointer hover:bg-white/10 rounded-lg transition-colors">
           <div className="w-10 h-10 bg-gray-500 rounded-full flex items-center justify-center">
             <Search className="w-5 h-5 text-white" />
           </div>

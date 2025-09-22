@@ -8,9 +8,9 @@ import { WebRTCService } from '../services/WebRTCService';
 import { SignalingService } from '../services/SignalingService';
 
 const VideoCalling = ({ 
-  roomId = 'default-room',
-  userId = 'user-' + Date.now(),
-  onCallEnd = () => {},
+  roomId,
+  userId,
+  onCallEnd,
   remoteUserId = null 
 }) => {
   // State management

@@ -1,22 +1,36 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import Home from './pages/Home'
 import Login from './pages/Login'
 import Profile from './pages/Profile'
-import { Toaster } from "react-hot-toast"
+import toast, { Toaster } from "react-hot-toast"
 import { useContext } from 'react'
 import { AuthContext } from '../context/AuthContext'
 import Contacts from './pages/Contact'
 import VideoCalling from './pages/VideoCalling'
+import axios from 'axios'
+import { CallContext } from '../context/CallContext'
 
 const App = () => {
 
   const {authUser, loading} = useContext(AuthContext);
+const { isInCall, roomId, handleCallEnd } = useContext(CallContext);
 
-   if (loading) {
-    // Show nothing or a loader until auth check completes
-    return <div className="flex justify-center items-center h-screen">Loading...</div>
+if (loading) {
+    return <div className="flex justify-center items-center h-screen">Loading...</div>;
   }
+
+  if (isInCall) {
+    return (
+      <VideoCalling
+        roomId={roomId}
+        userId={authUser._id}
+        onCallEnd={handleCallEnd}
+        userName={authUser.fullName}
+      />
+    );
+  }
+
 
 
   return (
