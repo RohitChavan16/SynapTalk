@@ -47,5 +47,5 @@ if (loading) {
   )
 }
 
-export default App
+export default App;
 

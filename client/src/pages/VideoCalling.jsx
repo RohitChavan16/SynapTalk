@@ -4,16 +4,16 @@ import {
   RotateCcw, Volume2, VolumeX, Pause, Play,
   Maximize2, RotateCw, Settings
 } from 'lucide-react';
-import { WebRTCService } from '../services/WebRTCService';
-import { SignalingService } from '../services/SignalingService';
+import { io } from "socket.io-client";
 
 const VideoCalling = ({ 
   roomId,
   userId,
   onCallEnd,
-  remoteUserId = null 
+  remoteUserId = null,
+  signalingServerUrl = 'http://localhost:5001' // use http or ws:// depending on your server
 }) => {
-  // State management
+  // State
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [callDuration, setCallDuration] = useState(0);
@@ -25,6 +25,7 @@ const VideoCalling = ({
   const [currentCamera, setCurrentCamera] = useState('user');
   const [connectionQuality, setConnectionQuality] = useState(5);
   const [isRecording, setIsRecording] = useState(false);
+  const [incomingCall, setIncomingCall] = useState(null);
   const [showNetworkStats, setShowNetworkStats] = useState(false);
   const [networkStats, setNetworkStats] = useState({
     bitrate: '0 Mbps',
@@ -36,43 +37,44 @@ const VideoCalling = ({
   // Refs
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
-  const webRTCService = useRef(null);
-  const signalingService = useRef(null);
+  const peerConnection = useRef(null);
+  const localStream = useRef(null);
+  const socket = useRef(null);
   const callStartTime = useRef(null);
   const callTimer = useRef(null);
 
-  // Initialize services
+  // WebRTC config
+  const rtcConfig = {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' }
+    ],
+    iceCandidatePoolSize: 10
+  };
+
+  // Initialize call
   useEffect(() => {
     const initializeCall = async () => {
       try {
         setIsLoading(true);
-        
-        // Initialize signaling service
-        signalingService.current = new SignalingService(
-          process.env.REACT_APP_SIGNALING_SERVER_URL || 'ws://localhost:8080'
-        );
-        
-        // Initialize WebRTC service
-        webRTCService.current = new WebRTCService({
-          onRemoteStream: handleRemoteStream,
-          onConnectionStateChange: handleConnectionStateChange,
-          onIceCandidate: handleIceCandidate,
-          onNetworkStats: handleNetworkStats
-        });
+        setCallStatus('Initializing...');
 
-        // Set up signaling service callbacks
-        signalingService.current.onMessage = handleSignalingMessage;
-        signalingService.current.onConnected = () => {
-          console.log('Signaling connected');
-          joinRoom();
-        };
+        // Initialize Socket.IO connection
+        await initializeSocket();
 
-        await signalingService.current.connect();
+        // Initialize WebRTC peer connection
+        initializePeerConnection();
+
+        // Start local stream
         await startLocalStream();
-        
+
+        // Join call room
+        joinCallRoom();
+
         setIsLoading(false);
         startCallTimer();
-        
+
       } catch (error) {
         console.error('Failed to initialize call:', error);
         setCallStatus('Connection failed');
@@ -87,51 +89,144 @@ const VideoCalling = ({
     };
   }, [roomId, userId]);
 
-  // Start local video stream
+  // -------------------
+  // Socket.IO Setup
+  // -------------------
+  const initializeSocket = () => {
+    return new Promise((resolve, reject) => {
+      try {
+        socket.current = io(signalingServerUrl, {
+          query: { userId },
+          transports: ["websocket"]
+        });
+
+        socket.current.on('connect', () => {
+          console.log('Socket connected:', socket.current.id);
+          setCallStatus('Connected to server');
+          resolve();
+        });
+
+        socket.current.on('webrtc-offer', handleSignalingMessage);
+        socket.current.on('webrtc-answer', handleSignalingMessage);
+        socket.current.on('webrtc-ice-candidate', handleSignalingMessage);
+        socket.current.on('user-joined-call', handleSignalingMessage);
+        socket.current.on('user-left-call', handleSignalingMessage);
+        socket.current.on('call-ended', handleSignalingMessage);
+
+        socket.current.on('connect_error', (err) => {
+          console.error('Socket connection error:', err.message);
+          reject(err);
+        });
+
+      } catch (error) {
+        reject(error);
+      }
+    });
+  };
+
+  const sendSignalingMessage = (message) => {
+    if (!socket.current) return;
+    socket.current.emit(message.type, message);
+  };
+
+  // -------------------
+  // WebRTC Setup
+  // -------------------
+  const initializePeerConnection = () => {
+    peerConnection.current = new RTCPeerConnection(rtcConfig);
+
+    peerConnection.current.ontrack = (event) => {
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = event.streams[0];
+        setIsConnected(true);
+        setCallStatus('Connected');
+      }
+    };
+
+    peerConnection.current.onicecandidate = (event) => {
+      if (event.candidate) {
+        sendSignalingMessage({
+          type: 'webrtc-ice-candidate',
+          roomId,
+          targetUserId: remoteUserId,
+          candidate: event.candidate
+        });
+      }
+    };
+
+    peerConnection.current.onconnectionstatechange = () => {
+      const state = peerConnection.current.connectionState;
+      console.log('Connection state:', state);
+      setCallStatus(state);
+      updateConnectionQuality(state);
+    };
+  };
+
   const startLocalStream = async () => {
     try {
-      const stream = await webRTCService.current.startLocalStream({
+      const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: currentCamera },
         audio: true
       });
-      
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
+
+      localStream.current = stream;
+
+      if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+
+      if (peerConnection.current) {
+        stream.getTracks().forEach(track => {
+          peerConnection.current.addTrack(track, stream);
+        });
       }
+
+      return stream;
     } catch (error) {
       console.error('Error accessing media devices:', error);
       throw error;
     }
   };
 
-  // Join room for signaling
-  const joinRoom = () => {
-    signalingService.current.send({
-      type: 'join-room',
+  const joinCallRoom = () => {
+    sendSignalingMessage({
+      type: 'join-call-room',
       roomId,
-      userId
+      userInfo: { userId }
     });
   };
 
-  // Handle signaling messages
+  // -------------------
+  // Signaling Handlers
+  // -------------------
   const handleSignalingMessage = async (message) => {
+  try {
     switch (message.type) {
-      case 'user-joined':
-        if (message.userId !== userId) {
-          setCallStatus('User joined');
-          await webRTCService.current.createOffer();
+      case 'call-request':
+        if (message.from !== userId) {
+          // Show incoming call UI
+          setIncomingCall({ from: message.from });
+          setCallStatus('Incoming call...');
         }
         break;
-      case 'offer':
-        await webRTCService.current.handleOffer(message.offer);
+      case 'call-rejected':
+        setCallStatus('Call rejected by user');
+        cleanup();
         break;
-      case 'answer':
-        await webRTCService.current.handleAnswer(message.answer);
+      case 'user-joined-call':
+        if (message.userId !== userId) {
+          setCallStatus('User joined');
+          await createOffer();
+        }
         break;
-      case 'ice-candidate':
-        await webRTCService.current.handleIceCandidate(message.candidate);
+      case 'webrtc-offer':
+        await handleOffer(message.offer);
         break;
-      case 'user-left':
+      case 'webrtc-answer':
+        await handleAnswer(message.answer);
+        break;
+      case 'webrtc-ice-candidate':
+        await handleIceCandidate(message.candidate);
+        break;
+      case 'user-left-call':
         setCallStatus('User left');
         handleUserLeft();
         break;
@@ -139,51 +234,63 @@ const VideoCalling = ({
         handleCallEnded();
         break;
     }
+  } catch (error) {
+    console.error('Error handling signaling message:', error);
+  }
+};
+
+
+const acceptCall = async () => {
+  setIncomingCall(null);
+  setCallStatus('Connecting...');
+  await createAnswer(incomingCall.offer); // use the offer if included
+  joinCallRoom(); // join the room after accepting
+};
+
+const rejectCall = () => {
+  sendSignalingMessage({
+    type: 'call-rejected',
+    roomId,
+    targetUserId: incomingCall.from
+  });
+  setIncomingCall(null);
+  setCallStatus('Call rejected');
+};
+
+
+  const createOffer = async () => {
+    if (!peerConnection.current) return;
+    const offer = await peerConnection.current.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
+    await peerConnection.current.setLocalDescription(offer);
+    sendSignalingMessage({ type: 'webrtc-offer', roomId, targetUserId: remoteUserId, offer });
   };
 
-  // Handle remote stream
-  const handleRemoteStream = (stream) => {
-    if (remoteVideoRef.current) {
-      remoteVideoRef.current.srcObject = stream;
-      setIsConnected(true);
-      setCallStatus('Connected');
-    }
+  const handleOffer = async (offer) => {
+    if (!peerConnection.current) return;
+    await peerConnection.current.setRemoteDescription(new RTCSessionDescription(offer));
+    const answer = await peerConnection.current.createAnswer();
+    await peerConnection.current.setLocalDescription(answer);
+    sendSignalingMessage({ type: 'webrtc-answer', roomId, targetUserId: remoteUserId, answer });
   };
 
-  // Handle connection state changes
-  const handleConnectionStateChange = (state) => {
-    setCallStatus(state);
-    updateConnectionQuality(state);
+  const handleAnswer = async (answer) => {
+    if (!peerConnection.current) return;
+    await peerConnection.current.setRemoteDescription(new RTCSessionDescription(answer));
   };
 
-  // Handle ICE candidates
-  const handleIceCandidate = (candidate) => {
-    signalingService.current.send({
-      type: 'ice-candidate',
-      candidate,
-      roomId,
-      userId
-    });
+  const handleIceCandidate = async (candidate) => {
+    if (!peerConnection.current) return;
+    await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
   };
 
-  // Handle network statistics
-  const handleNetworkStats = (stats) => {
-    setNetworkStats(stats);
-  };
-
-  // Update connection quality indicator
+  // -------------------
+  // Utility Functions
+  // -------------------
   const updateConnectionQuality = (state) => {
-    const qualityMap = {
-      'connected': 5,
-      'connecting': 3,
-      'disconnected': 1,
-      'failed': 0,
-      'closed': 0
-    };
+    const qualityMap = { connected: 5, connecting: 3, disconnected: 1, failed: 0, closed: 0 };
     setConnectionQuality(qualityMap[state] || 2);
   };
 
-  // Start call duration timer
   const startCallTimer = () => {
     callStartTime.current = new Date();
     callTimer.current = setInterval(() => {
@@ -193,37 +300,66 @@ const VideoCalling = ({
     }, 1000);
   };
 
-  // Format call duration
   const formatDuration = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    return `${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
   };
 
-  // Control functions
-  const toggleMute = useCallback(async () => {
-    const newMutedState = await webRTCService.current.toggleAudio();
-    setIsAudioMuted(newMutedState);
+  // -------------------
+  // Control Functions
+  // -------------------
+  const toggleMute = useCallback(() => {
+    if (localStream.current) {
+      const audioTrack = localStream.current.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.enabled = !audioTrack.enabled;
+        setIsAudioMuted(!audioTrack.enabled);
+        sendSignalingMessage({ type:'call-status-update', roomId, status:{ audio: audioTrack.enabled } });
+      }
+    }
   }, []);
 
-  const toggleVideo = useCallback(async () => {
-    const newVideoState = await webRTCService.current.toggleVideo();
-    setIsVideoEnabled(newVideoState);
+  const toggleVideo = useCallback(() => {
+    if (localStream.current) {
+      const videoTrack = localStream.current.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.enabled = !videoTrack.enabled;
+        setIsVideoEnabled(videoTrack.enabled);
+        sendSignalingMessage({ type:'call-status-update', roomId, status:{ video: videoTrack.enabled } });
+      }
+    }
   }, []);
 
-  const toggleHold = useCallback(async () => {
-    const newHoldState = await webRTCService.current.toggleHold();
-    setIsOnHold(newHoldState);
+  const toggleHold = useCallback(() => {
+    if (localStream.current) {
+      const tracks = localStream.current.getTracks();
+      const isCurrentlyHeld = tracks.some(track => !track.enabled);
+      tracks.forEach(track => { track.enabled = isCurrentlyHeld; });
+      setIsOnHold(!isCurrentlyHeld);
+    }
   }, []);
 
   const switchCamera = useCallback(async () => {
     try {
       const newCamera = currentCamera === 'user' ? 'environment' : 'user';
-      await webRTCService.current.switchCamera(newCamera);
+      if (!localStream.current) return;
+
+      const currentVideoTrack = localStream.current.getVideoTracks()[0];
+      if (currentVideoTrack) currentVideoTrack.stop();
+
+      const newStream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:newCamera }, audio:false });
+      const newVideoTrack = newStream.getVideoTracks()[0];
+
+      const sender = peerConnection.current.getSenders().find(s => s.track && s.track.kind==='video');
+      if (sender) await sender.replaceTrack(newVideoTrack);
+
+      const audioTrack = localStream.current.getAudioTracks()[0];
+      localStream.current = new MediaStream([newVideoTrack, audioTrack].filter(Boolean));
+
+      if (localVideoRef.current) localVideoRef.current.srcObject = localStream.current;
       setCurrentCamera(newCamera);
-    } catch (error) {
-      console.error('Error switching camera:', error);
-    }
+    } catch (error) { console.error('Error switching camera:', error); }
   }, [currentCamera]);
 
   const toggleSpeaker = useCallback(() => {
@@ -234,86 +370,40 @@ const VideoCalling = ({
   }, [isSpeakerOn]);
 
   const endCall = useCallback(() => {
-    signalingService.current.send({
-      type: 'end-call',
-      roomId,
-      userId
-    });
+    sendSignalingMessage({ type:'end-call', roomId, reason:'user_hangup' });
     cleanup();
     onCallEnd();
-  }, [roomId, userId, onCallEnd]);
+  }, [roomId, onCallEnd]);
 
   const switchVideoPositions = () => {
-    // Swap video element contents
-    const localStream = localVideoRef.current?.srcObject;
-    const remoteStream = remoteVideoRef.current?.srcObject;
-    
-    if (localVideoRef.current && remoteVideoRef.current) {
-      localVideoRef.current.srcObject = remoteStream;
-      remoteVideoRef.current.srcObject = localStream;
+    const localStreamObj = localVideoRef.current?.srcObject;
+    const remoteStreamObj = remoteVideoRef.current?.srcObject;
+    if(localVideoRef.current && remoteVideoRef.current){
+      localVideoRef.current.srcObject = remoteStreamObj;
+      remoteVideoRef.current.srcObject = localStreamObj;
     }
   };
 
   const togglePiP = async () => {
     try {
-      if (document.pictureInPictureElement) {
-        await document.exitPictureInPicture();
-      } else if (localVideoRef.current) {
-        await localVideoRef.current.requestPictureInPicture();
-      }
-    } catch (error) {
-      console.error('PiP error:', error);
-    }
+      if (document.pictureInPictureElement) await document.exitPictureInPicture();
+      else if (localVideoRef.current) await localVideoRef.current.requestPictureInPicture();
+    } catch (error) { console.error('PiP error:', error); }
   };
 
-  // Handle user left
-  const handleUserLeft = () => {
-    setIsConnected(false);
-    setCallStatus('User left');
-  };
+  const handleUserLeft = () => { setIsConnected(false); setCallStatus('User left'); };
+  const handleCallEnded = () => { cleanup(); onCallEnd(); };
 
-  // Handle call ended
-  const handleCallEnded = () => {
-    cleanup();
-    onCallEnd();
-  };
-
-  // Cleanup function
   const cleanup = () => {
-    if (callTimer.current) {
-      clearInterval(callTimer.current);
-    }
-    webRTCService.current?.cleanup();
-    signalingService.current?.disconnect();
+    if(callTimer.current) clearInterval(callTimer.current);
+    if(localStream.current) localStream.current.getTracks().forEach(track=>track.stop());
+    if(peerConnection.current) peerConnection.current.close();
+    if(socket.current && socket.current.disconnect) socket.current.disconnect();
   };
-
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyPress = (e) => {
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-      
-      switch (e.key.toLowerCase()) {
-        case 'm':
-          toggleMute();
-          break;
-        case 'v':
-          toggleVideo();
-          break;
-        case 'h':
-          toggleHold();
-          break;
-        case 'escape':
-          endCall();
-          break;
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyPress);
-    return () => document.removeEventListener('keydown', handleKeyPress);
-  }, [toggleMute, toggleVideo, toggleHold, endCall]);
 
   return (
     <div className="relative w-full h-screen bg-gray-900 overflow-hidden">
+      
       {/* Loading Overlay */}
       {isLoading && (
         <div className="absolute inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
@@ -324,25 +414,49 @@ const VideoCalling = ({
         </div>
       )}
 
-      {/* Remote Video (Main/Large) */}
-      <video
-        ref={remoteVideoRef}
-        autoPlay
-        playsInline
-        className="w-full h-full object-cover bg-gray-800"
-        poster="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIwIiBoZWlnaHQ9IjI0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzIwIiBoZWlnaHQ9IjI0MCIgZmlsbD0iIzMzMyIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LXNpemU9IjE4IiBmaWxsPSIjOTk5IiBkb21pbmFudC1iYXNlbGluZT0iY2VudHJhbCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+V2FpdGluZyBmb3IgcmVtb3RlIHZpZGVvLi4uPC90ZXh0Pjwvc3ZnPg=="
-      />
+  {incomingCall && (
+  <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50">
+    <div className="bg-gray-800 p-6 rounded-lg text-white text-center">
+      <p className="mb-4">User {incomingCall.from} is calling...</p>
+      <div className="flex justify-center gap-4">
+        <button
+          onClick={acceptCall}
+          className="bg-green-500 px-4 py-2 rounded hover:bg-green-600"
+        >
+          Accept
+        </button>
+        <button
+          onClick={rejectCall}
+          className="bg-red-500 px-4 py-2 rounded hover:bg-red-600"
+        >
+          Reject
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
-      {/* Local Video (Small/PiP) */}
-      <div className="absolute bottom-5 right-5 group">
-        <video
-          ref={localVideoRef}
-          autoPlay
-          muted
-          playsInline
-          onClick={switchVideoPositions}
-          className="w-48 h-36 md:w-52 md:h-40 rounded-xl border-2 border-white shadow-2xl cursor-pointer transition-all duration-300 hover:scale-105 hover:border-green-400 bg-gray-800"
-        />
+
+
+      {/* Remote Video (Main/Large) */}
+       {/* Remote Video */}
+    <video
+      ref={remoteVideoRef}
+      autoPlay
+      playsInline
+      className="w-full h-full object-cover bg-gray-800"
+    />
+
+    {/* Local Video */}
+    <div className="absolute bottom-5 right-5 group">
+      <video
+        ref={localVideoRef}
+        autoPlay
+        muted
+        playsInline
+        onClick={switchVideoPositions}
+        className="w-48 h-36 md:w-52 md:h-40 rounded-xl border-2 border-white shadow-2xl cursor-pointer transition-all duration-300 hover:scale-105 hover:border-green-400 bg-gray-800"
+      />
         
         {/* PiP Controls */}
         <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-1">
@@ -506,24 +620,6 @@ const VideoCalling = ({
           </button>
         </div>
       </div>
-
-      {/* Mobile Responsive Adjustments */}
-      <style jsx>{`
-        @media (max-width: 768px) {
-          .absolute.bottom-8.left-1/2 > div {
-            flex-wrap: wrap;
-            gap: 0.75rem;
-            padding: 1rem;
-          }
-          .absolute.bottom-8.left-1/2 button {
-            padding: 0.75rem;
-          }
-          .absolute.bottom-5.right-5 video {
-            width: 7rem;
-            height: 5.25rem;
-          }
-        }
-      `}</style>
     </div>
   );
 };
