@@ -42,7 +42,7 @@ const ProfileSidebar = () => {
 
   const onCallClick = () => {
     if (!profileUserId) return;
-    handleJoinCall(profileUserId);
+    handleJoinCall(profileUserId, selectedUser.fullName);
   };
   
   useEffect(()=>{

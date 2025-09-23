@@ -427,7 +427,107 @@ io.on("connection", (socket) => {
   socket.on("error", (error) => {
     console.error(`Socket error for user ${userId}:`, error);
   });
+
+
+  socket.on("call-request", (data) => {
+  const { to, from, fromName, roomId } = data;
+  console.log(`Call request from ${from} (${fromName}) to ${to}`);
+  
+  const targetSocket = getSocketByUserId(to);
+  if (targetSocket) {
+    // Send call request to target user
+    targetSocket.emit("call-request", {
+      from,
+      fromName,
+      roomId,
+      timestamp: Date.now()
+    });
+    
+    // Optionally, you can set a timeout for the call request
+    setTimeout(() => {
+      // Check if call was accepted/rejected, if not, auto-reject
+      const callerSocket = getSocketByUserId(from);
+      if (callerSocket) {
+        callerSocket.emit("call-timeout", {
+          to,
+          message: "Call request timed out"
+        });
+      }
+    }, 30000); // 30 second timeout
+    
+  } else {
+    // Target user is not online
+    socket.emit("call-error", {
+      type: "user_offline",
+      message: "User is not available",
+      targetUserId: to
+    });
+  }
 });
+
+// Handle call acceptance
+// Handle call requests
+// In your server.js, add these debug logs to existing handlers:
+socket.on("call-request", (data) => {
+  console.log("📞 SERVER: Call request received:", data);
+  const { to, from, fromName, roomId } = data;
+  
+  const targetSocket = getSocketByUserId(to);
+  console.log("🔍 SERVER: Target user socket found:", !!targetSocket);
+  console.log("🔍 SERVER: Target user ID:", to);
+  console.log("🔍 SERVER: Online users:", Object.keys(userSocketMap));
+  
+  if (targetSocket) {
+    console.log("📡 SERVER: Sending call request to target user");
+    targetSocket.emit("call-request", {
+      from,
+      fromName,
+      roomId,
+      timestamp: Date.now()
+    });
+  } else {
+    console.log("❌ SERVER: Target user not found or offline");
+    socket.emit("call-error", {
+      type: "user_offline",
+      message: "User is not available",
+      targetUserId: to
+    });
+  }
+});
+
+// Handle call acceptance
+socket.on("call-accepted", (data) => {
+  const { to, from, roomId } = data;
+  console.log(`Call accepted by ${from} for caller ${to}`);
+  
+  const callerSocket = getSocketByUserId(to);
+  if (callerSocket) {
+    callerSocket.emit("call-accepted", {
+      from,
+      roomId,
+      timestamp: Date.now()
+    });
+  }
+});
+
+// Handle call rejection
+socket.on("call-rejected", (data) => {
+  const { to, from, roomId } = data;
+  console.log(`Call rejected by ${from} for caller ${to}`);
+  
+  const callerSocket = getSocketByUserId(to);
+  if (callerSocket) {
+    callerSocket.emit("call-rejected", {
+      from,
+      roomId,
+      timestamp: Date.now()
+    });
+  }
+});
+
+});
+
+
 
 // Middleware
 app.use(express.json({ limit: "4mb" }));
