@@ -135,7 +135,24 @@ const ProfileSidebar = () => {
       
       {/* Existing Profile Header - Unchanged */}
       <div className='pt-10 flex flex-col items-center gap-2 text-xs font-light mx-auto'>
-        <img src={selectedUser?.profilePic || assets.avatar_icon} alt="" className='w-20 aspect-[1/1] rounded-full' />
+        {selectedUser?.profilePic ? (
+                <img
+                src={selectedUser.profilePic}
+                alt={selectedUser.fullName}
+                className="w-[98px] h-[98px] rounded-full object-cover border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)]"
+                />
+               ) : (
+                     <div className="w-[98px] h-[98px] rounded-full flex items-center justify-center 
+                      text-white text-3xl font-bold border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)] 
+                      bg-gradient-to-r from-[#ff4800] via-pink-500 to-[#d31b74]">
+                      {selectedUser?.fullName
+                      ?.split(" ")
+                      .map((n) => n[0])
+                      .join("")
+                      .toUpperCase()
+                      .slice(0, 2)}
+                     </div>
+                    )}
         <h1 className='px-10 text-xl font-medium mx-auto flex items-center gap-2'>
           {onlineUsers.includes(selectedUser._id) && <p className='w-2 h-2 rounded-full bg-green-500'></p>}
           {selectedUser.fullName}

@@ -5,6 +5,7 @@ import { ChatContext } from '../../context/ChatContext';
 import { AuthContext } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import Loading from './Loading';
+import { Reply, Trash2, Copy, Languages } from "lucide-react";
 
 const MainChat = () => {
 
@@ -13,6 +14,8 @@ const MainChat = () => {
   const scrollEnd = useRef();
   const [loading, setLoading] = useState(true);
   const [input, setInput] = useState('');
+  const [dropDownMsg, setDropDownMsg] = useState(false);
+  const [optMsg, setOptMsg] = useState(null);
 
   // Handle sending a message
 
@@ -93,9 +96,53 @@ const getSenderId = (mes) => {
         <div className='h-full bg-[url("./src/assets/chatbg.png")] overflow-scroll relative backdrop-blur-lg'>
 
 <div className='flex items-center gap-3 backdrop-blur-[2px] py-3 mx-1 border-b border-stone-500'>
-<img 
-onClick={() => setSelectedProfile(prev => !prev)}
-src={selectedGrp ? assets.avatar_icon : selectedUser.profilePic || assets.avatar_icon} alt="" className="w-8 cursor-pointer rounded-full ml-3"/>
+<div className="flex">
+  {/* User Avatar */}
+  {selectedUser && (
+    selectedUser.profilePic ? (
+      <img
+        src={selectedUser.profilePic}
+        alt={selectedUser.fullName}
+        onClick={() => setSelectedProfile(prev => !prev)}
+        className="w-[33px] h-[33px] rounded-full object-cover border border-violet-500 ml-4 shadow-[0_0_8px_rgba(138,43,226,0.7)]"
+      />
+    ) : (
+      <div
+        className="w-[33px] h-[33px] ml-4 rounded-full flex items-center justify-center text-white text-[11px] font-bold border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)] bg-gradient-to-r from-[#ff4800] via-pink-500 to-[#d31b74]"
+      >
+        {selectedUser.fullName
+          ?.split(" ")
+          .map((n) => n[0])
+          .join("")
+          .toUpperCase()
+          .slice(0, 2)}
+      </div>
+    )
+  )}
+
+  {/* Group Avatar */}
+  {selectedGrp && (
+    selectedGrp.groupPic ? (
+      <img
+        src={selectedGrp.groupPic}
+        alt={selectedGrp.groupName}
+        onClick={() => setSelectedGrp(null)}  
+        className="w-[33px] h-[33px] rounded-full object-cover border border-violet-500 ml-4 shadow-[0_0_8px_rgba(138,43,226,0.7)]"
+      />
+    ) : (
+      <div
+        className="w-[33px] h-[33px] ml-4 rounded-full flex items-center justify-center text-white text-[11px] font-bold border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)] bg-gradient-to-r from-[#ff4800] via-pink-500 to-[#d31b74]"
+      >
+        {selectedGrp.groupName
+          ?.split(" ")
+          .map((n) => n[0])
+          .join("")
+          .toUpperCase()
+          .slice(0, 2)}
+      </div>
+    )
+  )}
+</div>
 
 <p 
 onClick={() => setSelectedProfile(prev => !prev)}
@@ -128,11 +175,24 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
       {/* Avatar for received messages (left side) */}
       {getSenderId(mes) !== authUser._id && (
   <div className="flex flex-col items-center gap-1 flex-shrink-0">
-    <img 
-      src={mes.senderId?.profilePic || assets.avatar_icon} 
-      alt="" 
-      className="w-8 h-8 rounded-full border-2 border-white/20 shadow-lg hover:border-purple-400/50 transition-all duration-300" 
-    />
+    {mes.senderId?.profilePic ? (
+                <img
+                src={mes.senderId.profilePic}
+                alt={mes.senderId.fullName}
+                className="w-[33px] h-[33px] rounded-full object-cover border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)]"
+                />
+               ) : (
+                     <div className="w-[33px] h-[33px] rounded-full flex items-center justify-center 
+                      text-white text-[11px] font-bold border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)] 
+                      bg-gradient-to-r from-[#ff4800] via-pink-500 to-[#d31b74]">
+                      {mes.senderId?.fullName
+                      ?.split(" ")
+                      .map((n) => n[0])
+                      .join("")
+                      .toUpperCase()
+                      .slice(0, 2)}
+                     </div>
+                    )}
     {/* Show sender name in group chat */}
     {selectedGrp && (
       <p className="text-xs text-purple-400 font-semibold">
@@ -149,7 +209,7 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
       {/* Message Content */}
       <div className={`flex flex-col max-w-[320px] ${mes.senderId === authUser._id ? 'items-end' : 'items-start'}`}>
         {/* Message Image (if exists) */}
-        {selectedGrp &&
+         {selectedGrp &&
     getSenderId(mes) !== authUser._id &&
     mes.senderId?.fullName && (
       <span className="">
@@ -171,6 +231,7 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
             
             {/* Image overlay icons */}
             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+             
               <div className="flex gap-1">
                 <div className="w-6 h-6 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center">
                   <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -189,10 +250,35 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
                   ? "bg-gradient-to-br from-[#296dff] to-[#4f029d] border-2 border-purple-400/30 text-white rounded-br-md shadow-purple-500/20" 
                   : "bg-gradient-to-br from-gray-600/80 to-gray-900/90 border-2 border-gray-600/30 text-white rounded-bl-md shadow-gray-500/20"
               }`}
-            >
+            >  
+            <img src={assets.menu_icon} 
+            onClick={() => {
+              setDropDownMsg(prev => !prev)
+              setOptMsg(mes);
+            }}
+            className="absolute cursor-pointer hover:scale-115 h-4 top-1.5 right-0 z=20"/>
+       
               {mes.text}
             </p>
             
+        <div className={`absolute border bg-sky-700 border-cyan-800 rounded-3xl p-2 flex flex-col top-10 right-0 z-50 items-center gap-2 ${dropDownMsg && optMsg == mes ? "" : "hidden"}`}>
+        <div className="flex gap-2">
+          <button className="p-2 cursor-pointer rounded-full bg-white/20 hover:bg-white/30 transition">
+          <Reply className="w-5 h-5 text-white" />
+        </button>
+        <button className="p-2 cursor-pointer rounded-full bg-white/20 hover:bg-white/30 transition">
+          <Languages className="w-5 h-5 text-white" />
+        </button>
+        </div>
+        <div className="flex gap-2">
+        <button className="p-2 cursor-pointer rounded-full bg-white/20 hover:bg-white/30 transition">
+          <Copy className="w-5 h-5 text-white" />
+        </button>
+        <button className="p-2 cursor-pointer rounded-full bg-white/20 hover:bg-white/30 transition">
+          <Trash2 className="w-5 h-5 text-white" />
+        </button>
+        </div>
+      </div>
            
             
           </div>
@@ -202,13 +288,24 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
       {/* Avatar + Time for sent messages (right side) */}
       {getSenderId(mes) === authUser._id && (
         <div className="flex flex-col items-center gap-1 flex-shrink-0">
-          <img 
-            src={
-              authUser?.profilePic || assets.avatar_icon
-            } 
-            alt="" 
-            className="w-8 h-8 rounded-full border-2 border-white/20 shadow-lg hover:border-purple-400/50 transition-all duration-300" 
-          />
+          {authUser?.profilePic ? (
+                <img
+                src={authUser.profilePic}
+                alt={authUser.fullName}
+                className="w-[33px] h-[33px] rounded-full object-cover border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)]"
+                />
+               ) : (
+                     <div className="w-[33px] h-[33px] rounded-full flex items-center justify-center 
+                      text-white text-[11px] font-bold border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)] 
+                      bg-gradient-to-r from-[#ff4800] via-pink-500 to-[#d31b74]">
+                      {authUser?.fullName
+                      ?.split(" ")
+                      .map((n) => n[0])
+                      .join("")
+                      .toUpperCase()
+                      .slice(0, 2)}
+                     </div>
+                    )}
           {selectedGrp && (
       <p className="text-xs text-purple-400 font-semibold">
         {"You"}
