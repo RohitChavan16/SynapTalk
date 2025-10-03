@@ -12,15 +12,16 @@ const userSchema = new mongoose.Schema({
   location: { type: String },
   googleAccessToken: { type: String, default: null },
   googleRefreshToken: { type: String, default: null },
-  socialLinks: {
-    linkedin: { type: String, default: "" },
-    youtube: { type: String, default: "" },
-    twitter: { type: String, default: "" },
-    instagram: { type: String, default: "" },
-    facebook: { type: String, default: "" },
-    github: { type: String, default: "" },
-    personalWebsite: { type: String, default: "" },
-  },
+  socialLinks: [
+  {
+    platform: { type: String, required: true },
+    url: { type: String, required: true },
+    isVisible: { type: Boolean, default: true },
+    priority: { type: Number, default: 0 },
+    msgCount: { type: String, default: 0},
+    lastUpdated: { type: Date, default: Date.now },
+  }
+],
   groups : [{ type: mongoose.Schema.Types.ObjectId, ref : "Group"}],
   publicKey: { type: String, required: true },  // ECC public key
   privateKey: { type: String, default: null },  

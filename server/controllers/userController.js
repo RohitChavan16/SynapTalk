@@ -109,3 +109,25 @@ export const updateProfile = async (req, res) => {
     res.json({success: false, message: error.message});
   }
 }
+
+
+export const getSocialLink = async(req, res) => {
+    
+ try{
+  const userId = req.user._id;
+  const user = await User.findById(userId);
+  const socialLink = [
+  { platform: "LinkedIn", url: "https://www.linkedin.com/in/rohit-chavan/", msgCount: 3 },
+  { platform: "GitHub", url: "https://github.com/rohit-chavan", msgCount: 0 },
+  { platform: "Instagram", url: "https://www.instagram.com/rohit.chavan/", msgCount: 7 },
+  { platform: "Facebook", url: "https://www.facebook.com/rohit.chavan", msgCount: 1 },
+  { platform: "Twitter", url: "https://twitter.com/rohit_chavan", msgCount: 5 },
+  ];
+
+  res.json({success: true, socialLink});
+ } catch (error) {
+   console.log(error.message);
+  res.json({success: false, message: error.message});
+ }
+
+}

@@ -3,13 +3,14 @@ import assets from '../assets/assets';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 import { ChatContext } from '../../context/ChatContext';
-import { LogOut, User2, UserPlus, UserPlus2, Users } from "lucide-react";
+import { LogOut, User2, UserPlus, UserPlus2, Users, Plus, X, Globe, Lock } from "lucide-react";
+import { FaInstagram, FaFacebook, FaLinkedin, FaGithub, FaTwitter } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 
 const ChatSidebar = () => {
 
   const { getUsers, users, selectedUser, setSelectedUser, unseenMessages, setUnseenMessages, newGroupHandle, groups, setGroups, fetchGroups, selectedGrp, setSelectedGrp } = useContext(ChatContext);
-  const { logout, onlineUsers } = useContext(AuthContext);
+  const { logout, onlineUsers, socialLinks, getSocialLink } = useContext(AuthContext);
   const [dropDown, setDropDown] = useState(false);
   const navigate = useNavigate();
   const [input, setInput] = useState('');
@@ -20,6 +21,8 @@ const ChatSidebar = () => {
   const [groupDesc, setGroupDesc] = useState("");
   const [groupPrivacy, setGroupPrivacy] = useState("public");
   const [selectedGrpImg, setSelectedGrpImg] = useState("");
+  const [socialMedia, setSocialMedia] = useState(false);
+  const [newLink, setNewLink] = useState({ platform: "", url: "", privacy: "Public" });
 
   const handleClickContact = () => {
     navigate("/contacts"); // redirect to contacts page
@@ -83,14 +86,32 @@ const ChatSidebar = () => {
     }
   }
 
+  const addNewLink = () => {
+    if (!newLink.platform || !newLink.url) return;
+    setLinks([...links, { ...newLink, msgCount: 0 }]);
+    setNewLink({ platform: "", url: "", privacy: "Public" });
+  };
+
   const filteredUsers = input
     ? users.filter((user) => user.fullName.toLowerCase().includes(input.toLowerCase()))
     : users;
-
+const iconMap = {
+              Instagram: <FaInstagram />,
+              Facebook: <FaFacebook />,
+              LinkedIn: <FaLinkedin />,
+              GitHub: <FaGithub />,
+              Twitter: <FaTwitter />
+             };
   useEffect(() => {
     getUsers();
     fetchGroups();
+    getSocialLink();
+    
   }, [onlineUsers]);
+
+  const sortedLinks = socialLinks
+              .filter(sl => sl.url) // only render links with URL
+              .sort((a, b) => b.msgCount - a.msgCount);
 
   return (
     <div className={`bg-transparent relative h-full p-5 overflow-y-scroll border-r-2 border-r-gray-600 text-white  
@@ -103,6 +124,121 @@ const ChatSidebar = () => {
           <img src={assets.logo} alt="logo" 
             className="md:max-w-56 md:max-h-10 max-md:w-40 max-md:h-12 object-contain drop-shadow-[0_0_12px_rgba(138,43,226,0.8)]" 
           />
+
+          <div className="border flex gap-1 overflow-hidden bg-gradient-to-r from-[#1b11de7b] to-[#76002f6a] border-indigo-600  shadow-[0_0_15px_rgba(55,0,255,0.6)] h-10 w-100 rounded-4xl">
+            <Plus onClick={() => setSocialMedia(prev => !prev)} className="absolute ml-90 mt-1.5 hover:scale-115 cursor-pointer" />
+            {sortedLinks.map((sl) => {
+              
+             
+
+             
+
+              return sl.url && ( // only render if URL exists
+               
+               <a
+                key={sl.platform}
+                href={sl.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-12 h-10 flex items-center justify-center text-gray-200 hover:text-blue-500 transition-transform transform hover:scale-110"
+               >
+                
+                {iconMap[sl.platform] || sl.platform}
+                {sl.msgCount > 0 && (
+                  <span className="absolute top-11 ml-4 bg-red-500 text-white text-[11px] w-3 h-3 flex items-center justify-center rounded-full">
+                    {sl.msgCount}
+                  </span>
+                )} 
+               </a>
+              );
+            })
+            }
+          </div>
+
+          {socialMedia && (<div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-gradient-to-br from-purple-700 via-indigo-600 to-pink-600 text-white rounded-2xl shadow-2xl w-[90%] max-w-3xl p-8 relative animate-fadeIn">
+            
+            {/* Close Button */}
+            <button
+              onClick={() => setSocialMedia(false)}
+              className="absolute top-4 right-4 text-gray-200 hover:text-white"
+            >
+              <X className="w-6 h-6" />
+            </button>
+
+            {/* Title */}
+            <h2 className="text-2xl font-bold mb-6">Manage Social Media</h2>
+
+            {/* Social Links List */}
+            <div className="space-y-4 mb-6 max-h-64 overflow-y-auto pr-2 scrollbar-thin">
+              {sortedLinks.map((sl, i) => (
+                <div
+                  key={i}
+                  className="flex justify-between items-center bg-white/10 rounded-xl p-4 shadow hover:scale-[1.02] transition"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="text-2xl">{iconMap[sl.platform]}</div>
+                    <div>
+                      <p className="font-semibold">{sl.platform}</p>
+                      <a
+                        href={sl.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-blue-200 hover:underline"
+                      >
+                        {sl.url}
+                      </a>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {sl.privacy === "Public" ? (
+                      <Globe className="w-5 h-5 text-green-300" />
+                    ) : (
+                      <Lock className="w-5 h-5 text-red-300" />
+                    )}
+                    {sl.msgCount > 0 && (
+                      <span className="bg-red-500 text-xs px-2 py-1 rounded-full">{sl.msgCount} new</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Add New Social Link Form */}
+            <h3 className="text-lg font-semibold mb-3">Add New Link</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+              <input
+                type="text"
+                placeholder="Platform"
+                value={newLink.platform}
+                onChange={(e) => setNewLink({ ...newLink, platform: e.target.value })}
+                className="p-2 rounded bg-white/20 border border-white/30 text-white placeholder-gray-300"
+              />
+              <input
+                type="url"
+                placeholder="URL"
+                value={newLink.url}
+                onChange={(e) => setNewLink({ ...newLink, url: e.target.value })}
+                className="p-2 rounded bg-white/20 border border-white/30 text-white placeholder-gray-300"
+              />
+              <select
+                value={newLink.privacy}
+                onChange={(e) => setNewLink({ ...newLink, privacy: e.target.value })}
+                className="p-2 rounded bg-white/20 border border-white/30 text-white"
+              >
+                <option>Public</option>
+                <option>Private</option>
+              </select>
+            </div>
+            <button
+              onClick={addNewLink}
+              className="w-full py-2 bg-white text-indigo-700 font-bold rounded-lg hover:bg-gray-100 transition"
+            >
+              Add Link
+            </button>
+          </div>
+        </div>
+           ) }
 
           {/* Dropdown Menu */}
           

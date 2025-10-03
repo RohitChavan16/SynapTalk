@@ -17,6 +17,7 @@ const MainChat = () => {
   const [dropDownMsg, setDropDownMsg] = useState(false);
   const [optMsg, setOptMsg] = useState(null);
 
+
   // Handle sending a message
 
 const handleSendMessage = async (e) => {
@@ -45,6 +46,8 @@ const handleSendMessage = async (e) => {
 
   setInput("");
 };
+
+
 
 // Handle sending an image
 
@@ -91,6 +94,13 @@ const getSenderId = (mes) => {
           scrollEnd.current.scrollIntoView({behavior: "smooth"})
         }
   },[messages]);
+
+  const handleCopy = async (text) => {
+    // Copy text to clipboard
+    navigator.clipboard.writeText(text);
+      toast.success("Copied");
+      setDropDownMsg(false);
+  };
 
   return selectedUser || selectedGrp ? (
         <div className='h-full bg-[url("./src/assets/chatbg.png")] overflow-scroll relative backdrop-blur-lg'>
@@ -271,7 +281,7 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
         </button>
         </div>
         <div className="flex gap-2">
-        <button className="p-2 cursor-pointer rounded-full bg-white/20 hover:bg-white/30 transition">
+        <button onClick={() => handleCopy(mes.text)} className="p-2 cursor-pointer rounded-full bg-white/20 hover:bg-white/30 transition">
           <Copy className="w-5 h-5 text-white" />
         </button>
         <button className="p-2 cursor-pointer rounded-full bg-white/20 hover:bg-white/30 transition">

@@ -15,7 +15,7 @@ export const AuthProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
   const [loading, setLoading] = useState(true);
   const [privateKey, setPrivateKey] = useState(localStorage.getItem("privateKey"));
-  
+  const [socialLinks, setSocialLinks] = useState([]);
   // -----------------------
   // Socket connection
   // -----------------------
@@ -134,6 +134,19 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const getSocialLink = async () => {
+        try{
+          const { data } = await axios.get("/api/auth/social-links");
+          if(data.success){
+             setSocialLinks(data.socialLink);
+          } else {
+            toast.error(data.message);
+          }
+        } catch (error) {
+          toast.error("Unable to get the Social Links");
+        }
+    }
+
   // -----------------------
   // Initialize auth on mount
   // -----------------------
@@ -159,7 +172,10 @@ export const AuthProvider = ({ children }) => {
     loading,
     token,
     privateKey,
-    setPrivateKey 
+    setPrivateKey,
+    socialLinks,
+    setSocialLinks,
+    getSocialLink
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
