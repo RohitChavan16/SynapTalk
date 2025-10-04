@@ -147,6 +147,50 @@ export const AuthProvider = ({ children }) => {
         }
     }
 
+    const deleteSocialLink = async (platform) => {
+       try {
+         const token = localStorage.getItem("token");
+         const { data } = await axios.delete("/api/auth/delete-links", { headers: { Authorization: `Bearer ${token}` }, data : { platform },
+        });
+         if(data.success){
+            setSocialLinks(data.socialLink);
+            toast.success("Deleted it successfully");
+         } else {
+          toast.error(data.message);
+         }
+       } catch (error) {
+        toast.error("Unable to delete the Social Links");
+       }
+    }
+
+     const addSocialLink = async (addSocial) => {
+        try {
+         const {data} = await axios.post("/api/auth/add-links", {...addSocial});
+         if(data.success){
+            setSocialLinks(data.socialLink);
+            toast.success("Link Added successfully");
+         } else {
+          toast.error(data.message);
+         }
+       } catch (error) {
+        toast.error("Unable to add the Social Links");
+       }
+    }
+
+     const editSocialLink = async (editSocial) => {
+        try {
+         const {data} = await axios.put("/api/auth/edit-links", {...editSocial});
+         if(data.success){
+             setSocialLinks(data.socialLink);
+            toast.success("Editied it successfully");
+         } else {
+          toast.error(data.message);
+         }
+       } catch (error) {
+        toast.error("Unable to edit the Social Links");
+       }
+     }
+
   // -----------------------
   // Initialize auth on mount
   // -----------------------
@@ -175,7 +219,10 @@ export const AuthProvider = ({ children }) => {
     setPrivateKey,
     socialLinks,
     setSocialLinks,
-    getSocialLink
+    getSocialLink,
+    deleteSocialLink,
+    addSocialLink,
+    editSocialLink
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

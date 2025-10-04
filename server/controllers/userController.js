@@ -116,13 +116,8 @@ export const getSocialLink = async(req, res) => {
  try{
   const userId = req.user._id;
   const user = await User.findById(userId);
-  const socialLink = [
-  { platform: "LinkedIn", url: "https://www.linkedin.com/in/rohit-chavan/", msgCount: 3 },
-  { platform: "GitHub", url: "https://github.com/rohit-chavan", msgCount: 0 },
-  { platform: "Instagram", url: "https://www.instagram.com/rohit.chavan/", msgCount: 7 },
-  { platform: "Facebook", url: "https://www.facebook.com/rohit.chavan", msgCount: 1 },
-  { platform: "Twitter", url: "https://twitter.com/rohit_chavan", msgCount: 5 },
-  ];
+  if(!user) return res.json({success: false, message: "User not Found"});
+  const socialLink = user.socialLinks;
 
   res.json({success: true, socialLink});
  } catch (error) {
@@ -130,4 +125,98 @@ export const getSocialLink = async(req, res) => {
   res.json({success: false, message: error.message});
  }
 
+}
+
+export const addSocialLink = async (req, res) => {
+   try {
+     const userId = req.user._id;
+      const { platform, url, isVisible, priority } = req.body;
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    // check if platform already exists
+    const exists = user.socialLinks.find(
+      (link) => link.platform === platform
+    );
+    if (exists)
+      return res.status(400).json({ message: "Platform already exists" });
+
+    const newLink = {
+      platform,
+      url,
+      isVisible,
+      priority,
+      msgCount: 0,
+      lastUpdated: Date.now(),
+    };
+
+    user.socialLinks.push(newLink);
+    await user.save({ validateBeforeSave: false });
+
+    res.status(201).json({
+      success: true,
+      socialLink: user.socialLinks,
+      message: "Social link added successfully"
+    });
+   } catch (error) {
+      console.log(error.message);
+      res.json({success: false, message: error.message});
+   }
+} 
+
+
+export const editSocialLink = async (req, res) => {
+   try {
+     const userId = req.user._id;
+     const { platform, url, isVisible, priority, msgCount } = req.body;
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const link = user.socialLinks.find(
+      (l) => l.platform.toLowerCase() === platform.toLowerCase()
+    );
+
+    if (!link)
+      return res.status(404).json({ message: "Social link not found" });
+
+    if (url) link.url = url;
+    if (isVisible !== undefined) link.isVisible = isVisible;
+    if (priority !== undefined) link.priority = priority;
+    if (msgCount !== undefined) link.msgCount = msgCount;
+
+    link.lastUpdated = Date.now();
+
+    await user.save({ validateBeforeSave: false });
+    res.json({success: true, socialLink: user.socialLinks, message: "Social link updated" });
+   } catch (error) {
+      console.log(error.message);
+      res.json({success: false, message: error.message});
+   }
+}
+
+
+export const deleteSocialLink = async (req, res) => {
+   try {
+     const userId = req.user._id;
+     const { platform } = req.body; // or req.params.platform
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const initialCount = user.socialLinks.length;
+    user.socialLinks = user.socialLinks.filter(
+      (l) => l.platform.toLowerCase() !== platform.toLowerCase()
+    );
+
+    if (user.socialLinks.length === initialCount)
+      return res.status(404).json({ message: "Platform not found" });
+
+    await user.save({ validateBeforeSave: false });
+    res.json({success: true, socialLink: user.socialLinks, message: "Social link deleted" });
+   } catch (error) {
+      console.log(error.message);
+      res.json({success: false, message: error.message});
+   }
 }

@@ -10,7 +10,7 @@ import toast from 'react-hot-toast';
 const ChatSidebar = () => {
 
   const { getUsers, users, selectedUser, setSelectedUser, unseenMessages, setUnseenMessages, newGroupHandle, groups, setGroups, fetchGroups, selectedGrp, setSelectedGrp } = useContext(ChatContext);
-  const { logout, onlineUsers, socialLinks, getSocialLink } = useContext(AuthContext);
+  const { logout, onlineUsers, socialLinks, getSocialLink, deleteSocialLink, addSocialLink, editSocialLink } = useContext(AuthContext);
   const [dropDown, setDropDown] = useState(false);
   const navigate = useNavigate();
   const [input, setInput] = useState('');
@@ -23,6 +23,11 @@ const ChatSidebar = () => {
   const [selectedGrpImg, setSelectedGrpImg] = useState("");
   const [socialMedia, setSocialMedia] = useState(false);
   const [newLink, setNewLink] = useState({ platform: "", url: "", privacy: "Public" });
+  const [isEdit, setIsEdit] = useState(false);
+  const [deleteLink, setDeleteLink] = useState("");
+  const [editLink, setEditLink] = useState({ platform: "", url: "", privacy: "Public" });
+  
+  const [currentLink, setCurrentLink] = useState({ platform: "", url: "", privacy: "Public" });
 
   const handleClickContact = () => {
     navigate("/contacts"); // redirect to contacts page
@@ -51,6 +56,26 @@ const ChatSidebar = () => {
       setNewGroup(false);
       setShowModal(true);
       }
+  }
+
+  const handleDeleteLink = async (platform) => {
+    if (!platform) {
+    toast.error("Platform not selected");
+    return;
+  }
+  await deleteSocialLink(platform);
+  await getSocialLink();
+  }
+
+  const handleAddLink = async () => {
+     await addSocialLink(currentLink);
+     getSocialLink();
+  }
+
+  const handleEditLink = async () => {
+     await editSocialLink({ ...currentLink});
+     setIsEdit(false);
+     getSocialLink();
   }
 
   const cancelNewGroup = () => {
@@ -86,22 +111,18 @@ const ChatSidebar = () => {
     }
   }
 
-  const addNewLink = () => {
-    if (!newLink.platform || !newLink.url) return;
-    setLinks([...links, { ...newLink, msgCount: 0 }]);
-    setNewLink({ platform: "", url: "", privacy: "Public" });
-  };
+  
 
   const filteredUsers = input
     ? users.filter((user) => user.fullName.toLowerCase().includes(input.toLowerCase()))
     : users;
-const iconMap = {
-              Instagram: <FaInstagram />,
-              Facebook: <FaFacebook />,
-              LinkedIn: <FaLinkedin />,
-              GitHub: <FaGithub />,
-              Twitter: <FaTwitter />
-             };
+  const iconMap = {
+    Instagram: <FaInstagram />,
+    Facebook: <FaFacebook />,
+    LinkedIn: <FaLinkedin />,
+    GitHub: <FaGithub />,
+    Twitter: <FaTwitter />
+  };
   useEffect(() => {
     getUsers();
     fetchGroups();
@@ -156,14 +177,14 @@ const iconMap = {
           </div>
 
           {socialMedia && (<div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-gradient-to-br from-purple-700 via-indigo-600 to-pink-600 text-white rounded-2xl shadow-2xl w-[90%] max-w-3xl p-8 relative animate-fadeIn">
+          <div className="bg-gradient-to-br from-[#07b9e6a2] via-[#c106518b] to-[#8910b2b7] text-white rounded-2xl border border-2 border-[#0cc487] shadow-2xl w-[90%] max-w-3xl p-8 relative animate-fadeIn">
             
             {/* Close Button */}
             <button
               onClick={() => setSocialMedia(false)}
               className="absolute top-4 right-4 text-gray-200 hover:text-white"
             >
-              <X className="w-6 h-6" />
+              <X className="w-6 cursor-pointer h-6" />
             </button>
 
             {/* Title */}
@@ -173,69 +194,115 @@ const iconMap = {
             <div className="space-y-4 mb-6 max-h-64 overflow-y-auto pr-2 scrollbar-thin">
               {sortedLinks.map((sl, i) => (
                 <div
-                  key={i}
-                  className="flex justify-between items-center bg-white/10 rounded-xl p-4 shadow hover:scale-[1.02] transition"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="text-2xl">{iconMap[sl.platform]}</div>
-                    <div>
-                      <p className="font-semibold">{sl.platform}</p>
-                      <a
-                        href={sl.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-blue-200 hover:underline"
-                      >
-                        {sl.url}
-                      </a>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {sl.privacy === "Public" ? (
-                      <Globe className="w-5 h-5 text-green-300" />
-                    ) : (
-                      <Lock className="w-5 h-5 text-red-300" />
-                    )}
-                    {sl.msgCount > 0 && (
-                      <span className="bg-red-500 text-xs px-2 py-1 rounded-full">{sl.msgCount} new</span>
-                    )}
-                  </div>
-                </div>
+  key={sl.platform}
+  className="flex justify-between items-center bg-white/10 rounded-xl p-3 shadow hover:scale-[1.02] transition relative"
+>
+  {/* Left side */}
+  <div className="flex items-center gap-3">
+    <div className="text-2xl">{iconMap[sl.platform]}</div>
+    <div>
+      <p className="font-semibold">{sl.platform}</p>
+      <a
+        href={sl.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-sm text-blue-200 hover:underline"
+      >
+        {sl.url}
+      </a>
+    </div>
+  </div>
+
+  {/* Right side */}
+  <div className="flex cursor-pointer items-center gap-3">
+    {sl.privacy === "Public" ? (
+      <Globe className="w-5 h-5 text-green-300" />
+    ) : (
+      <Lock className="w-5 h-5 text-red-300" />
+    )}
+
+    {sl.msgCount > 0 && (
+      <span className="bg-red-500 absolute top-15 -right-1 text-xs px-2 py-1 rounded-full">
+        {sl.msgCount}
+      </span>
+    )}
+
+    {/* Edit Button */}
+    <button
+      onClick={() => {
+        setCurrentLink(sl);
+        setIsEdit(true);
+      }
+      } // load into form
+      className="text-yellow-400 cursor-pointer hover:text-yellow-300"
+    >
+      ✏️
+    </button>
+
+    {/* Delete Button */}
+    <button
+      onClick={() => {
+        handleDeleteLink(sl.platform)
+      }}
+      className="text-red-400 cursor-pointer hover:text-red-300"
+    >
+      🗑️
+    </button>
+  </div>
+</div>
+
               ))}
             </div>
 
             {/* Add New Social Link Form */}
-            <h3 className="text-lg font-semibold mb-3">Add New Link</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-              <input
-                type="text"
-                placeholder="Platform"
-                value={newLink.platform}
-                onChange={(e) => setNewLink({ ...newLink, platform: e.target.value })}
-                className="p-2 rounded bg-white/20 border border-white/30 text-white placeholder-gray-300"
-              />
-              <input
-                type="url"
-                placeholder="URL"
-                value={newLink.url}
-                onChange={(e) => setNewLink({ ...newLink, url: e.target.value })}
-                className="p-2 rounded bg-white/20 border border-white/30 text-white placeholder-gray-300"
-              />
-              <select
-                value={newLink.privacy}
-                onChange={(e) => setNewLink({ ...newLink, privacy: e.target.value })}
-                className="p-2 rounded bg-white/20 border border-white/30 text-white"
-              >
-                <option>Public</option>
-                <option>Private</option>
-              </select>
-            </div>
-            <button
-              onClick={addNewLink}
-              className="w-full py-2 bg-white text-indigo-700 font-bold rounded-lg hover:bg-gray-100 transition"
-            >
-              Add Link
-            </button>
+            <h3 className="text-lg font-semibold mb-3">
+  {isEdit ? "Edit Link" : "Add New Link"}
+</h3>
+<div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+  <input
+    type="text"
+    placeholder="Platform"
+    value={currentLink.platform}
+    onChange={(e) => setCurrentLink({ ...currentLink, platform: e.target.value })}
+    className="p-2 rounded bg-white/20 border border-white/30 text-white placeholder-gray-300"
+  />
+  <input
+    type="url"
+    placeholder="URL"
+    value={currentLink.url}
+    onChange={(e) => setCurrentLink({ ...currentLink, url: e.target.value })}
+    className="p-2 rounded bg-white/20 border border-white/30 text-white placeholder-gray-300"
+  />
+  <select
+    value={currentLink.privacy}
+    onChange={(e) => setCurrentLink({ ...currentLink, privacy: e.target.value })}
+    className="p-2 cursor-pointer rounded bg-white/20 border border-white/30 text-white"
+  >
+    <option>Public</option>
+    <option>Private</option>
+  </select>
+</div>
+<button
+  onClick={() => {
+    if (!currentLink.platform || !currentLink.url) {
+      toast.error("Platform and Url required!");
+      return;
+    }
+
+    // if platform exists → update it
+     if(isEdit){
+       handleEditLink();
+     } else {
+       handleAddLink();
+     }
+
+    setCurrentLink({ platform: "", url: "", privacy: "Public" });
+  }}
+  className="w-full cursor-pointer hover:bg-emerald-600 py-2 bg-white text-indigo-700 font-bold rounded-lg transition"
+>
+  {isEdit ? "Save Changes" : "Add Link"}
+</button>
+
           </div>
         </div>
            ) }

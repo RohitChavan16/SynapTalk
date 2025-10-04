@@ -1,5 +1,5 @@
 import express from 'express';
-import { checkAuth, getSocialLink, login, signup, updateProfile } from '../controllers/userController.js';
+import { addSocialLink, checkAuth, deleteSocialLink, editSocialLink, getSocialLink, login, signup, updateProfile } from '../controllers/userController.js';
 import { protectRoute } from '../middleware/auth.js';
 import passport from "passport";
 import { google } from "googleapis";
@@ -15,6 +15,9 @@ userRouter.put("/update-profile", protectRoute, updateProfile);
 userRouter.get("/check", protectRoute, checkAuth);
 
 userRouter.get("/social-links", protectRoute, getSocialLink);
+userRouter.post("/add-links", protectRoute, addSocialLink);
+userRouter.delete("/delete-links", protectRoute, deleteSocialLink);
+userRouter.put("/edit-links", protectRoute, editSocialLink);
 
 // Google OAuth login
 userRouter.get(
