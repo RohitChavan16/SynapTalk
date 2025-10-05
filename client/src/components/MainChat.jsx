@@ -174,6 +174,7 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
       </div>
     ) : (
 <div className="flex flex-col h-[calc(100%-120px)] overflow-y-scroll p-4 pb-6 space-y-4 scrollbar-thin scrollbar-thumb-purple-600/30 scrollbar-track-transparent">
+  {messages.length > 0 ? (<div>
   {messages.map((mes, i) => (
     <div 
       key={i} 
@@ -253,7 +254,7 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
             </div>
           </div>
         ) : (
-          <div className="relative">
+          <div className="relative mt-6">
             <p 
               className={`px-4 py-3 max-w-[280px] text-sm font-light rounded-2xl shadow-lg backdrop-blur-sm transition-all duration-300 hover:shadow-xl break-words leading-relaxed ${
                 getSenderId(mes) === authUser._id 
@@ -325,7 +326,8 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
         </div>
       )}
     </div>
-  ))}
+  ))
+ }</div>) : <p className="flex items-center h-full justify-center text-[15px]  text-blue-300">No Message yet !</p> }
   <div ref={scrollEnd}></div>
 </div>
     )}

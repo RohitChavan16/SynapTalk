@@ -4,7 +4,33 @@ import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 import { ChatContext } from '../../context/ChatContext';
 import { LogOut, User2, UserPlus, UserPlus2, Users, Plus, X, Globe, Lock } from "lucide-react";
-import { FaInstagram, FaFacebook, FaLinkedin, FaGithub, FaTwitter } from 'react-icons/fa';
+import { 
+  FaInstagram, 
+  FaFacebook, 
+  FaLinkedin, 
+  FaGithub, 
+  FaTwitter,
+  FaYoutube,
+  FaReddit,
+  FaDiscord,
+  FaPinterest,
+  FaSnapchatGhost,
+  FaTelegramPlane,
+  FaMedium,
+  FaDribbble,
+  FaBehance,
+  FaDev,
+  FaStackOverflow,
+  FaKaggle,
+  FaCodepen,
+  FaTwitch,
+  FaSpotify
+} from 'react-icons/fa';
+  import {
+  SiLeetcode,
+  SiHackerrank,
+  SiNotion
+} from "react-icons/si";
 import toast from 'react-hot-toast';
 
 const ChatSidebar = () => {
@@ -24,10 +50,22 @@ const ChatSidebar = () => {
   const [socialMedia, setSocialMedia] = useState(false);
   const [newLink, setNewLink] = useState({ platform: "", url: "", privacy: "Public" });
   const [isEdit, setIsEdit] = useState(false);
-  const [deleteLink, setDeleteLink] = useState("");
-  const [editLink, setEditLink] = useState({ platform: "", url: "", privacy: "Public" });
-  
   const [currentLink, setCurrentLink] = useState({ platform: "", url: "", privacy: "Public" });
+  const allPlatforms = [
+  "Instagram",
+  "LinkedIn",
+  "Facebook",
+  "Twitter",
+  "GitHub",
+  "YouTube",
+  "Reddit",
+  "Discord",
+  "Pinterest",
+  "Snapchat",
+  "Telegram",
+  "LeetCode",
+  "HackerRank"
+];
 
   const handleClickContact = () => {
     navigate("/contacts"); // redirect to contacts page
@@ -117,11 +155,29 @@ const ChatSidebar = () => {
     ? users.filter((user) => user.fullName.toLowerCase().includes(input.toLowerCase()))
     : users;
   const iconMap = {
-    Instagram: <FaInstagram />,
-    Facebook: <FaFacebook />,
-    LinkedIn: <FaLinkedin />,
-    GitHub: <FaGithub />,
-    Twitter: <FaTwitter />
+   Instagram: <FaInstagram className="text-pink-500" />,
+  Facebook: <FaFacebook className="text-blue-500" />,
+  LinkedIn: <FaLinkedin className="text-blue-400" />,
+  GitHub: <FaGithub className="text-gray-300" />,
+  Twitter: <FaTwitter className="text-sky-400" />,
+  YouTube: <FaYoutube className="text-red-600" />,
+  Reddit: <FaReddit className="text-orange-500" />,
+  Discord: <FaDiscord className="text-indigo-500" />,
+  Pinterest: <FaPinterest className="text-red-500" />,
+  Snapchat: <FaSnapchatGhost className="text-yellow-400" />,
+  Telegram: <FaTelegramPlane className="text-sky-500" />,
+  Medium: <FaMedium className="text-gray-200" />,
+  Dribbble: <FaDribbble className="text-pink-400" />,
+  Behance: <FaBehance className="text-blue-400" />,
+  "Dev.to": <FaDev className="text-white" />,
+  "Stack Overflow": <FaStackOverflow className="text-orange-400" />,
+  Kaggle: <FaKaggle className="text-sky-500" />,
+  LeetCode: <SiLeetcode className="text-yellow-500" />,
+  HackerRank: <SiHackerrank className="text-green-500" />,
+  CodePen: <FaCodepen className="text-gray-400" />,
+  Twitch: <FaTwitch className="text-purple-500" />,
+  Spotify: <FaSpotify className="text-green-400" />,
+  Notion: <SiNotion className="text-white" />,
   };
   useEffect(() => {
     getUsers();
@@ -143,16 +199,12 @@ const ChatSidebar = () => {
       <div className="pb-5">
         <div className="flex justify-between items-center">
           <img src={assets.logo} alt="logo" 
-            className="md:max-w-56 md:max-h-10 max-md:w-40 max-md:h-12 object-contain drop-shadow-[0_0_12px_rgba(138,43,226,0.8)]" 
+            className="md:max-w-56 md:max-h-12 max-md:w-15 max-md:ml-1 object-contain drop-shadow-[0_0_12px_rgba(138,43,226,0.8)]" 
           />
 
-          <div className="border flex gap-1 overflow-hidden bg-gradient-to-r from-[#1b11de7b] to-[#76002f6a] border-indigo-600  shadow-[0_0_15px_rgba(55,0,255,0.6)] h-10 w-100 rounded-4xl">
-            <Plus onClick={() => setSocialMedia(prev => !prev)} className="absolute ml-90 mt-1.5 hover:scale-115 cursor-pointer" />
-            {sortedLinks.map((sl) => {
-              
-             
-
-             
+          <div className="border relative flex gap-1 overflow-hidden bg-gradient-to-r from-[#1b11de7b] to-[#76002f6a] border-indigo-600  shadow-[0_0_15px_rgba(55,0,255,0.6)] h-10 w-100 rounded-4xl">
+            <Plus onClick={() => setSocialMedia(prev => !prev)} className="absolute bg-amber-500 rounded-[3px] right-3 top-[9px] w-5 h-5 hover:scale-115 cursor-pointer" />
+            {sortedLinks.map((sl) => {             
 
               return sl.url && ( // only render if URL exists
                
@@ -259,13 +311,23 @@ const ChatSidebar = () => {
   {isEdit ? "Edit Link" : "Add New Link"}
 </h3>
 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-  <input
-    type="text"
-    placeholder="Platform"
+  <select
     value={currentLink.platform}
     onChange={(e) => setCurrentLink({ ...currentLink, platform: e.target.value })}
     className="p-2 rounded bg-white/20 border border-white/30 text-white placeholder-gray-300"
-  />
+  >
+  <option value="" className="bg-amber-500">Select Platform</option>
+
+  {allPlatforms
+    .filter(
+      (platform) => !sortedLinks.some((sl) => sl.platform === platform)
+    )
+    .map((platform) => (
+      <option className="bg-indigo-400" key={platform} value={platform}>
+        {platform}
+      </option>
+    ))}
+  </select>
   <input
     type="url"
     placeholder="URL"
