@@ -186,30 +186,58 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
       {/* Avatar for received messages (left side) */}
       {getSenderId(mes) !== authUser._id && (
   <div className="flex flex-col items-center gap-1 flex-shrink-0">
-    {mes.senderId?.profilePic ? (
-                <img
-                src={mes.senderId.profilePic}
-                alt={mes.senderId.fullName}
-                className="w-[33px] h-[33px] rounded-full object-cover border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)]"
-                />
-               ) : (
-                     <div className="w-[33px] h-[33px] rounded-full flex items-center justify-center 
-                      text-white text-[11px] font-bold border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)] 
-                      bg-gradient-to-r from-[#ff4800] via-pink-500 to-[#d31b74]">
-                      {mes.senderId?.fullName
-                      ?.split(" ")
-                      .map((n) => n[0])
-                      .join("")
-                      .toUpperCase()
-                      .slice(0, 2)}
-                     </div>
-                    )}
+   {selectedGrp ? (
+  mes.senderId?.profilePic ? (
+    <img
+      src={mes.senderId.profilePic}
+      alt={mes.senderId.fullName}
+      className="w-[33px] h-[33px] rounded-full object-cover border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)]"
+    />
+  ) : (
+    <div
+      className="w-[33px] h-[33px] rounded-full flex items-center justify-center 
+        text-white text-[11px] font-bold border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)] 
+        bg-gradient-to-r from-[#ff4800] via-pink-500 to-[#d31b74]"
+    >
+      {mes.senderId?.fullName
+        ?.split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)}
+    </div>
+  )
+) : selectedUser ? (
+  selectedUser.profilePic ? (
+    <img
+      src={selectedUser.profilePic}
+      alt={selectedUser.fullName}
+      className="w-[33px] h-[33px] rounded-full object-cover border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)]"
+    />
+  ) : (
+    <div
+      className="w-[33px] h-[33px] rounded-full flex items-center justify-center 
+        text-white text-[11px] font-bold border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)] 
+        bg-gradient-to-r from-[#ff4800] via-pink-500 to-[#d31b74]"
+    >
+      {selectedUser.fullName
+        ?.split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)}
+    </div>
+  )
+) : null}
+
     {/* Show sender name in group chat */}
-    {selectedGrp && (
+    {selectedGrp  ? (
       <p className="text-xs text-purple-400 font-semibold">
         {mes.senderId?.fullName || "Unknown"}
       </p>
-    )}
+    ) : (<p className="text-xs text-purple-400 font-semibold">
+        {selectedUser.fullName || "Unknown"}
+      </p>)}
     <p className="text-xs text-gray-400 font-medium">
       {formatMessageTime(mes.createdAt)}
     </p>

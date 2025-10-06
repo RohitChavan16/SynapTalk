@@ -3,7 +3,7 @@ import assets from '../assets/assets';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 import { ChatContext } from '../../context/ChatContext';
-import { LogOut, User2, UserPlus, UserPlus2, Users, Plus, X, Globe, Lock } from "lucide-react";
+import { LogOut, User2, UserPlus, UserPlus2, Users, Plus, X, Globe, Lock, Trash, Trash2Icon, Edit, Edit2Icon, Edit2 } from "lucide-react";
 import { 
   FaInstagram, 
   FaFacebook, 
@@ -288,7 +288,7 @@ const ChatSidebar = () => {
       } // load into form
       className="text-yellow-400 cursor-pointer hover:text-yellow-300"
     >
-      ✏️
+      <Edit />
     </button>
 
     {/* Delete Button */}
@@ -298,7 +298,7 @@ const ChatSidebar = () => {
       }}
       className="text-red-400 cursor-pointer hover:text-red-300"
     >
-      🗑️
+      <Trash2Icon />
     </button>
   </div>
 </div>
