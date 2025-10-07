@@ -32,10 +32,11 @@ import {
   SiNotion
 } from "react-icons/si";
 import toast from 'react-hot-toast';
+import MenuOption from './MenuOption';
 
 const ChatSidebar = () => {
 
-  const { getUsers, users, selectedUser, setSelectedUser, unseenMessages, setUnseenMessages, newGroupHandle, groups, setGroups, fetchGroups, selectedGrp, setSelectedGrp } = useContext(ChatContext);
+  const { getUsers, users, selectedUser, setSelectedUser, unseenMessages, setUnseenMessages, newGroupHandle, groups, setGroups, fetchGroups, selectedGrp, setSelectedGrp, active, setActive } = useContext(ChatContext);
   const { logout, onlineUsers, socialLinks, getSocialLink, deleteSocialLink, addSocialLink, editSocialLink } = useContext(AuthContext);
   const [dropDown, setDropDown] = useState(false);
   const navigate = useNavigate();
@@ -51,6 +52,8 @@ const ChatSidebar = () => {
   const [newLink, setNewLink] = useState({ platform: "", url: "", privacy: "Public" });
   const [isEdit, setIsEdit] = useState(false);
   const [currentLink, setCurrentLink] = useState({ platform: "", url: "", privacy: "Public" });
+  
+
   const allPlatforms = [
   "Instagram",
   "LinkedIn",
@@ -74,6 +77,7 @@ const ChatSidebar = () => {
 
   const handleClickGroup = () => {
       setNewGroup(true);
+      setActive("My Chat");
       setDropDown(false);
   }
 
@@ -202,7 +206,7 @@ const ChatSidebar = () => {
             className="md:max-w-56 md:max-h-12 max-md:w-15 max-md:ml-1 object-contain drop-shadow-[0_0_12px_rgba(138,43,226,0.8)]" 
           />
 
-          <div className="border relative flex gap-1 overflow-hidden bg-gradient-to-r from-[#1b11de7b] to-[#76002f6a] border-indigo-600  shadow-[0_0_15px_rgba(55,0,255,0.6)] h-10 w-100 rounded-4xl">
+          <div className="border relative flex gap-1 overflow-hidden bg-gradient-to-r from-[#1b11de7b] to-[#76002f6a] border-emerald-600 border-2 shadow-[0_0_15px_rgba(55,0,255,0.6)] h-10 w-100 rounded-4xl">
             <Plus onClick={() => setSocialMedia(prev => !prev)} className="absolute bg-amber-500 rounded-[3px] right-3 top-[9px] w-5 h-5 hover:scale-115 cursor-pointer" />
             {sortedLinks.map((sl) => {             
 
@@ -303,11 +307,21 @@ const ChatSidebar = () => {
   </div>
 </div>
 
-              ))}
-            </div>
+))}
+</div>
 
-            {/* Add New Social Link Form */}
-            <h3 className="text-lg font-semibold mb-3">
+            
+
+
+
+
+
+
+
+            
+{/* Add New Social Link Form */}
+
+<h3 className="text-lg font-semibold mb-3">
   {isEdit ? "Edit Link" : "Add New Link"}
 </h3>
 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
@@ -365,9 +379,14 @@ const ChatSidebar = () => {
   {isEdit ? "Save Changes" : "Add Link"}
 </button>
 
-          </div>
-        </div>
-           ) }
+  </div>
+</div>
+) }
+
+
+
+
+
 
           {/* Dropdown Menu */}
           
@@ -413,7 +432,13 @@ const ChatSidebar = () => {
         </div>
           
 
-        {/* Search Bar */}
+
+
+
+
+
+        {/*When User want to Search*/}
+
         <div className="bg-gradient-to-r from-purple-700/30 to-pink-500/30 rounded-full flex items-center gap-3 py-2.5 px-4 mt-5 border border-violet-500/40 focus-within:border-pink-400 transition-colors backdrop-blur-md">
           <img src={assets.search_icon} alt="Search Icon" className="w-4 h-4 opacity-80 drop-shadow-[0_0_4px_rgba(255,255,255,0.7)]" />
           <input 
@@ -426,8 +451,14 @@ const ChatSidebar = () => {
       </div>
        
 
+
+
+       {/* Normal Chat or Group Chat */}
+
+
        {/* When User wants to create an new group */}
-       <div className={`${newGroup ? "p-2 text-amber-500" : "hidden"} relative ` }>
+
+       <div className={`${newGroup && active == "My Chat" ? "p-2 text-amber-500" : "hidden"} relative ` }>
          Add group members  :
          <div 
          onClick={CreateNewGroup}
@@ -439,7 +470,16 @@ const ChatSidebar = () => {
          </div>
        </div>
 
-      {/* Users List */}
+
+
+
+
+
+
+
+
+      {/*All Users List */}
+    { active == "My Chat" && 
       <div className="flex flex-col divide-y divide-violet-500/20">
         {filteredUsers.map((user) => {
           const isSelected = selectedUser?._id === user._id;
@@ -463,7 +503,7 @@ const ChatSidebar = () => {
                 }`}
             >
 
-  
+          {/* Only Show this when user want to create a newGroup and this is a CheckBox to inlcude/exclude */}
           <input
             type="checkbox"
             id={`user-${user._id}`}
@@ -518,6 +558,7 @@ const ChatSidebar = () => {
         })}
       </div>
 
+    }
 
 
 
@@ -528,12 +569,17 @@ const ChatSidebar = () => {
 
 
 
+  { active == "My Groups" &&
     <div className="flex flex-col divide-y divide-violet-500/20">
         {groups.map((group) => {
           const isSelected = selectedGrp?._id === group._id;
           //const unseenCount = unseenMessages[user._id] || 0;
           //const isOnline = onlineUsers.includes(user._id);
-
+          
+          const onlineCount = selectedGrp?.members?.filter(member =>
+          onlineUsers.includes(member._id)
+          ).length;
+          
           return (
             <div
               key={group._id}
@@ -579,9 +625,9 @@ const ChatSidebar = () => {
               {/* Name + Status */}
               <div className="flex-1 min-w-0">
                 <p className="truncate font-semibold text-sm drop-shadow-[0_0_4px_rgba(255,255,255,0.6)]">{group.name}</p>
-                {/*<p className={`text-xs ${isOnline ? "text-green-400" : "text-gray-400"}`}>
-                  {isOnline ? "🟢 Online" : "⚫ Offline"}
-                </p> */}
+                <p className={`text-xs`}>
+                 {onlineCount > 0 ? `🟢 ${onlineCount-1} Online` : "⚫ Offline"}
+                </p>
               </div>
 
               {/* Unseen Messages Badge 
@@ -596,8 +642,12 @@ const ChatSidebar = () => {
           );
         })}
       </div>
-
-
+  }
+  
+  {active == "My Chat" || active == "My Groups" ? "" : (<div className="">
+    <p className="flex justify-center h-90 items-center">Comming Soon !</p>
+  </div>
+  )}
 
 
 
@@ -609,12 +659,7 @@ const ChatSidebar = () => {
 
 
      
-      {/* Plus sign overlay */}
-
-
-
-
-
+    {/* New Group Details pop up */}
 
   {showModal && (
   <div className="absolute inset-0 bg-black/50 rounded-xl backdrop-blur-sm flex justify-center items-center z-20">

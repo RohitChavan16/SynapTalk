@@ -13,7 +13,8 @@ const [selectedGrp, setSelectedGrp] = useState(null);
 const [selectedProfile, setSelectedProfile] = useState(false);
 const [unseenMessages, setUnseenMessages] = useState({});
 const {socket, axios, privateKey} = useContext(AuthContext);
- const [groups, setGroups] = useState([]);
+const [groups, setGroups] = useState([]);
+const [active, setActive] = useState("My Chat");
 
 // function to get all users for sidebar
 
@@ -235,6 +236,8 @@ const subscribeToMessages = async () => {
     setSelectedGrp,
     sendGrpMsg,
     getGrpMessages,
+    active,
+    setActive,
   }
 
   return (

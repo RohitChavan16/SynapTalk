@@ -17,9 +17,11 @@ import {
   Ban,
   UserCheck
 } from 'lucide-react';
+import { AuthContext } from '../../context/AuthContext';
 
 const GroupProfileSidebar = () => {
   const { selectedGrp, messages } = useContext(ChatContext);
+  const {onlineUsers, authUser} = useContext(AuthContext);
   const [msgImages, setMsgImages] = useState([]);
   const [msgDocs, setMsgDocs] = useState([]);
   const [msgLinks, setMsgLinks] = useState([]);
@@ -87,12 +89,18 @@ const GroupProfileSidebar = () => {
         <div className="flex flex-col space-y-2 max-h-[150px] overflow-y-scroll">
           {selectedGrp.members.map((member, index) => (
             <div key={index} className="flex items-center justify-between p-2 rounded hover:bg-white/10 transition-colors">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center  gap-3">
                 {member?.profilePic ? ( <img src={member.profilePic} alt={member.fullName} className="w-[33px] h-[33px] rounded-full object-cover border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)]" /> ) : ( <div className="w-[33px] h-[33px] rounded-full flex items-center justify-center text-white text-[11px] font-bold border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)] bg-gradient-to-r from-[#ff4800] via-pink-500 to-[#d31b74]"> {member?.fullName ?.split(" ") .map((n) => n[0]) .join("") .toUpperCase() .slice(0, 2)} </div> )}
                 <span>{member.fullName}</span>
+                <div className="relative">
+                <p className={`text-xs absolute -left-2 -top-2`}>
+                  {onlineUsers.includes(member._id) ? "🟢" : "⚫"}
+                </p>
+                </div>
                 {member._id === selectedGrp.admin && <UserCheck className="w-4 h-4 text-blue-400" title="Admin"/>}
               </div>
               <span className="text-xs text-white/60">{member.role || ""}</span>
+              {authUser._id == member._id && "(You)"}
             </div>
           ))}
         </div>

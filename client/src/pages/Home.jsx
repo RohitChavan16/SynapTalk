@@ -5,12 +5,16 @@ import Profile from './Profile';
 import ProfileSidebar from '../components/ProfileSidebar';
 import { ChatContext } from '../../context/ChatContext';
 import GroupProfileSidebar from '../components/GroupprofileSidebar';
+import MenuOption from '../components/MenuOption';
 
 const Home = () => {
   const {selectedUser, selectedProfile, selectedGrp} = useContext(ChatContext);
 
   return (
     <div className="border w-full h-screen sm:px-[10%] sm:py-[5%]">
+      <div className="absolute left-9 ">
+        <MenuOption />
+      </div>
       <div className={`backdrop-blur-xl border-2 border-gray-600 rounded-2xl overflow-hidden h-[100%] grid relative
         ${selectedUser || selectedGrp ? 
           `${selectedProfile ? 

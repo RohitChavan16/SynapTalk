@@ -4,6 +4,14 @@ import { generateToken } from "../utils/jwtToken.js";
 import cloudinary from "../lib/cloudinary.js";
 import { generateKeyPair } from "../crypto/crypto.js";
 
+
+
+
+
+
+
+
+
 export const signup = async (req, res) => {
   const { fullName, email, password, bio } = req.body;
 
@@ -47,6 +55,16 @@ export const signup = async (req, res) => {
   }
 }
 
+
+
+
+
+
+
+
+
+
+
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -83,9 +101,26 @@ export const login = async (req, res) => {
   }
 }
 
+
+
+
+
+
+
+
+
 export const checkAuth = (req, res) => {
   res.json({success: true, user: req.user});
 }
+
+
+
+
+
+
+
+
+
 
 export const updateProfile = async (req, res) => {
   try {
@@ -127,6 +162,16 @@ export const getSocialLink = async(req, res) => {
 
 }
 
+
+
+
+
+
+
+
+
+
+
 export const addSocialLink = async (req, res) => {
    try {
      const userId = req.user._id;
@@ -166,6 +211,14 @@ export const addSocialLink = async (req, res) => {
 } 
 
 
+
+
+
+
+
+
+
+
 export const editSocialLink = async (req, res) => {
    try {
      const userId = req.user._id;
@@ -195,6 +248,14 @@ export const editSocialLink = async (req, res) => {
       res.json({success: false, message: error.message});
    }
 }
+
+
+
+
+
+
+
+
 
 
 export const deleteSocialLink = async (req, res) => {

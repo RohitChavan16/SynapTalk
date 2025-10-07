@@ -32,7 +32,6 @@ passport.use(
               googleId: profile.id,
               fullName: profile.displayName || "Google User",
               email: profile.emails[0].value,
-              profilePic: profile.photos?.[0]?.value,
               googleAccessToken: accessToken,
               googleRefreshToken: refreshToken || null,
               isOAuthUser: true,
@@ -44,6 +43,7 @@ passport.use(
           if (refreshToken) user.googleRefreshToken = refreshToken;
           await user.save();
         }
+         {/* profilePic: profile.photos?.[0]?.value, */}
 
         // return user object with JWT
         const safeUser = user.toObject();
