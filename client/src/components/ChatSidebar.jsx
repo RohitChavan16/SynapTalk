@@ -36,8 +36,8 @@ import MenuOption from './MenuOption';
 
 const ChatSidebar = () => {
 
-  const { getUsers, users, selectedUser, setSelectedUser, unseenMessages, setUnseenMessages, newGroupHandle, groups, setGroups, fetchGroups, selectedGrp, setSelectedGrp, active, setActive } = useContext(ChatContext);
-  const { logout, onlineUsers, socialLinks, getSocialLink, deleteSocialLink, addSocialLink, editSocialLink } = useContext(AuthContext);
+  const { getUsers, users, selectedUser, setSelectedUser, unseenMessages, setUnseenMessages, newGroupHandle, groups, setGroups, fetchGroups, selectedGrp, setSelectedGrp, active, setActive, typingUsers, setTypingUsers, typingId, setTypingID } = useContext(ChatContext);
+  const { logout, onlineUsers, socialLinks, getSocialLink, deleteSocialLink, addSocialLink, editSocialLink, socket } = useContext(AuthContext);
   const [dropDown, setDropDown] = useState(false);
   const navigate = useNavigate();
   const [input, setInput] = useState('');
@@ -161,7 +161,7 @@ const ChatSidebar = () => {
   const iconMap = {
    Instagram: <FaInstagram className="text-pink-500" />,
   Facebook: <FaFacebook className="text-blue-500" />,
-  LinkedIn: <FaLinkedin className="text-blue-400" />,
+  LinkedIn: <FaLinkedin className="text-blue-400 w-10" />,
   GitHub: <FaGithub className="text-gray-300" />,
   Twitter: <FaTwitter className="text-sky-400" />,
   YouTube: <FaYoutube className="text-red-600" />,
@@ -206,7 +206,7 @@ const ChatSidebar = () => {
             className="md:max-w-56 md:max-h-12 max-md:w-15 max-md:ml-1 object-contain drop-shadow-[0_0_12px_rgba(138,43,226,0.8)]" 
           />
 
-          <div className="border relative flex gap-1 overflow-hidden bg-gradient-to-r from-[#1b11de7b] to-[#76002f6a] border-emerald-600 border-2 shadow-[0_0_15px_rgba(55,0,255,0.6)] h-10 w-100 rounded-4xl">
+          <div className="border relative flex gap-1 overflow-hidden bg-gradient-to-r from-[#1b11de7b] to-[#76002f6a] border-emerald-600 border-2 shadow-[0_0_15px_rgba(55,0,255,0.6)] h-11 w-100 rounded-4xl">
             <Plus onClick={() => setSocialMedia(prev => !prev)} className="absolute bg-amber-500 rounded-[3px] right-3 top-[9px] w-5 h-5 hover:scale-115 cursor-pointer" />
             {sortedLinks.map((sl) => {             
 
@@ -217,7 +217,7 @@ const ChatSidebar = () => {
                 href={sl.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-12 h-10 flex items-center justify-center text-gray-200 hover:text-blue-500 transition-transform transform hover:scale-110"
+                className="w-12 h-10 flex text-[19px] hover:text-xl items-center justify-center text-gray-200 hover:text-blue-500 transition-transform transform hover:scale-110"
                >
                 
                 {iconMap[sl.platform] || sl.platform}
@@ -498,8 +498,8 @@ const ChatSidebar = () => {
               }}
               className={`relative flex items-center gap-3 p-3 cursor-pointer transition-all duration-300 rounded-lg
                 ${isSelected && !newGroup
-                  ? "bg-gradient-to-r from-violet-600/40 to-[#049cb0c6] shadow-[0_0_15px_rgba(255,0,255,0.5)]" 
-                  : "hover:bg-gradient-to-r hover:from-violet-500/30 hover:to-[#09a3efb4] hover:shadow-[0_0_10px_rgba(255,0,255,0.3)]"
+                  ? "bg-gradient-to-r from-[#9300d299] to-[#049cb0c6] shadow-[0_0_15px_rgba(255,0,255,0.5)]" 
+                  : "hover:bg-gradient-to-r hover:from-[#9300d299] hover:to-[#09a3efb4] hover:shadow-[0_0_10px_rgba(255,0,255,0.3)]"
                 }`}
             >
 
@@ -571,14 +571,18 @@ const ChatSidebar = () => {
 
   { active == "My Groups" &&
     <div className="flex flex-col divide-y divide-violet-500/20">
+     
         {groups.map((group) => {
           const isSelected = selectedGrp?._id === group._id;
           //const unseenCount = unseenMessages[user._id] || 0;
           //const isOnline = onlineUsers.includes(user._id);
           
-          const onlineCount = selectedGrp?.members?.filter(member =>
-          onlineUsers.includes(member._id)
+          const onlineCount = group.members?.filter(member =>
+           onlineUsers.includes(member._id)
           ).length;
+          
+          const usersTyping = typingUsers[group._id];
+
           
           return (
             <div
@@ -591,8 +595,8 @@ const ChatSidebar = () => {
               }}
               className={`relative flex items-center gap-3 p-3 cursor-pointer transition-all duration-300 rounded-lg
                 ${isSelected
-                  ? "bg-gradient-to-r from-violet-600/40 to-[#049cb0c6] shadow-[0_0_15px_rgba(255,0,255,0.5)]" 
-                  : "hover:bg-gradient-to-r hover:from-violet-500/30 hover:to-[#09a3efb4] hover:shadow-[0_0_10px_rgba(255,0,255,0.3)]"
+                  ? "bg-gradient-to-r from-[#9300d299] to-[#049cb0c6] shadow-[0_0_15px_rgba(255,0,255,0.5)]" 
+                  : "hover:bg-gradient-to-r hover:from-[#9300d299] hover:to-[#09a3efb4] hover:shadow-[0_0_10px_rgba(255,0,255,0.3)]"
                 }`}
             >
              
@@ -626,7 +630,7 @@ const ChatSidebar = () => {
               <div className="flex-1 min-w-0">
                 <p className="truncate font-semibold text-sm drop-shadow-[0_0_4px_rgba(255,255,255,0.6)]">{group.name}</p>
                 <p className={`text-xs`}>
-                 {onlineCount > 0 ? `🟢 ${onlineCount-1} Online` : "⚫ Offline"}
+                 {onlineCount > 1 ? `🟢 ${onlineCount-1} Online` : "⚫ Offline"}
                 </p>
               </div>
 
@@ -638,7 +642,25 @@ const ChatSidebar = () => {
               )}
                 */}
 
-            </div>
+ {/* Typing indicator */}
+      {usersTyping && Object.keys(usersTyping).length > 0 && (
+        <div className="absolute bottom-2 right-2 z-100  flex items-center gap-2 text-xs text-green-300 bg-gray-800/70 px-3 py-1.5 rounded-full backdrop-blur-sm border border-gray-600/50 shadow-lg">
+          <span className="font-medium text-green-400">
+            {Object.values(usersTyping).slice(0, 2).join(', ')}
+            {Object.keys(usersTyping).length > 2 && 
+              ` +${Object.keys(usersTyping).length - 2} more`}
+          </span>
+          <span>{Object.keys(usersTyping).length > 1 ? 'are' : 'is'} typing</span>
+          <div className="flex gap-1 ml-1">
+            <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+            <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+            <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+          </div>
+        </div>
+      )}
+
+
+          </div>
           );
         })}
       </div>

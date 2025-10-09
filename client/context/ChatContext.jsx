@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { AuthContext } from "./AuthContext";
 import toast from "react-hot-toast";
 
@@ -12,11 +12,19 @@ const [selectedUser, setSelectedUser] = useState(null);
 const [selectedGrp, setSelectedGrp] = useState(null);
 const [selectedProfile, setSelectedProfile] = useState(false);
 const [unseenMessages, setUnseenMessages] = useState({});
-const {socket, axios, privateKey} = useContext(AuthContext);
+const {socket, axios, privateKey, authUser} = useContext(AuthContext);
 const [groups, setGroups] = useState([]);
 const [active, setActive] = useState("My Chat");
+const [typingUsers, setTypingUsers] = useState({});
+const [typingId, setTypingId] = useState("");
 
 // function to get all users for sidebar
+console.log("AuthContext socket:", socket);
+const selectedUserRef = useRef(selectedUser);
+
+useEffect(() => {
+  selectedUserRef.current = selectedUser;
+}, [selectedUser]);
 
 const getUsers = async () =>{
 
@@ -145,6 +153,81 @@ const subscribeToMessages = async () => {
   }
 });
 
+socket.on("userTyping", (data) => {
+  console.log("\n📥 === RECEIVED userTyping EVENT ===");
+  console.log("Full data received:", JSON.stringify(data, null, 2));
+  const { senderId, senderName, groupId } = data;
+  console.log("Parsed - senderId:", senderId);
+  console.log("Parsed - senderName:", senderName);
+  console.log("Parsed - groupId:", groupId);
+  
+  if (groupId) {
+    console.log("👥 Processing GROUP typing");
+    console.log("Current selectedGrp?._id:", selectedGrp?._id);
+    console.log("Does it match?", groupId === selectedGrp?._id);
+    
+    setTypingUsers((prev) => {
+      const updated = {
+        ...prev,
+        [groupId]: {
+          ...(prev[groupId] || {}),
+          [senderId]: senderName || "Someone"
+        }
+      };
+      console.log("🔄 Updated typingUsers (group):", JSON.stringify(updated, null, 2));
+      return updated;
+    });
+  } else {
+    if (senderId !== selectedUserRef.current?._id) return; // only update if current chat
+    setTypingUsers((prev) => ({ ...prev, [senderId]: true }));
+  }
+  console.log("💡 userTyping received:", data, "selectedUser:", selectedUserRef.current);
+
+  console.log("=== END userTyping PROCESSING ===\n");
+});
+
+
+
+socket.on("userStopTyping", (data) => {
+  console.log("\n📥 === RECEIVED userStopTyping EVENT ===");
+  console.log("Full data received:", JSON.stringify(data, null, 2));
+  const { senderId, groupId } = data;
+  console.log("Parsed - senderId:", senderId);
+  console.log("Parsed - groupId:", groupId);
+  
+  if (groupId) {
+    console.log("👥 Processing GROUP stop typing");
+    setTypingUsers((prev) => {
+      const copy = { ...prev };
+      if (copy[groupId]) {
+        const groupTyping = { ...copy[groupId] };
+        delete groupTyping[senderId];
+        
+        if (Object.keys(groupTyping).length === 0) {
+          delete copy[groupId];
+          console.log("🗑️ Removed empty group entry");
+        } else {
+          copy[groupId] = groupTyping;
+        }
+      }
+      console.log("🔄 Updated typingUsers (group stop):", JSON.stringify(copy, null, 2));
+      return copy;
+    });
+  } else {
+    console.log("👤 Processing INDIVIDUAL stop typing");
+    console.log("Removing typingUsers[" + senderId + "]");
+    
+    setTypingUsers((prev) => {
+      const copy = { ...prev };
+      delete copy[senderId];
+      console.log("🔄 Updated typingUsers (individual stop):", JSON.stringify(copy, null, 2));
+      console.log("Verifying - copy[" + senderId + "] is now:", copy[senderId]);
+      return copy;
+    });
+  }
+  console.log("=== END userStopTyping PROCESSING ===\n");
+});
+
 
     socket.on("newMessage", async (newMessage) => {
       if(selectedUser && newMessage.senderId === selectedUser._id) {
@@ -187,6 +270,8 @@ const subscribeToMessages = async () => {
     if (socket) {
   socket.off("newMessage");
   socket.off("newGroupMessage"); // <--- new
+  socket.off("userTyping");
+  socket.off("userStopTyping");
 }
   }
 
@@ -209,6 +294,14 @@ const subscribeToMessages = async () => {
          toast.error(error.message);
       }
   }
+
+  useEffect(() => {
+  if (socket) {
+    console.log("✅ Socket connected, id:", socket.id);
+  } else {
+    console.log("❌ Socket not connected yet");
+  }
+}, [socket]);
 
 
   useEffect(() => {
@@ -238,6 +331,10 @@ const subscribeToMessages = async () => {
     getGrpMessages,
     active,
     setActive,
+    typingUsers,
+    setTypingUsers,
+    typingId,
+    setTypingId
   }
 
   return (

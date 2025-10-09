@@ -63,6 +63,7 @@ io.on("connection", (socket) => {
 
   if (userId) {
     userSocketMap[userId] = socket.id;
+     socket.userId = userId;
     activeConnections.set(userId, {
       socketId: socket.id,
       roomId: null,
@@ -83,6 +84,81 @@ io.on("connection", (socket) => {
     console.log(`User ${userId} left chat group ${groupId}`);
     socket.leave(groupId);
   });
+
+  
+socket.on("typing", ({ receiverId, groupId, senderName, senderId }) => {
+  console.log("\n⌨️ === TYPING EVENT RECEIVED ===");
+  console.log("From User ID:", senderId);
+  console.log("Receiver ID:", receiverId);
+  console.log("Group ID:", groupId);
+  console.log("Current userSocketMap:", Object.keys(userSocketMap));
+  
+  if (groupId) {
+    console.log("📤 Broadcasting to GROUP:", groupId);
+    const roomSockets = io.sockets.adapter.rooms.get(groupId);
+    console.log("Room exists?", !!roomSockets);
+    console.log("Room members:", roomSockets ? Array.from(roomSockets) : 'none');
+    
+    socket.to(groupId).emit("userTyping", { 
+      senderId: senderId, 
+      senderName: senderName || "Someone",
+      groupId 
+    });
+    console.log("✅ Group typing event sent");
+  } else if (receiverId) {
+    console.log("📤 Sending to INDIVIDUAL USER:", receiverId);
+    const receiverSocketId = userSocketMap[receiverId];
+    console.log("Receiver socket ID:", receiverSocketId);
+    console.log("Receiver socket exists?", !!receiverSocketId);
+    
+    if (receiverSocketId) {
+      const targetSocket = io.sockets.sockets.get(receiverSocketId);
+      console.log("Target socket object exists?", !!targetSocket);
+      console.log("Target socket connected?", targetSocket?.connected);
+      
+      io.to(receiverSocketId).emit("userTyping", { 
+        senderId: senderId, senderName : senderName
+      });
+      console.log("✅ Individual typing event sent to socket:", receiverSocketId);
+      console.log("Event payload:", { senderId: socket.userId });
+    } else {
+      console.log("❌ Receiver not found in userSocketMap");
+    }
+  }
+  console.log("=== END TYPING EVENT ===\n");
+});
+
+socket.on("stopTyping", ({ receiverId, groupId, senderId }) => {
+  console.log("\n⏹️ === STOP TYPING EVENT RECEIVED ===");
+  console.log("From User ID:", socket.userId);
+  console.log("Receiver ID:", receiverId);
+  console.log("Group ID:", groupId);
+  
+  if (groupId) {
+    console.log("📤 Broadcasting stop typing to GROUP:", groupId);
+    socket.to(groupId).emit("userStopTyping", { 
+      senderId, 
+      groupId 
+    });
+    console.log("✅ Group stop typing event sent");
+  } else if (receiverId) {
+    console.log("📤 Sending stop typing to INDIVIDUAL USER:", receiverId);
+    const receiverSocketId = userSocketMap[receiverId];
+    console.log("Receiver socket ID:", receiverSocketId);
+    
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("userStopTyping", { 
+        senderId
+      });
+      console.log("✅ Individual stop typing event sent to socket:", receiverSocketId);
+      console.log("Event payload:", { senderId: socket.userId });
+    } else {
+      console.log("❌ Receiver not found");
+    }
+  }
+  console.log("=== END STOP TYPING EVENT ===\n");
+});
+
 
   // 🔹 VIDEO CALLING FUNCTIONALITY
 
@@ -174,6 +250,7 @@ io.on("connection", (socket) => {
         reason,
         timestamp: Date.now()
       });
+
 
       socket.leave(roomId);
 

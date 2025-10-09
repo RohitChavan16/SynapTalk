@@ -9,17 +9,15 @@ import { Reply, Trash2, Copy, Languages } from "lucide-react";
 
 const MainChat = () => {
 
-  const {messages, selectedUser, setSelectedUser, sendMessage, getMessages, selectedProfile, setSelectedProfile, selectedGrp, setSelectedGrp, sendGrpMsg, getGrpMessages} = useContext(ChatContext);
-  const {authUser, onlineUsers} = useContext(AuthContext);
+  const {messages, selectedUser, setSelectedUser, sendMessage, getMessages, selectedProfile, setSelectedProfile, selectedGrp, setSelectedGrp, sendGrpMsg, getGrpMessages, typingUsers, typingId, setTypingId } = useContext(ChatContext);
+  const {authUser, onlineUsers, socket} = useContext(AuthContext);
   const scrollEnd = useRef();
   const [loading, setLoading] = useState(true);
   const [input, setInput] = useState('');
   const [dropDownMsg, setDropDownMsg] = useState(false);
   const [optMsg, setOptMsg] = useState(null);
 
-
   // Handle sending a message
-
 const handleSendMessage = async (e) => {
   e.preventDefault();
   if (input.trim() === "") return;
@@ -77,6 +75,74 @@ const getSenderId = (mes) => {
 };
 
 
+const isTyping = selectedUser ? !!typingUsers[selectedUser._id] : false;
+
+
+
+const typingTimeout = useRef(null);
+
+const handleTyping = (e) => {
+  setInput(e.target.value);
+  
+  if (!socket) {
+    console.log("❌ Socket not available");
+    return;
+  }
+
+  console.log("⌨️ User is typing...");
+  
+  // Emit typing event
+  if (selectedGrp) {
+    console.log("📤 Emitting typing to group:", selectedGrp._id);
+    socket.emit("typing", {senderId: authUser._id, groupId: selectedGrp._id, senderName: authUser.fullName });
+  } else if (selectedUser) {
+    console.log("📤 Emitting typing to user:", selectedUser._id);
+    socket.emit("typing", {senderId: authUser._id, receiverId: selectedUser._id, senderName: authUser.fullName });
+  }
+
+  // Clear previous timeout
+  clearTimeout(typingTimeout.current);
+  
+  // Set timeout to emit stop typing
+  typingTimeout.current = setTimeout(() => {
+    console.log("⏹️ Stopping typing indicator");
+    if (selectedGrp) {
+      socket.emit("stopTyping", { groupId: selectedGrp._id, senderId: authUser._id });
+      
+    } else if (selectedUser) {
+      socket.emit("stopTyping", { receiverId: selectedUser._id, senderId: authUser._id });
+    }
+    
+  }, 2000);
+};
+
+// Add cleanup on component unmount
+useEffect(() => {
+  return () => {
+    if (typingTimeout.current) {
+      clearTimeout(typingTimeout.current);
+    }
+    // Stop typing on unmount
+    if (socket) {
+      if (selectedGrp) {
+        socket.emit("stopTyping", { groupId: selectedGrp._id, senderId: authUser._id });
+      } else if (selectedUser) {
+        socket.emit("stopTyping", { receiverId: selectedUser._id, senderId: authUser._id });
+      }
+      
+    }
+  };
+}, [selectedGrp, selectedUser, socket]);
+
+
+useEffect(() => {
+  console.log("🔍 Current typingUsers state:", typingUsers);
+  console.log("🔍 Selected User:", selectedUser?._id);
+  console.log("🔍 Selected Group:", selectedGrp?._id);
+}, [typingUsers, selectedUser, selectedGrp]);
+
+
+
   useEffect(() => {
     if(selectedUser){
       setLoading(true); 
@@ -89,11 +155,47 @@ const getSenderId = (mes) => {
   }
   }, [selectedUser, selectedGrp]);
 
+ 
   useEffect(() => {
-        if(scrollEnd.current && messages){ 
-          scrollEnd.current.scrollIntoView({behavior: "smooth"})
-        }
-  },[messages]);
+  return () => {
+    if (typingTimeout.current) {
+      clearTimeout(typingTimeout.current);
+    }
+    // Stop typing on unmount
+    if (socket) {
+      if (selectedGrp) {
+        socket.emit("stopTyping", { groupId: selectedGrp._id, senderId: authUser._id });
+      } else if (selectedUser) {
+        socket.emit("stopTyping", { receiverId: selectedUser._id, senderId: authUser._id });
+      }
+      
+    }
+  };
+}, [selectedGrp, selectedUser, socket]);
+
+// Add this useEffect RIGHT AFTER your existing useEffects in MainChat.jsx
+// This ensures users join group rooms for proper socket communication
+
+useEffect(() => {
+  if (selectedGrp && socket) {
+    console.log("🔵 Joining group room:", selectedGrp._id);
+    socket.emit("joinGroup", selectedGrp._id);
+    
+    return () => {
+      console.log("🔴 Leaving group room:", selectedGrp._id);
+      socket.emit("leaveGroup", selectedGrp._id);
+    };
+  }
+}, [selectedGrp, socket]);
+
+// Also add this debug useEffect to check if socket events are registered
+useEffect(() => {
+  if (socket) {
+    console.log("🔌 Socket available:", !!socket);
+    console.log("🔌 Socket connected:", socket.connected);
+    console.log("🔌 Socket ID:", socket.id);
+  }
+}, [socket]);
 
   const handleCopy = async (text) => {
     // Copy text to clipboard
@@ -102,6 +204,16 @@ const getSenderId = (mes) => {
       setDropDownMsg(false);
   };
 
+
+
+
+
+
+
+
+
+
+  
   return selectedUser || selectedGrp ? (
         <div className='h-full bg-[url("./src/assets/chatbg.png")] overflow-scroll relative backdrop-blur-lg'>
 
@@ -129,6 +241,8 @@ const getSenderId = (mes) => {
       </div>
     )
   )}
+
+
 
   {/* Group Avatar */}
   {selectedGrp && (
@@ -243,6 +357,8 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
     </p>
   </div>
 )}
+     
+    
 
 
       {/* Message Content */}
@@ -365,13 +481,50 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
 
 {/* Bottom Area */}
 <div className='absolute bottom-0 left-0 right-0 flex items-center gap-3 p-3'>
+  {/* TYPING INDICATOR - INDIVIDUAL CHAT */}
+  {isTyping && (
+    <div className="absolute bottom-16 left-4 flex items-center gap-2 text-xs text-gray-200 bg-gray-800/70 px-3 py-1.5 rounded-full backdrop-blur-sm border border-gray-600/50 shadow-lg">
+      <span className="text-blue-400 font-medium">{selectedUser.fullName?.split(' ')[0] || 'User'}</span>
+      <span>is typing</span>
+      <div className="flex gap-1 ml-1">
+        <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+        <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+        <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+      </div>
+    </div>
+  )}
+
+  {/* TYPING INDICATOR - GROUP CHAT */}
+  {selectedGrp && 
+   typingUsers && 
+   typingUsers[selectedGrp._id] && 
+   typeof typingUsers[selectedGrp._id] === 'object' && 
+   Object.keys(typingUsers[selectedGrp._id]).length > 0 && (
+    <div className="absolute bottom-16 left-4 flex items-center gap-2 text-xs text-green-300 bg-gray-800/70 px-3 py-1.5 rounded-full backdrop-blur-sm border border-gray-600/50 shadow-lg">
+      <span className="font-medium text-green-400">
+        {Object.values(typingUsers[selectedGrp._id])
+          .slice(0, 2)
+          .join(', ')}
+        {Object.keys(typingUsers[selectedGrp._id]).length > 2 && 
+          ` +${Object.keys(typingUsers[selectedGrp._id]).length - 2} more`}
+      </span>
+      <span>{Object.keys(typingUsers[selectedGrp._id]).length > 1 ? 'are' : 'is'} typing</span>
+      <div className="flex gap-1 ml-1">
+        <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+        <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+        <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+      </div>
+    </div>
+  )}
+
 <div className='flex-1 flex items-center bg-gray-100/12 px-3 rounded-full'>
 
-          <input onChange={(e)=>setInput(e.target.value)} value={input} onKeyDown={(e) => e.key === "Enter" ? handleSendMessage(e) : null } type="text" placeholder="Send a message" className='flex-1 text-sm p-3 border-none rounded-lg outline-none text-white placeholder-gray-400'/>
+          <input onChange={handleTyping} value={input} onKeyDown={(e) => e.key === "Enter" ? handleSendMessage(e) : null } type="text" placeholder="Send a message" className='flex-1 text-sm p-3 border-none rounded-lg outline-none text-white placeholder-gray-400'/>
           <input onChange={handleSendImage} type="file" id='image' accept='image/png, image/jpeg' hidden/>
           <label htmlFor="image">
                   <img src={assets.gallery_icon} alt="" className="w-5 mr-2 hover:w-5.5 cursor-pointer"/>
           </label>
+          
 </div>
 <img onClick={handleSendMessage} src={assets.send_button} alt="" className="w-9 cursor-pointer hover:opacity-89" />
 </div>
