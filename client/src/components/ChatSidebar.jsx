@@ -49,7 +49,7 @@ const ChatSidebar = () => {
   const [groupPrivacy, setGroupPrivacy] = useState("public");
   const [selectedGrpImg, setSelectedGrpImg] = useState("");
   const [socialMedia, setSocialMedia] = useState(false);
-  const [newLink, setNewLink] = useState({ platform: "", url: "", privacy: "Public" });
+  const [editPlatform, setEditPlatform] = useState("");
   const [isEdit, setIsEdit] = useState(false);
   const [currentLink, setCurrentLink] = useState({ platform: "", url: "", privacy: "Public" });
   
@@ -115,7 +115,9 @@ const ChatSidebar = () => {
   }
 
   const handleEditLink = async () => {
+    currentLink.platform = editPlatform;
      await editSocialLink({ ...currentLink});
+     setEditPlatform("");
      setIsEdit(false);
      getSocialLink();
   }
@@ -206,31 +208,50 @@ const ChatSidebar = () => {
             className="md:max-w-56 md:max-h-12 max-md:w-15 max-md:ml-1 object-contain drop-shadow-[0_0_12px_rgba(138,43,226,0.8)]" 
           />
 
-          <div className="border relative flex gap-1 overflow-hidden bg-gradient-to-r from-[#1b11de7b] to-[#76002f6a] border-emerald-600 border-2 shadow-[0_0_15px_rgba(55,0,255,0.6)] h-11 w-100 rounded-4xl">
-            <Plus onClick={() => setSocialMedia(prev => !prev)} className="absolute bg-amber-500 rounded-[3px] right-3 top-[9px] w-5 h-5 hover:scale-115 cursor-pointer" />
-            {sortedLinks.map((sl) => {             
 
-              return sl.url && ( // only render if URL exists
-               
-               <a
-                key={sl.platform}
-                href={sl.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-12 h-10 flex text-[19px] hover:text-xl items-center justify-center text-gray-200 hover:text-blue-500 transition-transform transform hover:scale-110"
-               >
-                
-                {iconMap[sl.platform] || sl.platform}
-                {sl.msgCount > 0 && (
-                  <span className="absolute top-11 ml-4 bg-red-500 text-white text-[11px] w-3 h-3 flex items-center justify-center rounded-full">
-                    {sl.msgCount}
-                  </span>
-                )} 
-               </a>
-              );
-            })
-            }
-          </div>
+
+
+
+
+
+
+
+         {/* Social Media List */}
+         
+          <div className="relative flex items-center h-11 w-100 bg-gradient-to-r from-[#1b11de7b] to-[#76002f6a] border-2 border-emerald-600 shadow-[0_0_15px_rgba(55,0,255,0.6)] rounded-4xl">
+  {/* Scrollable container */}
+  <div className="flex gap-1 overflow-x-auto scrollbar-thin scrollbar-thumb-emerald-600 scrollbar-track-transparent px-3 pr-10 scroll-smooth">
+    {sortedLinks.map((sl) =>
+      sl.url && (
+        <a
+          key={sl.platform}
+          href={
+           sl.url.startsWith("http://") || sl.url.startsWith("https://")
+           ? sl.url
+           : `https://${sl.url}`
+          }
+          target="_blank"
+          rel="noopener noreferrer"
+          className="relative w-12 h-10 flex text-[19px] hover:text-xl items-center justify-center text-gray-200 hover:text-blue-500 transition-transform transform hover:scale-110 flex-shrink-0"
+        >
+          {iconMap[sl.platform] || sl.platform}
+          {sl.msgCount > 0 && (
+            <span className="absolute top-0 right-1 bg-red-500 text-white text-[11px] w-3 h-3 flex items-center justify-center rounded-full">
+              {sl.msgCount}
+            </span>
+          )}
+        </a>
+      )
+    )}
+  </div>
+
+  {/* Fixed Plus Button */}
+  <Plus
+    onClick={() => setSocialMedia((prev) => !prev)}
+    className="absolute bg-amber-500 rounded-[3px] right-3 top-[9px] w-5 h-5 hover:scale-115 cursor-pointer z-10"
+  />
+</div>
+
 
           {socialMedia && (<div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-gradient-to-br from-[#07b9e6a2] via-[#c106518b] to-[#8910b2b7] text-white rounded-2xl border border-2 border-[#0cc487] shadow-2xl w-[90%] max-w-3xl p-8 relative animate-fadeIn">
@@ -287,6 +308,7 @@ const ChatSidebar = () => {
     <button
       onClick={() => {
         setCurrentLink(sl);
+        setEditPlatform(sl.platform);
         setIsEdit(true);
       }
       } // load into form
@@ -331,7 +353,8 @@ const ChatSidebar = () => {
     className="p-2 rounded bg-white/20 border border-white/30 text-white placeholder-gray-300"
   >
   <option value="" className="bg-amber-500">Select Platform</option>
-
+     
+  {editPlatform && <option className="bg-indigo-400" key={editPlatform} value={editPlatform}>{editPlatform}</option>}
   {allPlatforms
     .filter(
       (platform) => !sortedLinks.some((sl) => sl.platform === platform)
