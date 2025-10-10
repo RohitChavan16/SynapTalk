@@ -6,12 +6,55 @@ import ProfileSidebar from '../components/ProfileSidebar';
 import { ChatContext } from '../../context/ChatContext';
 import GroupProfileSidebar from '../components/GroupprofileSidebar';
 import MenuOption from '../components/MenuOption';
+import { Menu, X } from 'lucide-react';
+import { motion, AnimatePresence } from "framer-motion";
 
 const Home = () => {
   const {selectedUser, selectedProfile, selectedGrp} = useContext(ChatContext);
 
+  const [showMenu, setShowMenu] = useState(false);
+
   return (
     <div className="border w-full h-screen sm:px-[10%] sm:py-[5%]">
+        <div className="fixed top-1/2 -translate-y-1/2 z-50 md:hidden">
+        <button
+          onClick={() => setShowMenu(!showMenu)}
+          className={`p-2 rounded-tr-lg cursor-pointer rounded-br-lg ${showMenu && "ml-22"} bg-amber-600 text-white hover:bg-gray-700 transition`}>
+          {showMenu ? <X size={22} /> : <Menu size={22} />}
+        </button>
+
+      {/* 💻 Desktop Menu (always visible) */}
+      <div className="absolute left-9 top-1/2 -translate-y-1/2 hidden md:block">
+        <MenuOption />
+      </div>
+
+      {/* 📱 Mobile Sidebar */}
+      <AnimatePresence>
+        {showMenu && (
+          <>
+            {/* Background overlay */}
+            <motion.div
+              className="fixed inset-3 cursor-pointer z-40"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowMenu(false)}
+            />
+
+            {/* Sliding Sidebar */}
+            <motion.div
+              initial={{ x: "-10%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "-100%" }}
+              transition={{ duration: 0.3, ease: "easeInOut" }}
+              className="fixed top-0 left-0 h-full w-26  text-white z-50 p-5 transparent text-right flex flex-col justify-center"
+            >
+              <MenuOption />
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+      </div>
       <div className="absolute left-9 ">
         <MenuOption />
       </div>

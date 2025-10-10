@@ -31,7 +31,7 @@ const SidebarMenu = () => {
   ];
 
   return (
-    <div className="relative bg-gradient-to-b from-[#0ba510e8] via-[#055f9f] to-[#5809c0f7] text-white shadow-2xl rounded-2xl p-3 flex flex-col items-center space-y-2">
+    <div className="relative bg-gradient-to-b from-[#0ba510e8] md via-[#055f9f] to-[#5809c0f7] text-white shadow-2xl rounded-2xl p-3 flex flex-col items-center space-y-2">
       {/* App Logo */}
       <div className="text-2xl font-bold mb-5 mt-2 tracking-wide">
         <span className="text-yellow-400">S</span>
