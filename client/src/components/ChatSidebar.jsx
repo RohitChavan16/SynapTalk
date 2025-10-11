@@ -3,7 +3,7 @@ import assets from '../assets/assets';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 import { ChatContext } from '../../context/ChatContext';
-import { LogOut, User2, UserPlus, UserPlus2, Users, Plus, X, Globe, Lock, Trash, Trash2Icon, Edit, Edit2Icon, Edit2 } from "lucide-react";
+import { LogOut, User2, UserPlus, UserPlus2, Users, Plus, X, Globe, Lock, Trash, Trash2Icon, Edit, Edit2Icon, Edit2, Menu } from "lucide-react";
 import { 
   FaInstagram, 
   FaFacebook, 
@@ -100,6 +100,12 @@ const ChatSidebar = () => {
       }
   }
 
+  const handleUserClick = (user) => {
+  setSelectedUser(user);       // set current user
+  setSelectedGrp(null);        // deselect group
+  setSelectedProfile(true);    // make sure profile sidebar is visible
+};
+
   const handleDeleteLink = async (platform) => {
     if (!platform) {
     toast.error("Platform not selected");
@@ -160,6 +166,9 @@ const ChatSidebar = () => {
   const filteredUsers = input
     ? users.filter((user) => user.fullName.toLowerCase().includes(input.toLowerCase()))
     : users;
+
+
+
   const iconMap = {
    Instagram: <FaInstagram className="text-pink-500" />,
   Facebook: <FaFacebook className="text-blue-500" />,
@@ -203,9 +212,9 @@ const ChatSidebar = () => {
        
       {/* Header */}
       <div className="pb-5">
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between  items-center">
           <img src={assets.logo} alt="logo" 
-            className="md:max-w-56 md:max-h-12 max-md:w-15 max-md:ml-1 object-contain drop-shadow-[0_0_12px_rgba(138,43,226,0.8)]" 
+            className="md:max-w-56 md:max-h-12 max-md:w-15 max-md:ml-[-11px] object-contain drop-shadow-[0_0_12px_rgba(138,43,226,0.8)]" 
           />
 
 
@@ -218,7 +227,7 @@ const ChatSidebar = () => {
 
          {/* Social Media List */}
          
-          <div className="relative flex items-center h-11 w-100 bg-gradient-to-r from-[#1b11de7b] to-[#76002f6a] border-2 border-emerald-600 shadow-[0_0_15px_rgba(55,0,255,0.6)] rounded-4xl">
+          <div className="relative flex items-center h-11 max-md:h-9 max-md:ml-2 w-100 min-w-20 bg-gradient-to-r from-[#1b11de7b] to-[#76002f6a] border-2 border-emerald-600 shadow-[0_0_15px_rgba(55,0,255,0.6)] rounded-4xl">
   {/* Scrollable container */}
   <div className="flex gap-1 overflow-x-auto scrollbar-thin scrollbar-thumb-emerald-600 scrollbar-track-transparent px-3 pr-10 scroll-smooth">
     {sortedLinks.map((sl) =>
@@ -232,7 +241,7 @@ const ChatSidebar = () => {
           }
           target="_blank"
           rel="noopener noreferrer"
-          className="relative w-12 h-10 flex text-[19px] hover:text-xl items-center justify-center text-gray-200 hover:text-blue-500 transition-transform transform hover:scale-110 flex-shrink-0"
+          className="relative w-12 h-10 flex text-[19px] max-md:text-[16px] hover:text-xl items-center justify-center text-gray-200 hover:text-blue-500 transition-transform transform hover:scale-110 flex-shrink-0"
         >
           {iconMap[sl.platform] || sl.platform}
           {sl.msgCount > 0 && (
@@ -248,7 +257,7 @@ const ChatSidebar = () => {
   {/* Fixed Plus Button */}
   <Plus
     onClick={() => setSocialMedia((prev) => !prev)}
-    className="absolute bg-amber-500 rounded-[3px] right-3 top-[9px] w-5 h-5 hover:scale-115 cursor-pointer z-10"
+    className="absolute bg-amber-500 rounded-[3px] right-3 top-[9px] w-5 h-5 max-md:top-[8px] max-md:h-4 max-md:w-4 hover:scale-115 cursor-pointer z-10"
   />
 </div>
 
@@ -414,9 +423,9 @@ const ChatSidebar = () => {
           {/* Dropdown Menu */}
           
           <div className="relative group">
-            <img src={assets.menu_icon} alt="MenuIcon" 
+            <Menu 
             onClick={() => setDropDown(prev => !prev)}  
-            className="w-8 h-8 cursor-pointer hover:scale-110 transition-transform duration-200 rounded-full shadow-[0_0_10px_rgba(255,255,255,0.5)]"
+            className="w-8 h-8 max-md:w-6 max-md:h-6 max-md:ml-2 cursor-pointer hover:scale-110 transition-transform duration-200 rounded-full "
             />
             {dropDown &&
             <div className="absolute top-full right-0 z-20 w-40 mt-2 rounded-lg shadow-[0_0_25px_rgba(138,43,226,0.6)] bg-[#2B2548]/80 border border-violet-500 text-gray-200 p-4 backdrop-blur-md">
@@ -461,7 +470,7 @@ const ChatSidebar = () => {
 
 
         {/*When User want to Search*/}
-
+      { active !== "My Groups" &&
         <div className="bg-gradient-to-r from-purple-700/30 to-pink-500/30 rounded-full flex items-center gap-3 py-2.5 px-4 mt-5 border border-violet-500/40 focus-within:border-pink-400 transition-colors backdrop-blur-md">
           <img src={assets.search_icon} alt="Search Icon" className="w-4 h-4 opacity-80 drop-shadow-[0_0_4px_rgba(255,255,255,0.7)]" />
           <input 
@@ -471,13 +480,33 @@ const ChatSidebar = () => {
             placeholder="🔍 Search User..." 
           />
         </div>
+      }
+ 
+      { active === "My Groups" &&
+       <div className="bg-gradient-to-r from-purple-700/30 to-pink-500/30 rounded-full flex items-center gap-3 py-2.5 px-4 mt-5 border border-violet-500/40 focus-within:border-pink-400 transition-colors backdrop-blur-md">
+          <img src={assets.search_icon} alt="Search Icon" className="w-4 h-4 opacity-80 drop-shadow-[0_0_4px_rgba(255,255,255,0.7)]" />
+          <input 
+            onChange={(e) => setInput(e.target.value)} 
+            type="text" 
+            className="bg-transparent border-none outline-none text-white text-sm placeholder-gray-400 flex-1"
+            placeholder="🔍 Search group name..." 
+          />
+        </div>
+      }
+
       </div>
        
 
 
 
-       {/* Normal Chat or Group Chat */}
+      
 
+
+      <p className="font-bold text-[13px] w-full flex items-center justify-center mb-3 mt-[-7px] text-[#00acd6d4]">{active}</p>
+
+
+
+        {/* Normal Chat or Group Chat */}
 
        {/* When User wants to create an new group */}
 

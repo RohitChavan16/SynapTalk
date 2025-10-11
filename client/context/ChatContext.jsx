@@ -11,6 +11,7 @@ const [users, setUsers] = useState([]);
 const [selectedUser, setSelectedUser] = useState(null);
 const [selectedGrp, setSelectedGrp] = useState(null);
 const [selectedProfile, setSelectedProfile] = useState(false);
+const [selectedProfileGrp, setSelectedProfileGrp] = useState(false);
 const [unseenMessages, setUnseenMessages] = useState({});
 const {socket, axios, privateKey, authUser} = useContext(AuthContext);
 const [groups, setGroups] = useState([]);
@@ -321,6 +322,8 @@ socket.on("userStopTyping", (data) => {
     setUnseenMessages, 
     selectedProfile, 
     setSelectedProfile,
+    selectedProfileGrp,
+    setSelectedProfileGrp,
     newGroupHandle,
     fetchGroups,
     groups,

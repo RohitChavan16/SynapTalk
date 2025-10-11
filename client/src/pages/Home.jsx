@@ -10,7 +10,7 @@ import { Menu, X } from 'lucide-react';
 import { motion, AnimatePresence } from "framer-motion";
 
 const Home = () => {
-  const {selectedUser, selectedProfile, selectedGrp} = useContext(ChatContext);
+  const {selectedUser, selectedProfile, selectedGrp, selectedProfileGrp} = useContext(ChatContext);
 
   const [showMenu, setShowMenu] = useState(false);
 
@@ -58,9 +58,9 @@ const Home = () => {
       <div className="absolute left-9 ">
         <MenuOption />
       </div>
-      <div className={`backdrop-blur-xl border-2 border-gray-600 rounded-2xl overflow-hidden h-[100%] grid relative
+      <div className={`backdrop-blur-xl border-2  border-gray-600 rounded-2xl overflow-hidden h-full grid relative
         ${selectedUser || selectedGrp ? 
-          `${selectedProfile ? 
+          `${(selectedProfile || selectedProfileGrp) ? 
             "md:grid-cols-[1fr_1.2fr_1fr] xl:grid-cols-[1fr_1.2fr_1fr]" : 
             "md:grid-cols-[1fr_1.5fr_0fr] xl:grid-cols-[1fr_1.2fr_0fr]"
           }` : 
@@ -72,27 +72,37 @@ const Home = () => {
         
         {/* Profile Sidebar - Always render when user selected, but control with grid and transitions */}
         {/* Profile Sidebar - Always render when user or group selected, but control with grid and transitions */}
-{(selectedUser || selectedGrp) && (
-  <div className={`
-    transition-all duration-500 ease-in-out overflow-hidden
-    ${selectedProfile ? 
-      "opacity-100 translate-x-0" : 
-      "opacity-0 translate-x-full"
-    }
-  `}>
-    <div className="w-full h-full">
-      {(() => {
-        if (selectedUser && !selectedGrp) {
-          return <ProfileSidebar />;
-        } else if (selectedGrp) {
-          return <GroupProfileSidebar />;
-        } else {
-          return null;
-        }
-      })()}
-    </div>
+{/* Mobile Profile Sidebar */}
+{/* Mobile Profile Sidebar */}
+
+{selectedProfile && (
+  <div className="hidden overflow-y-auto h-full md:block">
+    <ProfileSidebar />
   </div>
 )}
+{selectedProfileGrp && (
+  <div className="hidden overflow-y-auto h-full md:block">
+    <GroupProfileSidebar />
+  </div>
+)}
+<AnimatePresence>
+  {(selectedProfile || selectedProfileGrp) && (
+    <motion.div
+      initial={{ x: "100%", opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      exit={{ x: "100%", opacity: 0 }}
+      transition={{ duration: 0.3, ease: "easeInOut" }}
+      className="fixed top-0 right-0 z-50 w-80 h-full bg-gray-900 overflow-y-auto md:hidden"
+    >
+      {/* Render the actual sidebar content here */}
+      {selectedProfile && <ProfileSidebar />}
+      {selectedProfileGrp && <GroupProfileSidebar />}
+    </motion.div>
+  )}
+</AnimatePresence>
+
+
+
 
       </div>
     </div>

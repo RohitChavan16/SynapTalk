@@ -9,7 +9,7 @@ import { Reply, Trash2, Copy, Languages } from "lucide-react";
 
 const MainChat = () => {
 
-  const {messages, selectedUser, setSelectedUser, sendMessage, getMessages, selectedProfile, setSelectedProfile, selectedGrp, setSelectedGrp, sendGrpMsg, getGrpMessages, typingUsers, typingId, setTypingId } = useContext(ChatContext);
+  const {messages, selectedUser, setSelectedUser, sendMessage, getMessages, selectedProfile, setSelectedProfile, selectedProfileGrp, setSelectedProfileGrp, selectedGrp, setSelectedGrp, sendGrpMsg, getGrpMessages, typingUsers, typingId, setTypingId } = useContext(ChatContext);
   const {authUser, onlineUsers, socket} = useContext(AuthContext);
   const scrollEnd = useRef();
   const [loading, setLoading] = useState(true);
@@ -215,10 +215,10 @@ useEffect(() => {
 
   
   return selectedUser || selectedGrp ? (
-        <div className='h-full bg-[url("./src/assets/chatbg.png")] overflow-scroll relative backdrop-blur-lg'>
+<div className={`h-full max-md:h-screen ${selectedGrp && "max-md:mt-[-41px]"} bg-[url("./src/assets/chatbg.png")] overflow-scroll relative backdrop-blur-lg`}>
 
 <div className='flex items-center gap-3 backdrop-blur-[2px] py-3 mx-1 border-b border-stone-500'>
-<div className="flex">
+<div className="flex ">
   {/* User Avatar */}
   {selectedUser && (
     selectedUser.profilePic ? (
@@ -250,7 +250,7 @@ useEffect(() => {
       <img
         src={selectedGrp.groupPic}
         alt={selectedGrp.groupName}
-        onClick={() => setSelectedGrp(null)}  
+        onClick={() => setSelectedProfileGrp(prev => !prev)}  
         className="w-[33px] h-[33px] rounded-full object-cover border border-violet-500 ml-4 shadow-[0_0_8px_rgba(138,43,226,0.7)]"
       />
     ) : (
@@ -269,7 +269,10 @@ useEffect(() => {
 </div>
 
 <p 
-onClick={() => setSelectedProfile(prev => !prev)}
+onClick={() => {
+  if(selectedGrp) setSelectedProfileGrp(prev => !prev)
+    else setSelectedProfile(prev => !prev);
+}}
 className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
 {selectedUser ? selectedUser.fullName : selectedGrp?.name}
  {selectedUser && onlineUsers.includes(selectedUser._id) && 
@@ -278,7 +281,7 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
 </p>
 
 
-<img onClick={()=> setSelectedUser(null)} src={assets.arrow_icon} alt="" className='md:hidden max-w-7'/>
+<img onClick={()=> {setSelectedUser(null); setSelectedGrp(null)}} src={assets.arrow_icon} alt="" className='md:hidden max-w-7'/>
 <img src={assets.help_icon} alt="" className='max-md:hidden max-w-5 mx-3'/>
 </div>
 {/*Chat Area*/}

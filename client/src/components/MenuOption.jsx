@@ -15,7 +15,7 @@ import {
 import { ChatContext } from "../../context/ChatContext";
 
 const SidebarMenu = () => {
-  const {active, setActive} = useContext(ChatContext);
+  const {active, setActive, setSelectedUser, setSelectedGrp, setSelectedProfile, setSelectedProfileGrp} = useContext(ChatContext);
   const [hovered, setHovered] = useState(null);
 
   const menuItems = [
@@ -31,14 +31,14 @@ const SidebarMenu = () => {
   ];
 
   return (
-    <div className="relative bg-gradient-to-b from-[#0ba510e8] md via-[#055f9f] to-[#5809c0f7] text-white shadow-2xl rounded-2xl p-3 flex flex-col items-center space-y-2">
+    <div className="relative bg-gradient-to-b from-[#0ba510e8] via-[#055f9f] to-[#5809c0f7] text-white shadow-2xl rounded-2xl p-3 flex flex-col items-center space-y-2">
       {/* App Logo */}
       <div className="text-2xl font-bold mb-5 mt-2 tracking-wide">
         <span className="text-yellow-400">S</span>
       </div>
 
       {/* Sidebar Icons */}
-      <div className="flex flex-col space-y-2">
+      <div className="flex flex-col justify-center space-y-2">
         {menuItems.map((item) => {
           const Icon = item.icon;
           return (
@@ -50,7 +50,13 @@ const SidebarMenu = () => {
                     ? "bg-white/25 shadow-md"
                     : "hover:bg-white/15"
                 }`}
-              onClick={() => setActive(item.name)}
+              onClick={() => {
+                setActive(item.name);
+                setSelectedUser(null);
+                setSelectedGrp(null);
+                setSelectedProfile(null);
+                setSelectedProfileGrp(null);
+              }}
               onMouseEnter={() => setHovered(item.name)}
               onMouseLeave={() => setHovered(null)}
             >

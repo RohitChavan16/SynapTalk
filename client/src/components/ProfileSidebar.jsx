@@ -28,7 +28,7 @@ import {
 import { CallContext } from '../../context/CallContext';
 
 const ProfileSidebar = () => {
-  const {selectedUser, messages} = useContext(ChatContext);
+  const {selectedUser, messages, setSelectedProfile} = useContext(ChatContext);
   const {logout, onlineUsers} = useContext(AuthContext);
   const [msgImages, setMsgImages] = useState([]);
   const [msgDocs, setMsgDocs] = useState([]);
@@ -131,8 +131,13 @@ const ProfileSidebar = () => {
   );
 
   return selectedUser && (
-    <div className={`bg-[#8185B2]/10 text-white w-full relative border-l-2 border-l-gray-600 h-[100%] overflow-y-scroll ${selectedUser ? "max-md:hidden": ""}`}>
-      
+    <div className={`bg-[#8185B2]/10 text-white w-full relative border-l-2 border-l-gray-600 h-[100%] overflow-y-scroll `}>
+      <button
+        className="absolute top-3 right-3 p-2 text-white md:hidden"
+        onClick={() => setSelectedProfile(false)}
+      >
+        X
+      </button>
       {/* Existing Profile Header - Unchanged */}
       <div className='pt-10 flex flex-col items-center gap-2 text-xs font-light mx-auto'>
         {selectedUser?.profilePic ? (

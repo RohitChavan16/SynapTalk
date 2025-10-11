@@ -20,7 +20,7 @@ import {
 import { AuthContext } from '../../context/AuthContext';
 
 const GroupProfileSidebar = () => {
-  const { selectedGrp, messages } = useContext(ChatContext);
+  const { selectedGrp, messages, setSelectedProfileGrp } = useContext(ChatContext);
   const {onlineUsers, authUser} = useContext(AuthContext);
   const [msgImages, setMsgImages] = useState([]);
   const [msgDocs, setMsgDocs] = useState([]);
@@ -71,8 +71,13 @@ const GroupProfileSidebar = () => {
   );
 
   return selectedGrp && (
-    <div className="bg-[#8185B2]/10 text-white w-full relative border-l-2 border-l-gray-600 h-[100%] overflow-y-scroll max-md:hidden">
-
+    <div className="bg-[#8185B2]/10 text-white w-full relative border-l-2 border-l-gray-600 h-[100%] overflow-y-scroll ">
+      <button
+        className="absolute top-3 right-3 p-2 text-white md:hidden"
+        onClick={() => setSelectedProfileGrp(false)}
+      >
+        X
+      </button>
       {/* Group Header */}
       <div className='pt-10 flex flex-col items-center gap-2 text-xs font-light mx-auto'>
         <img src={selectedGrp.groupPic || assets.avatar_icon} alt="" className='w-24 aspect-[1/1] rounded-full border-2 border-white/30 shadow-lg'/>
