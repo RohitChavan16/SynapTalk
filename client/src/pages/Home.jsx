@@ -4,7 +4,7 @@ import MainChat from '../components/MainChat';
 import Profile from './Profile';
 import ProfileSidebar from '../components/ProfileSidebar';
 import { ChatContext } from '../../context/ChatContext';
-import GroupProfileSidebar from '../components/GroupprofileSidebar';
+import GroupProfileSidebar from '../components/GroupProfileSidebar';
 import MenuOption from '../components/MenuOption';
 import { Menu, X } from 'lucide-react';
 import { motion, AnimatePresence } from "framer-motion";
