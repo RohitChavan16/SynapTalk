@@ -116,22 +116,20 @@ export const getMessages = async (req, res) => {
         console.log('Message receiver ID:', messageReceiverId);
 
         try {
-          // Try to decrypt with the appropriate key based on user role
+          
           if (currentUserId === messageSenderId) {
-            // I'm the sender, try sender key first
-            console.log('Trying sender key...');
+            
             if (keyPayload.senderKey) {
               sessionKey = ecc.decryptKey(keyPayload.senderKey, req.body.privateKey);
-              console.log('Successfully decrypted with sender key');
             } else {
               throw new Error('Sender key not available in payload');
             }
           } else if (currentUserId === messageReceiverId) {
             // I'm the receiver, try receiver key first  
-            console.log('Trying receiver key...');
+            
             if (keyPayload.receiverKey) {
               sessionKey = ecc.decryptKey(keyPayload.receiverKey, req.body.privateKey);
-              console.log('Successfully decrypted with receiver key');
+              
             } else {
               throw new Error('Receiver key not available in payload');
             }
@@ -139,25 +137,25 @@ export const getMessages = async (req, res) => {
             throw new Error('User is neither sender nor receiver of this message');
           }
         } catch (primaryError) {
-          console.log('Primary key failed, trying fallback...');
+          
           
           // Fallback: try the other key or legacy format
           try {
             if (keyPayload.encryptedKey) {
               // Legacy format fallback
-              console.log('Trying legacy format...');
+              
               sessionKey = ecc.decryptKey(keyPayload, req.body.privateKey);
-              console.log('Successfully decrypted with legacy format');
+              
             } else if (currentUserId === messageSenderId && keyPayload.receiverKey) {
               // Try receiver key as fallback
-              console.log('Trying receiver key as fallback...');
+              
               sessionKey = ecc.decryptKey(keyPayload.receiverKey, req.body.privateKey);
-              console.log('Successfully decrypted with receiver key fallback');
+              
             } else if (currentUserId === messageReceiverId && keyPayload.senderKey) {
               // Try sender key as fallback
-              console.log('Trying sender key as fallback...');
+              
               sessionKey = ecc.decryptKey(keyPayload.senderKey, req.body.privateKey);
-              console.log('Successfully decrypted with sender key fallback');
+              
             } else {
               throw primaryError;
             }
@@ -167,24 +165,22 @@ export const getMessages = async (req, res) => {
           }
         }
 
-        console.log('Session key decrypted successfully, length:', sessionKey.length);
+        
 
         // Verify HMAC integrity
-        console.log('Verifying message integrity...');
         if (!hmac.verifyHMAC(encryptedData, sessionKey, msg.hmac)) {
-          console.log('HMAC verification failed');
+         
           return {
             ...msg._doc,
             text: '[Message integrity verification failed]',
           };
         }
-        console.log('HMAC verification successful');
+       
 
         // Decrypt the actual message text using AES
-        console.log('Decrypting message content...');
+       
         const decryptedText = aes.decrypt(encryptedData, sessionKey, iv);
-        console.log('Message decrypted successfully');
-
+        
         return { 
           ...msg._doc, 
           text: decryptedText,
@@ -192,8 +188,7 @@ export const getMessages = async (req, res) => {
         };
 
       } catch (err) {
-        console.error(`Message decryption error for ${msg._id}:`, err);
-        console.error('Error stack:', err.stack);
+        
         
         // Return message with error indicator
         return {
@@ -207,9 +202,7 @@ export const getMessages = async (req, res) => {
     // Count successful vs failed decryptions
     const successCount = decryptedMessages.filter(msg => msg.decryptionStatus === 'success').length;
     const totalCount = decryptedMessages.length;
-    console.log(`\n=== Decryption Summary ===`);
-    console.log(`Successfully decrypted: ${successCount}/${totalCount} messages`);
-
+    
     res.json({success: true, messages: decryptedMessages});
     
   } catch(error) {
@@ -452,7 +445,6 @@ export const bulkDecryptMessages = async (req, res) => {
             });
           }
         } catch (error) {
-          console.error('Bulk decrypt error:', error);
           decryptedMessages.push({
             messageId: message._id,
             decryptedText: '[Unable to decrypt message]'

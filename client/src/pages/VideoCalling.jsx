@@ -514,6 +514,10 @@ const VideoCalling = ({
     // Clean up and call the onCallEnd callback
     cleanup();
     onCallEnd();
+    
+
+    // Reload after a short delay so the toast is visible
+   
   }, [roomId, onCallEnd, cleanup]);
 
   const switchVideoPositions = () => {

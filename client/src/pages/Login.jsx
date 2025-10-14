@@ -1,6 +1,7 @@
 import React, { useContext, useState } from 'react'
 import assets from '../assets/assets';
 import { AuthContext } from '../../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const Login = () => {
 
@@ -12,19 +13,27 @@ const Login = () => {
   const [isDataSubmitted, setIsDataSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-
+  const navigate = useNavigate();
   const {login} = useContext(AuthContext);
 
-  const onSubmitHandler = (event)=>{
+  const onSubmitHandler = async (event)=>{
     setLoading(true);
     event.preventDefault();
+    try {
     if (currState === 'Sign up' && !isDataSubmitted) {
        setIsDataSubmitted(true);
        setLoading(false);
        return;
     }
-    login(currState === "Sign up" ? "signup" : "login", {fullName, email, password, bio});
+    const success = await login(currState === "Sign up" ? "signup" : "login", {fullName, email, password, bio});
+     if (success) {
+      navigate("/");
+    }
+    } catch (error) {
+    console.error("Authentication failed:", error);
+  } finally {
     setLoading(false);
+  }
  }
 
 

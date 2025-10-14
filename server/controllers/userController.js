@@ -3,6 +3,8 @@ import bcrypt from "bcryptjs";
 import { generateToken } from "../utils/jwtToken.js";
 import cloudinary from "../lib/cloudinary.js";
 import { generateKeyPair } from "../crypto/crypto.js";
+import transporter from "../config/nodemailer.js";
+import { getWelcomeEmailHTML } from "../emailTemplates/welcomeEmail.js";
 
 
 
@@ -40,6 +42,16 @@ export const signup = async (req, res) => {
     });
 
     const token = generateToken(newUser._id);
+
+    const mailOptions = {
+    from: process.env.SENDER_EMAIL,
+    to: email,
+    subject: "Welcome to SynapTalk",
+    text: `Thankyou for using the SynapTalk. Your account has been created successfully with email id: ${email}`,
+    html: getWelcomeEmailHTML(email, fullName),
+   }
+
+   await transporter.sendMail(mailOptions);
 
     // Send private key as PEM string directly (don't convert to base64)
     res.json({

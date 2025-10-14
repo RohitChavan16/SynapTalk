@@ -114,8 +114,7 @@ export const ecc = {
     }
 
     // Safe logging with null checks
-    console.log("Recipient Private Key type:", typeof recipientPrivateKeyInput);
-    console.log("Recipient Private Key length:", recipientPrivateKeyInput ? recipientPrivateKeyInput.length : 'N/A');
+    
     if (recipientPrivateKeyInput && typeof recipientPrivateKeyInput === 'string') {
       console.log("Recipient Private Key (first 100 chars):", recipientPrivateKeyInput.slice(0, 100));
     }
@@ -129,11 +128,6 @@ export const ecc = {
       throw new Error('Missing required encryption payload fields');
     }
 
-    console.log("Payload fields present:", {
-      hasEncryptedKey: !!encryptedKey,
-      hasEphemeralPublicKey: !!ephemeralPublicKey,
-      hasIv: !!iv
-    });
 
     // Normalize keys to PEM + KeyObjects with better error handling
     let recipientPrivKeyObj;
@@ -149,9 +143,7 @@ export const ecc = {
         format: 'pem',
         type: 'pkcs8',
       });
-      console.log("Successfully created private key object");
     } catch (e) {
-      console.error('PEM conversion failed:', e.message);
       
       // Fallback: try raw DER (base64-encoded)
       try {
@@ -161,10 +153,9 @@ export const ecc = {
           format: 'der',
           type: 'pkcs8',
         });
-        console.log("Successfully created private key object from DER");
+        
       } catch (e2) {
-        console.error('DER conversion also failed:', e2.message);
-        console.error('Failed to parse private key in both PEM and DER formats');
+        
         throw new Error('Invalid private key format');
       }
     }
@@ -176,7 +167,7 @@ export const ecc = {
         format: 'pem',
         type: 'spki',
       });
-      console.log("Successfully created ephemeral public key object");
+      
     } catch (e) {
       console.error('Failed to parse ephemeral public key:', e);
       throw new Error('Invalid ephemeral public key format');
@@ -185,27 +176,24 @@ export const ecc = {
     // Ensure curves match
     const curveA = getCurveName(recipientPrivKeyObj);
     const curveB = getCurveName(ephPubKeyObj);
-    console.log("Curves:", { private: curveA, ephemeral: curveB });
     
     if (curveA !== curveB) {
       throw new Error(`Curve mismatch: private key is ${curveA}, ephemeral public key is ${curveB}`);
     }
 
     // ECDH: shared secret (recipient private, ephemeral public)
-    console.log("Computing shared secret...");
+   
     const sharedSecret = crypto.diffieHellman({
       privateKey: recipientPrivKeyObj,
       publicKey: ephPubKeyObj,
     });
-    console.log("Shared secret computed, length:", sharedSecret.length);
+    
 
     // Derive AES key exactly as in encryptKey
-    console.log("Deriving AES key...");
+    
     const aesKey = crypto.pbkdf2Sync(sharedSecret, 'salt', 10000, 32, 'sha256');
-    console.log("AES key derived, length:", aesKey.length);
-
-    // Decrypt AES-256-CBC
-    console.log("Starting decryption...");
+       // Decrypt AES-256-CBC
+   
     const decipher = crypto.createDecipheriv(
       'aes-256-cbc',
       aesKey,
@@ -217,12 +205,11 @@ export const ecc = {
       decipher.final(),
     ]);
 
-    console.log("Decryption successful, result length:", decrypted.length);
+    
     return decrypted; // Buffer of original session key
     
   } catch (err) {
-    console.error('ECC decryptKey error:', err);
-    console.error('Error stack:', err.stack);
+    
     throw new Error(`Failed to decrypt (unwrap) session key: ${err.message}`);
   }
 },

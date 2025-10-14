@@ -43,7 +43,7 @@ userRouter.get(
 // Google contacts API
 userRouter.get("/google/contacts", async (req, res) => {
   try {
-    console.log("Incoming headers:", req.headers);
+    
 
     const authHeader = req.headers.authorization;
     if (!authHeader) {
@@ -52,10 +52,10 @@ userRouter.get("/google/contacts", async (req, res) => {
     }
 
     const token = authHeader.split(" ")[1];
-    console.log("Extracted JWT:", token);
+   
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log("Decoded JWT:", decoded);
+    
 
     const user = await User.findById(decoded.userId);
     if (!user) {
@@ -68,7 +68,7 @@ userRouter.get("/google/contacts", async (req, res) => {
       return res.status(400).json({ message: "Google login required" });
     }
 
-    console.log("✅ Google tokens found");
+   
 
     const oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
@@ -80,7 +80,6 @@ userRouter.get("/google/contacts", async (req, res) => {
       refresh_token: user.googleRefreshToken,
     });
 
-    console.log("✅ OAuth2 client set");
 
     const people = google.people({ version: "v1", auth: oauth2Client });
     const response = await people.people.connections.list({
@@ -89,7 +88,6 @@ userRouter.get("/google/contacts", async (req, res) => {
       personFields: "names,emailAddresses,phoneNumbers,photos",
     });
 
-    console.log("✅ Google response:", response.data);
 
     const contacts = (response.data.connections || []).map((c) => ({
       name: c.names?.[0]?.displayName || "",

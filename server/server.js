@@ -13,10 +13,10 @@ import groupRouter from "./routes/groupRoutes.js";
 const app = express();
 const server = http.createServer(app);
 
-// Initialize Socket.io server with enhanced configuration for video calling
+
 export const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173", // your frontend URL
+    origin: process.env.CLIENT_URL, 
     credentials: true,
   },
   transports: ['websocket', 'polling'],
@@ -26,22 +26,22 @@ export const io = new Server(server, {
 });
 
 app.use((req, res, next) => {
-  req.io = io; // attach socket.io to every request
+  req.io = io; 
   next();
 });
 
-// Store online users and call rooms
+// Storing online users and call rooms
 export const userSocketMap = {};
 export const callRooms = new Map(); // roomId -> { participants: Set, createdAt, settings }
 export const activeConnections = new Map(); // userId -> { socketId, roomId, status }
 
-// Helper function to get socket by user ID
+//This is the helper function to get socket by user ID
 const getSocketByUserId = (userId) => {
   const socketId = userSocketMap[userId];
   return socketId ? io.sockets.sockets.get(socketId) : null;
 };
 
-// Helper function to broadcast to room
+//This is the helper function to broadcast to room
 const broadcastToRoom = (roomId, event, data, excludeUserId = null) => {
   const room = callRooms.get(roomId);
   if (!room) return;
@@ -56,7 +56,8 @@ const broadcastToRoom = (roomId, event, data, excludeUserId = null) => {
   });
 };
 
-// Socket.io connection handler
+// Socket.io connection
+
 io.on("connection", (socket) => {
   const userId = socket.handshake.query.userId;
   console.log("User Connected", userId);
@@ -71,92 +72,78 @@ io.on("connection", (socket) => {
     });
   }
 
-  // Emit online users to all connected clients
+  
   io.emit("getOnlineUsers", Object.keys(userSocketMap));
 
   // 🔹 Regular Chat Group Room Management
   socket.on("joinGroup", (groupId) => {
-    console.log(`User ${userId} joined chat group ${groupId}`);
+    
     socket.join(groupId);
   });
 
   socket.on("leaveGroup", (groupId) => {
-    console.log(`User ${userId} left chat group ${groupId}`);
+    
     socket.leave(groupId);
   });
 
   
 socket.on("typing", ({ receiverId, groupId, senderName, senderId }) => {
-  console.log("\n⌨️ === TYPING EVENT RECEIVED ===");
-  console.log("From User ID:", senderId);
-  console.log("Receiver ID:", receiverId);
-  console.log("Group ID:", groupId);
-  console.log("Current userSocketMap:", Object.keys(userSocketMap));
+
   
   if (groupId) {
-    console.log("📤 Broadcasting to GROUP:", groupId);
+    
     const roomSockets = io.sockets.adapter.rooms.get(groupId);
-    console.log("Room exists?", !!roomSockets);
-    console.log("Room members:", roomSockets ? Array.from(roomSockets) : 'none');
+    
     
     socket.to(groupId).emit("userTyping", { 
       senderId: senderId, 
       senderName: senderName || "Someone",
       groupId 
     });
-    console.log("✅ Group typing event sent");
-  } else if (receiverId) {
-    console.log("📤 Sending to INDIVIDUAL USER:", receiverId);
-    const receiverSocketId = userSocketMap[receiverId];
-    console.log("Receiver socket ID:", receiverSocketId);
-    console.log("Receiver socket exists?", !!receiverSocketId);
     
+  } else if (receiverId) {
+    
+    const receiverSocketId = userSocketMap[receiverId];
+      
     if (receiverSocketId) {
       const targetSocket = io.sockets.sockets.get(receiverSocketId);
-      console.log("Target socket object exists?", !!targetSocket);
-      console.log("Target socket connected?", targetSocket?.connected);
-      
+           
       io.to(receiverSocketId).emit("userTyping", { 
         senderId: senderId, senderName : senderName
       });
-      console.log("✅ Individual typing event sent to socket:", receiverSocketId);
-      console.log("Event payload:", { senderId: socket.userId });
+      
     } else {
       console.log("❌ Receiver not found in userSocketMap");
     }
   }
-  console.log("=== END TYPING EVENT ===\n");
+  
 });
 
 socket.on("stopTyping", ({ receiverId, groupId, senderId }) => {
-  console.log("\n⏹️ === STOP TYPING EVENT RECEIVED ===");
-  console.log("From User ID:", socket.userId);
-  console.log("Receiver ID:", receiverId);
-  console.log("Group ID:", groupId);
+  
   
   if (groupId) {
-    console.log("📤 Broadcasting stop typing to GROUP:", groupId);
+   
     socket.to(groupId).emit("userStopTyping", { 
       senderId, 
       groupId 
     });
-    console.log("✅ Group stop typing event sent");
+    
   } else if (receiverId) {
-    console.log("📤 Sending stop typing to INDIVIDUAL USER:", receiverId);
+   
     const receiverSocketId = userSocketMap[receiverId];
-    console.log("Receiver socket ID:", receiverSocketId);
+    
     
     if (receiverSocketId) {
       io.to(receiverSocketId).emit("userStopTyping", { 
         senderId
       });
-      console.log("✅ Individual stop typing event sent to socket:", receiverSocketId);
-      console.log("Event payload:", { senderId: socket.userId });
+     
     } else {
       console.log("❌ Receiver not found");
     }
   }
-  console.log("=== END STOP TYPING EVENT ===\n");
+  
 });
 
 
@@ -165,8 +152,7 @@ socket.on("stopTyping", ({ receiverId, groupId, senderId }) => {
   // Join video call room
   socket.on("join-call-room", (data) => {
     const { roomId, userInfo = {} } = data;
-    console.log(`User ${userId} joining call room ${roomId}`);
-
+    
     // Create room if it doesn't exist
     if (!callRooms.has(roomId)) {
       callRooms.set(roomId, {
@@ -265,8 +251,7 @@ socket.on("stopTyping", ({ receiverId, groupId, senderId }) => {
   // WebRTC Signaling - Offer
   socket.on("webrtc-offer", (data) => {
     const { roomId, targetUserId, offer } = data;
-    console.log(`WebRTC offer from ${userId} to ${targetUserId} in room ${roomId}`);
-
+   
     const targetSocket = getSocketByUserId(targetUserId);
     if (targetSocket) {
       targetSocket.emit("webrtc-offer", {
@@ -287,8 +272,7 @@ socket.on("stopTyping", ({ receiverId, groupId, senderId }) => {
   // WebRTC Signaling - Answer
   socket.on("webrtc-answer", (data) => {
     const { roomId, targetUserId, answer } = data;
-    console.log(`WebRTC answer from ${userId} to ${targetUserId} in room ${roomId}`);
-
+    
     const targetSocket = getSocketByUserId(targetUserId);
     if (targetSocket) {
       targetSocket.emit("webrtc-answer", {
@@ -303,7 +287,7 @@ socket.on("stopTyping", ({ receiverId, groupId, senderId }) => {
   // WebRTC Signaling - ICE Candidate
   socket.on("webrtc-ice-candidate", (data) => {
     const { roomId, targetUserId, candidate } = data;
-    console.log(`ICE candidate from ${userId} to ${targetUserId}`);
+   
 
     const targetSocket = getSocketByUserId(targetUserId);
     if (targetSocket) {
@@ -319,8 +303,7 @@ socket.on("stopTyping", ({ receiverId, groupId, senderId }) => {
   // Call status updates (mute, video off, etc.)
   socket.on("call-status-update", (data) => {
     const { roomId, status } = data;
-    console.log(`Call status update from ${userId}:`, status);
-
+   
     // Broadcast status update to other participants in the room
     socket.to(roomId).emit("participant-status-update", {
       userId,
@@ -334,7 +317,6 @@ socket.on("stopTyping", ({ receiverId, groupId, senderId }) => {
   // End call for entire room
   socket.on("end-call", (data) => {
     const { roomId, reason = "host_ended" } = data;
-    console.log(`Call ended by ${userId} in room ${roomId}`);
 
     if (callRooms.has(roomId)) {
       // Notify all participants
@@ -362,7 +344,7 @@ socket.on("stopTyping", ({ receiverId, groupId, senderId }) => {
   // Screen sharing events
   socket.on("screen-share-started", (data) => {
     const { roomId } = data;
-    console.log(`Screen sharing started by ${userId} in room ${roomId}`);
+    
     
     socket.to(roomId).emit("participant-screen-share", {
       userId,
@@ -373,8 +355,7 @@ socket.on("stopTyping", ({ receiverId, groupId, senderId }) => {
 
   socket.on("screen-share-stopped", (data) => {
     const { roomId } = data;
-    console.log(`Screen sharing stopped by ${userId} in room ${roomId}`);
-    
+       
     socket.to(roomId).emit("participant-screen-share", {
       userId,
       action: "stopped",
@@ -385,7 +366,6 @@ socket.on("stopTyping", ({ receiverId, groupId, senderId }) => {
   // Call recording events
   socket.on("recording-started", (data) => {
     const { roomId } = data;
-    console.log(`Recording started by ${userId} in room ${roomId}`);
     
     socket.to(roomId).emit("call-recording", {
       userId,
@@ -396,8 +376,7 @@ socket.on("stopTyping", ({ receiverId, groupId, senderId }) => {
 
   socket.on("recording-stopped", (data) => {
     const { roomId } = data;
-    console.log(`Recording stopped by ${userId} in room ${roomId}`);
-    
+        
     socket.to(roomId).emit("call-recording", {
       userId,
       action: "stopped",
@@ -420,8 +399,7 @@ socket.on("stopTyping", ({ receiverId, groupId, senderId }) => {
   // Chat messages during call
   socket.on("call-chat-message", (data) => {
     const { roomId, message } = data;
-    console.log(`Call chat message from ${userId} in room ${roomId}`);
-    
+       
     socket.to(roomId).emit("call-chat-message", {
       fromUserId: userId,
       message,
@@ -464,8 +442,7 @@ socket.on("stopTyping", ({ receiverId, groupId, senderId }) => {
 
   // Handle disconnect
   socket.on("disconnect", (reason) => {
-    console.log("User Disconnected", userId, "Reason:", reason);
-    
+       
     // Clean up user from all rooms
     if (userId) {
       const userConnection = activeConnections.get(userId);
@@ -512,7 +489,7 @@ socket.on("stopTyping", ({ receiverId, groupId, senderId }) => {
   
   const targetSocket = getSocketByUserId(to);
   if (targetSocket) {
-    // Send call request to target user
+    // Sending call request to target user
     targetSocket.emit("call-request", {
       from,
       fromName,
@@ -520,7 +497,7 @@ socket.on("stopTyping", ({ receiverId, groupId, senderId }) => {
       timestamp: Date.now()
     });
     
-    // Optionally, you can set a timeout for the call request
+    // Set a timeout for the call request
     setTimeout(() => {
       // Check if call was accepted/rejected, if not, auto-reject
       const callerSocket = getSocketByUserId(from);
@@ -530,10 +507,10 @@ socket.on("stopTyping", ({ receiverId, groupId, senderId }) => {
           message: "Call request timed out"
         });
       }
-    }, 30000); // 30 second timeout
+    }, 30000); 
     
   } else {
-    // Target user is not online
+    // If target user is not online
     socket.emit("call-error", {
       type: "user_offline",
       message: "User is not available",
@@ -542,20 +519,16 @@ socket.on("stopTyping", ({ receiverId, groupId, senderId }) => {
   }
 });
 
-// Handle call acceptance
-// Handle call requests
-// In your server.js, add these debug logs to existing handlers:
+
 socket.on("call-request", (data) => {
-  console.log("📞 SERVER: Call request received:", data);
+  
   const { to, from, fromName, roomId } = data;
   
   const targetSocket = getSocketByUserId(to);
-  console.log("🔍 SERVER: Target user socket found:", !!targetSocket);
-  console.log("🔍 SERVER: Target user ID:", to);
-  console.log("🔍 SERVER: Online users:", Object.keys(userSocketMap));
+  
   
   if (targetSocket) {
-    console.log("📡 SERVER: Sending call request to target user");
+    
     targetSocket.emit("call-request", {
       from,
       fromName,
@@ -563,7 +536,7 @@ socket.on("call-request", (data) => {
       timestamp: Date.now()
     });
   } else {
-    console.log("❌ SERVER: Target user not found or offline");
+   
     socket.emit("call-error", {
       type: "user_offline",
       message: "User is not available",
@@ -575,7 +548,7 @@ socket.on("call-request", (data) => {
 // Handle call acceptance
 socket.on("call-accepted", (data) => {
   const { to, from, roomId } = data;
-  console.log(`Call accepted by ${from} for caller ${to}`);
+ 
   
   const callerSocket = getSocketByUserId(to);
   if (callerSocket) {
@@ -590,7 +563,7 @@ socket.on("call-accepted", (data) => {
 // Handle call rejection
 socket.on("call-rejected", (data) => {
   const { to, from, roomId } = data;
-  console.log(`Call rejected by ${from} for caller ${to}`);
+ 
   
   const callerSocket = getSocketByUserId(to);
   if (callerSocket) {
@@ -610,7 +583,7 @@ socket.on("call-rejected", (data) => {
 app.use(express.json({ limit: "4mb" }));
 app.use(
   cors({
-    origin: "http://localhost:5173", // frontend URL
+    origin: process.env.CLIENT_URL, // frontend URL
     credentials: true,
   })
 );
@@ -624,13 +597,27 @@ app.use(
   })
 );
 
+
+
+
+
+
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Routes
+
+
+
+
+
+//Main Routes
 app.use("/api/auth", userRouter);
 app.use("/api/messages", messageRouter);
 app.use("/api/group", groupRouter);
+
+
+
+
 
 // Video calling related API endpoints
 app.get("/api/call/rooms", (req, res) => {
@@ -703,7 +690,7 @@ app.delete("/api/call/room/:roomId", (req, res) => {
       timestamp: Date.now()
     });
     
-    // Clean up participant statuses
+    // Cleaning up participant statuses
     const room = callRooms.get(roomId);
     room.participants.forEach(userId => {
       const connection = activeConnections.get(userId);
@@ -738,10 +725,19 @@ app.get("/api/call/stats", (req, res) => {
   res.json(stats);
 });
 
-// Default route
+
+
+
+
+
 app.get("/", (req, res) => {
   res.send("API is working with Video Calling Support 🚀📹");
 });
+
+
+
+
+
 
 // Cleanup function for inactive rooms (run periodically)
 const cleanupInactiveRooms = () => {
@@ -759,10 +755,9 @@ const cleanupInactiveRooms = () => {
 // Run cleanup every 30 minutes
 setInterval(cleanupInactiveRooms, 30 * 60 * 1000);
 
-// DB Connection
+
 await connectDB();
 
-// Start server
 const PORT = process.env.PORT || 5001;
 server.listen(PORT, () => {
   console.log(`Server with Video Calling is running on port ${PORT} 🚀📹`);

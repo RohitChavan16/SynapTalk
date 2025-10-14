@@ -2,6 +2,7 @@
 import React, { createContext, useState, useContext, useRef, useEffect } from "react";
 import { AuthContext } from "./AuthContext";
 import { io } from "socket.io-client";
+import toast from "react-hot-toast";
 
 export const CallContext = createContext();
 
@@ -196,6 +197,9 @@ export const CallProvider = ({ children }) => {
         reason: "user_hangup"
       });
     }
+
+    toast.success("Call Ended");
+    setTimeout(() => window.location.reload(), 1500);
 
     setIsInCall(false);
     setRoomId("");

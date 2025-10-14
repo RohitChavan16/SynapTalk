@@ -4,7 +4,7 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   fullName: { type: String, required: function() { return !this.isOAuthUser; } },
   password: { type: String, required: function() { return !this.isOAuthUser; }, minlength: 6 },
-  googleId: { type: String, default: null, unique: true, sparse: true },
+  googleId: { type: String, unique: true, sparse: true },
   profilePic: { type: String, default: "" },
   isOAuthUser: { type: Boolean, default: false },
   lastLogin: { type: Date, default: null },

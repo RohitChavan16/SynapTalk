@@ -74,7 +74,7 @@ export const AuthProvider = ({ children }) => {
       const { data } = await axios.post(`/api/auth/${state}`, credentials);
       if (!data.success) {
         toast.error(data.message);
-        return;
+        return false;
       }
 
       const jwtToken = data.token;
@@ -99,8 +99,10 @@ export const AuthProvider = ({ children }) => {
       }
 
       toast.success(data.message);
+      return true;
     } catch (error) {
       toast.error(error.response?.data?.message || error.message);
+      return false;
     }
   };
 
