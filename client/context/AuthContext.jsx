@@ -16,9 +16,10 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [privateKey, setPrivateKey] = useState(localStorage.getItem("privateKey"));
   const [socialLinks, setSocialLinks] = useState([]);
-  // -----------------------
+
+
   // Socket connection
-  // -----------------------
+  
   const connectSocket = (userData) => {
     if (!userData || socket?.connected) return;
 
@@ -29,9 +30,9 @@ export const AuthProvider = ({ children }) => {
     newSocket.on("getOnlineUsers", (userIds) => setOnlineUsers(userIds));
   };
 
-  // -----------------------
+ 
   // Check auth with backend JWT
-  // -----------------------
+
   const checkAuth = async (jwtToken) => {
     try {
       if (!jwtToken) return false;
@@ -49,9 +50,9 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // -----------------------
+
   // Handle backend JWT from Google login
-  // -----------------------
+ 
   const handleGoogleLogin = async () => {
     const params = new URLSearchParams(window.location.search);
     const jwtToken = params.get("token");
@@ -68,7 +69,7 @@ export const AuthProvider = ({ children }) => {
 
   // -----------------------
   // Manual login
-  // -----------------------
+  
   const login = async (state, credentials) => {
     try {
       const { data } = await axios.post(`/api/auth/${state}`, credentials);
@@ -106,9 +107,9 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // -----------------------
+  
   // Logout
-  // -----------------------
+  
   const logout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("privateKey"); // Also remove private key
@@ -121,9 +122,9 @@ export const AuthProvider = ({ children }) => {
     toast.success("Logged out successfully");
   };
 
-  // -----------------------
+  
   // Update profile
-  // -----------------------
+  
   const updateProfile = async (body) => {
     try {
       const { data } = await axios.put("/api/auth/update-profile", body);
@@ -193,9 +194,9 @@ export const AuthProvider = ({ children }) => {
        }
      }
 
-  // -----------------------
+  
   // Initialize auth on mount
-  // -----------------------
+  
   useEffect(() => {
     const initAuth = async () => {
       const googleLoggedIn = await handleGoogleLogin();

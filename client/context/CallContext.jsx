@@ -15,13 +15,12 @@ export const CallProvider = ({ children }) => {
   const [remoteUserId, setRemoteUserId] = useState(null);
   
   const socket = useRef(null);
-
+  const backendUrl = import.meta.env.VITE_BACKEND_URL;
   // Initialize socket connection
   useEffect(() => {
     if (authUser?._id && !socket.current) {
-      console.log("🔄 Initializing socket for user:", authUser._id);
-      
-      socket.current = io("http://localhost:5001", {
+       
+      socket.current = io(backendUrl, {
         query: { userId: authUser._id },
         transports: ["websocket"]
       });
@@ -40,22 +39,18 @@ export const CallProvider = ({ children }) => {
 
       // Listen for incoming calls
       socket.current.on("call-request", (data) => {
-        console.log("📞 Incoming call received:", data);
+        
         setIncomingCall({
           from: data.from,
           fromName: data.fromName,
           roomId: data.roomId
         });
-        console.log("📞 Incoming call state set:", {
-          from: data.from,
-          fromName: data.fromName,
-          roomId: data.roomId
-        });
+        
       });
 
       // Listen for call responses
       socket.current.on("call-accepted", (data) => {
-        console.log("✅ Call accepted:", data);
+        
         setCallStatus("connecting");
         setRoomId(data.roomId);
         setRemoteUserId(data.from);
@@ -63,7 +58,7 @@ export const CallProvider = ({ children }) => {
       });
 
       socket.current.on("call-rejected", (data) => {
-        console.log("❌ Call rejected:", data);
+        
         setCallStatus("rejected");
         setTimeout(() => {
           setCallStatus("");
@@ -73,12 +68,12 @@ export const CallProvider = ({ children }) => {
       });
 
       socket.current.on("call-ended", (data) => {
-        console.log("📞 Call ended:", data);
+        
         handleCallEnd();
       });
 
       socket.current.on("call-error", (data) => {
-        console.error("🔥 Call error:", data);
+       
         setCallStatus(`Error: ${data.message}`);
       });
 
@@ -90,7 +85,7 @@ export const CallProvider = ({ children }) => {
 
     return () => {
       if (socket.current) {
-        console.log("🔌 Disconnecting socket");
+       
         socket.current.disconnect();
         socket.current = null;
       }
@@ -99,7 +94,7 @@ export const CallProvider = ({ children }) => {
 
   // Initiate a call to another user
   const handleJoinCall = (calleeId, calleeName = "Unknown") => {
-    console.log("🚀 Initiating call to:", { calleeId, calleeName });
+   
     
     if (!authUser?._id) {
       console.error("❌ No authUser found");
@@ -124,12 +119,7 @@ export const CallProvider = ({ children }) => {
     // Create unique room ID
     const room = `room_${[authUser._id, calleeId].sort().join("_")}`;
     
-    console.log("📡 Sending call request:", {
-      to: calleeId,
-      from: authUser._id,
-      fromName: authUser.fullName,
-      roomId: room
-    });
+    
 
     setCallStatus("calling");
     setRemoteUserId(calleeId);
@@ -146,10 +136,9 @@ export const CallProvider = ({ children }) => {
 
   // Accept incoming call
   const handleAcceptCall = () => {
-    console.log("✅ Accepting call:", incomingCall);
     
     if (!incomingCall || !socket.current) {
-      console.error("❌ Cannot accept call - missing data");
+    
       return;
     }
 
@@ -170,10 +159,10 @@ export const CallProvider = ({ children }) => {
 
   // Reject incoming call
   const handleRejectCall = () => {
-    console.log("❌ Rejecting call:", incomingCall);
+    
     
     if (!incomingCall || !socket.current) {
-      console.error("❌ Cannot reject call - missing data");
+     
       return;
     }
 
@@ -189,7 +178,7 @@ export const CallProvider = ({ children }) => {
 
   // End call
   const handleCallEnd = () => {
-    console.log("📞 Ending call");
+   
     
     if (socket.current && roomId) {
       socket.current.emit("end-call", {

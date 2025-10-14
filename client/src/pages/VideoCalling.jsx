@@ -6,12 +6,14 @@ import {
 } from 'lucide-react';
 import { io } from "socket.io-client";
 
+const backendUrl = import.meta.env.VITE_BACKEND_URL;
+
 const VideoCalling = ({ 
   roomId,
   userId,
   onCallEnd,
   remoteUserId = null,
-  signalingServerUrl = 'http://localhost:5001'
+  signalingServerUrl = backendUrl
 }) => {
   // State
   const [isConnected, setIsConnected] = useState(false);
