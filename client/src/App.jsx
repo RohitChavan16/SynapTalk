@@ -10,6 +10,7 @@ import VideoCalling from './pages/VideoCalling'
 import { CallContext } from '../context/CallContext'
 import { Phone, PhoneOff } from 'lucide-react'
 
+
 const App = () => {
   const { authUser, loading } = useContext(AuthContext);
   const { 
@@ -121,6 +122,7 @@ const App = () => {
 
   // If in call, show video calling component
   if (isInCall) {
+    const backendUrl = import.meta.env.VITE_BACKEND_URL;
     return (
       <VideoCalling
         roomId={roomId}
@@ -128,13 +130,13 @@ const App = () => {
         remoteUserId={remoteUserId}
         onCallEnd={handleCallEnd}
         userName={authUser.fullName}
-        signalingServerUrl="http://localhost:5001"
+        signalingServerUrl={backendUrl}
       />
     );
   }
 
   return (
-    <div className="bg-[url('./src/assets/bgsnaptalk.avif')] bg-contain">
+    <div className="bg-[url('/bgsnaptalk.avif')] bg-contain">
       <Toaster />
       
       {/* Incoming call overlay */}
