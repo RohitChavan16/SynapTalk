@@ -20,18 +20,24 @@ const Login = () => {
     setLoading(true);
     event.preventDefault();
     try {
+      console.log("1");
     if (currState === 'Sign up' && !isDataSubmitted) {
        setIsDataSubmitted(true);
        setLoading(false);
        return;
     }
+    console.log("2");
     const success = await login(currState === "Sign up" ? "signup" : "login", {fullName, email, password, bio});
+    console.log("3");
      if (success) {
       navigate("/");
+      console.log("4");
     }
+    console.log("5");
     } catch (error) {
     console.error("Authentication failed:", error);
   } finally {
+    console.log("7");
     setLoading(false);
   }
  }
@@ -76,8 +82,7 @@ placeholder='provide a short bio...' required></textarea>)
 
 {/* First Button */}
 <button
-  type="submit"
-  onClick={onSubmitHandler}        // your submit handler
+  type="submit"     
   disabled={loading}            // disable while loading
   className="py-3 bg-gradient-to-r from-purple-400 to-violet-600 text-white rounded-md cursor-pointer hover:opacity-80 flex items-center justify-center disabled:cursor-not-allowed disabled:opacity-60"
 >

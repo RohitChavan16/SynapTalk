@@ -19,7 +19,7 @@ export const AuthProvider = ({ children }) => {
 
 
   // Socket connection
-  
+
   const connectSocket = (userData) => {
     if (!userData || socket?.connected) return;
 
