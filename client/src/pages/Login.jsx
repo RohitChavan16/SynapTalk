@@ -30,6 +30,7 @@ const Login = () => {
     const success = await login(currState === "Sign up" ? "signup" : "login", {fullName, email, password, bio});
     console.log("3");
      if (success) {
+      console.log("initi navigate")
       navigate("/");
       console.log("4");
     }
