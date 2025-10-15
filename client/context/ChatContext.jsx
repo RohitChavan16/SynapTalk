@@ -219,7 +219,8 @@ socket.on("userStopTyping", (data) => {
 
 
     socket.on("newMessage", async (newMessage) => {
-      if(selectedUser && newMessage.senderId === selectedUser._id) {
+      const currentUser = selectedUserRef.current;
+      if(currentUser && newMessage.senderId === currentUser._id) {
         // Try to decrypt the message if it's encrypted
         let displayMessage = newMessage;
         

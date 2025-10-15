@@ -84,12 +84,13 @@ export const AuthProvider = ({ children }) => {
       axios.defaults.headers.common["Authorization"] = `Bearer ${jwtToken}`;
 
       setAuthUser(data.userData);
-      connectSocket(data.userData);
+     setTimeout(() => connectSocket(data.userData), 0);
 
       if (state === "signup" && data.privateKey) {
         // Store private key as PEM string directly (don't convert)
         localStorage.setItem("privateKey", data.privateKey);
         setPrivateKey(data.privateKey);
+        toast.success("Private key stored");
       } else if (state === "login") {
         const storedPrivateKey = localStorage.getItem("privateKey");
         if (storedPrivateKey) {
