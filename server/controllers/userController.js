@@ -51,7 +51,10 @@ export const signup = async (req, res) => {
     html: getWelcomeEmailHTML(email, fullName),
    }
 
-   await transporter.sendMail(mailOptions);
+    transporter.sendMail(mailOptions).catch(err => {
+      console.error("Email sending failed:", err);
+      // Log but don't fail the signup
+    });
 
     // Send private key as PEM string directly (don't convert to base64)
     res.json({
