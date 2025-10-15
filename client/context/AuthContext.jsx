@@ -113,7 +113,6 @@ export const AuthProvider = ({ children }) => {
   
   const logout = () => {
     localStorage.removeItem("token");
-    localStorage.removeItem("privateKey"); // Also remove private key
     setToken(null);
     setAuthUser(null);
     setPrivateKey(null);
