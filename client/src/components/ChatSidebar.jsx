@@ -533,7 +533,13 @@ const ChatSidebar = () => {
       {/*All Users List */}
     { active == "My Chat" && 
       <div className="flex flex-col divide-y divide-violet-500/20">
-        {filteredUsers.map((user) => {
+        {filteredUsers
+        .sort((a, b) => {
+        const unseenA = unseenMessages[a._id] || 0;
+        const unseenB = unseenMessages[b._id] || 0;
+        return unseenB - unseenA; // Descending order (highest unseen first)
+        })
+        .map((user) => {
           const isSelected = selectedUser?._id === user._id;
           const unseenCount = unseenMessages[user._id] || 0;
           const isOnline = onlineUsers.includes(user._id);

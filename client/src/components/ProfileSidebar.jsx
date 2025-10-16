@@ -159,11 +159,13 @@ const ProfileSidebar = () => {
                      </div>
                     )}
         <h1 className='px-10 text-xl font-medium mx-auto flex items-center gap-2'>
-          {onlineUsers.includes(selectedUser._id) && <p className='w-2 h-2 rounded-full bg-green-500'></p>}
+          {onlineUsers.includes(selectedUser._id) && <span className='w-2 h-2 rounded-full bg-green-500 inline-block'></span>}
           {selectedUser.fullName}
         </h1>
-        <p className='px-10 mx-auto'>{selectedUser.bio}</p>
+        
       </div>
+      {console.log(selectedUser)}
+      <p className=' text-[12px] flex justify-center  text-blue-200'>{selectedUser.bio}</p>
 
       {/* Quick Action Buttons */}
       <div className="flex items-center justify-around py-4 px-5">

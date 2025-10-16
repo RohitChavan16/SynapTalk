@@ -12,7 +12,7 @@ export const getUsersForSidebar = async (req, res) => {
     // Include publicKey when fetching users
     const filteredUsers = await User.find(
       { _id: { $ne: userId } },
-      "fullName email publicKey profilePic"
+      "fullName email publicKey profilePic bio"
     );
 
     const unseenMessages = {};
@@ -221,17 +221,6 @@ export const getMessages = async (req, res) => {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
 export const markMessageSeen = async (req, res) => {
   try{
     const {id} = req.params;
@@ -242,6 +231,14 @@ export const markMessageSeen = async (req, res) => {
     res.json({success: false, message: error.message});
   }
 } 
+
+
+
+
+
+
+
+
 
 export const sendMessage = async (req, res) => {
   try {
@@ -285,17 +282,17 @@ export const sendMessage = async (req, res) => {
       // Generate HMAC for integrity check
       messageHMAC = hmac.generateHMAC(encryptedData, sessionKey);
     }
-
+    console.log("1b");
     const newMessage = await Message.create({
       senderId,
       receiverId,
-      text: text && !encryptedMessage ? text : undefined, // Only store plaintext if not encrypted
+      text: text && !encryptedMessage ? text : undefined, // Only store plaintext if not encrypted for testing purpose only
       image: imageUrl,
       encryptedMessage,
       encryptedKey,
       hmac: messageHMAC
     });
-
+    console.log("2b");
     // Send to receiver via socket with decrypted text for real-time display
     const receiverSocketId = userSocketMap[receiverId];
     if(receiverSocketId){
@@ -305,10 +302,12 @@ export const sendMessage = async (req, res) => {
         text: text || newMessage.text, // Send original text for real-time display
         isRealTime: true // Flag to indicate this is a real-time message
       };
-      
+      console.log("3b");
       io.to(receiverSocketId).emit("newMessage", socketMessage);
     }
-
+    console.log("4b");
+    console.log("Sending newMessage to socketId:", receiverSocketId);
+    console.log("Receiver socket:", receiverSocketId, "receiverId:", receiverId);
     res.json({success: true, newMessage});
   } catch(error) {
     console.log(error.message);

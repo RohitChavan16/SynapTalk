@@ -104,13 +104,14 @@ socket.on("typing", ({ receiverId, groupId, senderName, senderId }) => {
   } else if (receiverId) {
     
     const receiverSocketId = userSocketMap[receiverId];
-      
+    
     if (receiverSocketId) {
       const targetSocket = io.sockets.sockets.get(receiverSocketId);
-           
+      console.log("Checked 1");      
       io.to(receiverSocketId).emit("userTyping", { 
         senderId: senderId, senderName : senderName
       });
+      console.log("Checked 2");
       
     } else {
       console.log("❌ Receiver not found in userSocketMap");

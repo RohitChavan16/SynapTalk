@@ -155,11 +155,10 @@ const subscribeToMessages = async () => {
 });
 
 socket.on("userTyping", (data) => {
-  
+  console.log("User Typing la ala ahe ha");
   const { senderId, senderName, groupId } = data;
   
   if (groupId) {
-    
     
     setTypingUsers((prev) => {
       const updated = {
@@ -174,6 +173,7 @@ socket.on("userTyping", (data) => {
     });
   } else {
     if (senderId !== selectedUserRef.current?._id) return; // only update if current chat
+    console.log("I entered it")
     setTypingUsers((prev) => ({ ...prev, [senderId]: true }));
   }
   console.log("💡 userTyping received:", data, "selectedUser:", selectedUserRef.current);
@@ -220,10 +220,11 @@ socket.on("userStopTyping", (data) => {
 
     socket.on("newMessage", async (newMessage) => {
       const currentUser = selectedUserRef.current;
+       console.log("25f");
       if(currentUser && newMessage.senderId === currentUser._id) {
         // Try to decrypt the message if it's encrypted
         let displayMessage = newMessage;
-        
+        console.log("3f");
         if (newMessage.encryptedMessage && newMessage.encryptedKey && privateKey) {
           try {
             // Client-side decryption would require crypto libraries
@@ -232,26 +233,30 @@ socket.on("userStopTyping", (data) => {
               messageId: newMessage._id,
               privateKey: privateKey
             });
-            
+            console.log("4f");
             if (data.success) {
               displayMessage = { ...newMessage, text: data.decryptedText };
             }
+            console.log("5f");
           } catch (error) {
             
             displayMessage = { ...newMessage, text: '[Unable to decrypt message]' };
           }
         }
-
+        console.log("6f");
         displayMessage.seen = true;
         setMessages((prevMessages) => [...prevMessages, displayMessage]);
         axios.put(`/api/messages/mark/${newMessage._id}`);
+        console.log("7f");
       } else {
+        console.log("8f");
         setUnseenMessages((prevUnseenMessages) => ({
           ...prevUnseenMessages, 
           [newMessage.senderId]: prevUnseenMessages[newMessage.senderId] 
             ? prevUnseenMessages[newMessage.senderId] + 1 
             : 1
         }));
+        console.log("9f");
       }
     });
   }
@@ -285,17 +290,18 @@ socket.on("userStopTyping", (data) => {
       }
   }
 
-  useEffect(() => {
-  if (socket) {
-    console.log("✅ Socket connected, id:", socket.id);
-  } else {
-    console.log("❌ Socket not connected yet");
-  }
-}, [socket]);
+ 
 
 
   useEffect(() => {
+    if(!socket){
+      console.log("Server not available");
+      return;
+    }
+    console.log("Client socket ID:", socket.id);
+    console.log("Client socket ID:", socket.id);
     subscribeToMessages();
+    console.log("subscribed Called")
     return () => unsubscribeFromMessages();
   }, [socket, selectedUser, privateKey, selectedGrp])
 
