@@ -164,7 +164,7 @@ const ProfileSidebar = () => {
         </h1>
         
       </div>
-      {console.log(selectedUser)}
+      
       <p className=' text-[12px] flex justify-center  text-blue-200'>{selectedUser.bio}</p>
 
       {/* Quick Action Buttons */}

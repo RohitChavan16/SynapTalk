@@ -107,11 +107,19 @@ socket.on("typing", ({ receiverId, groupId, senderName, senderId }) => {
     
     if (receiverSocketId) {
       const targetSocket = io.sockets.sockets.get(receiverSocketId);
-      console.log("Checked 1");      
-      io.to(receiverSocketId).emit("userTyping", { 
-        senderId: senderId, senderName : senderName
-      });
+      console.log("Checked 1");  
+      console.log("📤 Emitting userTyping to:", receiverSocketId);
+  console.log("🎯 Target socket exists:", !!targetSocket);
+  console.log("🔌 Target socket connected:", targetSocket?.connected);
+  console.log("📦 Data being sent:", { senderId, senderName });    
       console.log("Checked 2");
+      if (targetSocket) {
+    io.to(receiverSocketId).emit("userTyping", { 
+      senderId: senderId, 
+      senderName: senderName
+    });
+  }
+  console.log("checked 3")
       
     } else {
       console.log("❌ Receiver not found in userSocketMap");

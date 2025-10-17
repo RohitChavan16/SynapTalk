@@ -21,9 +21,20 @@ export const AuthProvider = ({ children }) => {
   // Socket connection
 
   const connectSocket = (userData) => {
-    if (!userData || socket?.connected) return;
-
-    const newSocket = io(backendUrl, { query: { userId: userData._id } });
+    if (!userData) return;
+    if (socket?.connected) {
+    console.log("🔌 Disconnecting existing socket");
+    socket.disconnect();
+  }
+    console.log("🔌 Creating new socket connection for user:", userData._id);
+      const newSocket = io(backendUrl, {
+    query: { userId: userData._id },
+    transports: ['websocket', 'polling'],
+    reconnection: true,
+    reconnectionDelay: 1000,
+    reconnectionAttempts: 5,
+    autoConnect: false // ✅ Don't auto-connect yet
+  });
     newSocket.connect();
     setSocket(newSocket);
 

@@ -52,10 +52,7 @@ export const getMessages = async (req, res) => {
 
     const decryptedMessages = messages.map((msg, index) => {
       try {
-        console.log(`\n--- Processing Message ${index + 1}/${messages.length} ---`);
-        console.log(`Message ID: ${msg._id}`);
-        console.log(`Sender: ${msg.senderId}`);
-        console.log(`Receiver: ${msg.receiverId}`);
+       
         
         // Check if message has encrypted content
         if (!msg.encryptedMessage || !msg.encryptedKey || !msg.hmac) {
@@ -72,9 +69,7 @@ export const getMessages = async (req, res) => {
           };
         }
 
-        console.log('Encrypted message length:', msg.encryptedMessage.length);
-        console.log('Encrypted key length:', msg.encryptedKey.length);
-        console.log('Has HMAC:', !!msg.hmac);
+       
 
         // Split encrypted data and IV
         const [encryptedData, iv] = msg.encryptedMessage.split(":");
@@ -87,15 +82,13 @@ export const getMessages = async (req, res) => {
           };
         }
 
-        console.log('Encrypted data length:', encryptedData.length);
-        console.log('IV length:', iv.length);
+       
 
         // Parse the stored JSON payload for session key decryption
         let keyPayload;
         try {
           keyPayload = JSON.parse(msg.encryptedKey);
-          console.log('Key payload parsed successfully');
-          console.log('Key payload keys:', Object.keys(keyPayload));
+         
         } catch (parseError) {
           console.error('Failed to parse key payload:', parseError);
           return {
@@ -110,10 +103,7 @@ export const getMessages = async (req, res) => {
         const messageSenderId = msg.senderId.toString();
         const messageReceiverId = msg.receiverId.toString();
 
-        console.log('Attempting to decrypt session key...');
-        console.log('Current user ID:', currentUserId);
-        console.log('Message sender ID:', messageSenderId);
-        console.log('Message receiver ID:', messageReceiverId);
+        
 
         try {
           

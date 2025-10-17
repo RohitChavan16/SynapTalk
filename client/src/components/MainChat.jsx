@@ -9,7 +9,7 @@ import { Reply, Trash2, Copy, Languages } from "lucide-react";
 
 const MainChat = () => {
 
-  const {messages, selectedUser, setSelectedUser, sendMessage, getMessages, selectedProfile, setSelectedProfile, selectedProfileGrp, setSelectedProfileGrp, selectedGrp, setSelectedGrp, sendGrpMsg, getGrpMessages, typingUsers, typingId, setTypingId } = useContext(ChatContext);
+  const {messages, selectedUser, setSelectedUser, sendMessage, getMessages, selectedProfile, setSelectedProfile, selectedProfileGrp, selectedGrpRef, setSelectedProfileGrp, selectedGrp, setSelectedGrp, sendGrpMsg, getGrpMessages, typingUsers, setTypingUsers, setMessages, setUnseenMessages } = useContext(ChatContext);
   const {authUser, onlineUsers, socket} = useContext(AuthContext);
   const scrollEnd = useRef();
   const [loading, setLoading] = useState(true);
@@ -90,7 +90,7 @@ const handleTyping = (e) => {
   }
 
   console.log("⌨️ User is typing...");
-  
+  console.log("I am typing my id is ", authUser._id);
   // Emit typing event
   if (selectedGrp) {
     console.log("📤 Emitting typing to group:", selectedGrp._id);
@@ -98,6 +98,12 @@ const handleTyping = (e) => {
   } else if (selectedUser) {
     console.log("📤 Emitting typing to user:", selectedUser._id);
     socket.emit("typing", {senderId: authUser._id, receiverId: selectedUser._id, senderName: authUser.fullName });
+    setTypingUsers((prev) => {
+        // Check against current selectedUser
+        console.log("✅ Setting typing for current chat");
+        return { ...prev, [authUser._id]: true };
+      });
+      console.log("1", typingUsers);
   }
 
   // Clear previous timeout
@@ -110,8 +116,17 @@ const handleTyping = (e) => {
       socket.emit("stopTyping", { groupId: selectedGrp._id, senderId: authUser._id });
       
     } else if (selectedUser) {
+
       socket.emit("stopTyping", { receiverId: selectedUser._id, senderId: authUser._id });
+      console.log("Uddi baba2");
+      console.log("2", typingUsers);
+      setTypingUsers((prev) => {
+        const copy = { ...prev };
+        delete copy[authUser._id];
+        return copy;
+      });
     }
+    console.log("3", typingUsers);
     
   }, 2000);
 };
@@ -127,6 +142,7 @@ useEffect(() => {
       if (selectedGrp) {
         socket.emit("stopTyping", { groupId: selectedGrp._id, senderId: authUser._id });
       } else if (selectedUser) {
+        console.log("Uddi baba");
         socket.emit("stopTyping", { receiverId: selectedUser._id, senderId: authUser._id });
       }
       
@@ -156,22 +172,7 @@ useEffect(() => {
   }, [selectedUser, selectedGrp]);
 
  
-  useEffect(() => {
-  return () => {
-    if (typingTimeout.current) {
-      clearTimeout(typingTimeout.current);
-    }
-    // Stop typing on unmount
-    if (socket) {
-      if (selectedGrp) {
-        socket.emit("stopTyping", { groupId: selectedGrp._id, senderId: authUser._id });
-      } else if (selectedUser) {
-        socket.emit("stopTyping", { receiverId: selectedUser._id, senderId: authUser._id });
-      }
-      
-    }
-  };
-}, [selectedGrp, selectedUser, socket]);
+  
 
 // Add this useEffect RIGHT AFTER your existing useEffects in MainChat.jsx
 // This ensures users join group rooms for proper socket communication
@@ -180,7 +181,7 @@ useEffect(() => {
   if (selectedGrp && socket) {
     console.log("🔵 Joining group room:", selectedGrp._id);
     socket.emit("joinGroup", selectedGrp._id);
-    
+
     return () => {
       console.log("🔴 Leaving group room:", selectedGrp._id);
       socket.emit("leaveGroup", selectedGrp._id);
@@ -496,7 +497,7 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
       </div>
     </div>
   )}
-
+  {console.log(typingUsers)}
   {/* TYPING INDICATOR - GROUP CHAT */}
   {selectedGrp && 
    typingUsers && 

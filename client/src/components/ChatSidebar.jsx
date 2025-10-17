@@ -36,7 +36,7 @@ import MenuOption from './MenuOption';
 
 const ChatSidebar = () => {
 
-  const { getUsers, users, selectedUser, setSelectedUser, unseenMessages, setUnseenMessages, newGroupHandle, groups, setGroups, fetchGroups, selectedGrp, setSelectedGrp, active, setActive, typingUsers, setTypingUsers, typingId, setTypingID } = useContext(ChatContext);
+  const { getUsers, users, selectedUser, setSelectedUser, unseenMessages, setUnseenMessages, newGroupHandle, groups, setGroups, fetchGroups, selectedGrp, setSelectedGrp, active, setActive, typingUsers, setTypingUsers, typingId, setTypingID, selectedGrpRef } = useContext(ChatContext);
   const { logout, onlineUsers, socialLinks, getSocialLink, deleteSocialLink, addSocialLink, editSocialLink, socket } = useContext(AuthContext);
   const [dropDown, setDropDown] = useState(false);
   const navigate = useNavigate();
@@ -648,6 +648,7 @@ const ChatSidebar = () => {
               onClick={() => {
                 setSelectedGrp(group);
                 setSelectedUser(null);
+                selectedGrpRef.current = group
                 //setUnseenMessages((prev) => ({ ...prev, [user._id]: 0 }));
                 
               }}

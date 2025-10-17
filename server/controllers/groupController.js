@@ -2,6 +2,7 @@ import express from 'express';
 import Group from '../models/Group.js';
 import User from '../models/User.js';
 import { GroupMessage } from '../models/GroupMsg.js';
+import { io, userSocketMap } from '../server.js';
 
 export const newGroup = async (req, res) => {
        try {
@@ -94,10 +95,10 @@ export const sendGrpMsg = async (req, res) => {
 
     // Populate sender for frontend display
     const populatedMsg = await message.populate("senderId", "username avatar");
-
+   
     // 🔔 Emit to group socket room
-    req.io.to(groupId.toString()).emit("receiveGrpMsg", populatedMsg);
-
+    io.to(groupId.toString()).emit("receiveGrpMsg", populatedMsg);
+    console.log("io is hitted my bro")
     res.status(201).json(populatedMsg);
   } catch (err) {
     console.error("Error in sendGrpMsg:", err);
