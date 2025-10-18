@@ -18,10 +18,11 @@ const [groups, setGroups] = useState([]);
 const [active, setActive] = useState("My Chat");
 const [typingUsers, setTypingUsers] = useState({});
 const [typingId, setTypingId] = useState("");
+const [privateTypingUsers, setPrivateTypingUsers] = useState({});
 
 // function to get all users for sidebar
 
-const selectedUserRef = useRef(selectedUser);
+const selectedUserRef = useRef(null);
 const selectedGrpRef = useRef(null);
 
 useEffect(() => {
@@ -61,6 +62,7 @@ const fetchGroups = async () => {
 const getMessages = async (userId)=>{
 
 try {
+  console.log("user id is ", userId);
 const { data } = await axios.post(`/api/messages/${userId}`, {
         privateKey: privateKey
       });
@@ -147,11 +149,16 @@ useEffect(() => {
     console.log("Server not available");
     return;
   }
-  
+   socket.onAny((event, ...args) => {
+    console.log("📡 Received event:", event, args);
+  });
+  console.log("🔌 Socket ID:", socket.id);
+  console.log("🔌 Socket Connected:", socket.connected);
   console.log("Client socket ID:", socket.id);
   
   // ✅ Register ALL socket listeners here (only once)
   socket.on("newGroupMessage", (newMessage) => {
+    
     if (selectedGrp && newMessage.groupId === selectedGrp._id) {
       setMessages((prev) => [...prev, newMessage]);
     } else {
@@ -181,16 +188,10 @@ useEffect(() => {
       });
     } else {
       // Use callback form to get latest selectedUser
-      setTypingUsers((prev) => {
-        // Check against current selectedUser
-        const currentSelected = selectedUserRef.current;
-        if (senderId !== currentSelected?._id) {
-          console.log("❌ Ignoring typing - not current chat");
-          return prev;
-        }
-        console.log("✅ Setting typing for current chat");
-        return { ...prev, [senderId]: true };
-      });
+       setPrivateTypingUsers(prev => ({
+      ...prev,
+      [senderId]: senderName || "Someone"
+    }));
     }
   });
 
@@ -214,25 +215,27 @@ useEffect(() => {
         return copy;
       });
     } else {
-      setTypingUsers((prev) => {
-        const copy = { ...prev };
-        delete copy[senderId];
-        return copy;
-      });
+      setPrivateTypingUsers(prev => {
+      const updated = { ...prev };
+      delete updated[senderId];
+      return updated;
+    });
     }
   });
 
     socket.on("receiveGrpMsg", (msg) => {
+      
       const currentGrp = selectedGrpRef.current;
-    console.log("📩 New group message received:", msg);
-    console.log(currentGrp);
     
-    console.log(msg.groupId);
+    const senderId = msg.senderId?._id || msg.senderId;
+    if (senderId === authUser._id) return;
+
+   
     if (currentGrp && msg.groupId === currentGrp._id) {
-      console.log("Seeted ndsdndjcdcdncjdncjn");
+     
       setMessages((prev) => [...prev, msg]);
     } else {
-       console.log("Seeted @>0 yes");
+      
       setUnseenMessages((prev) => ({
         ...prev,
         [msg.groupId]: prev[msg.groupId] ? prev[msg.groupId] + 1 : 1
@@ -242,11 +245,12 @@ useEffect(() => {
 
   socket.on("newMessage", async (newMessage) => {
     const currentUser = selectedUserRef.current;
-    console.log("25f");
+   
     
-    if (currentUser && newMessage.senderId === currentUser._id) {
+    
+    if (currentUser && newMessage.senderId._id === currentUser._id) {
       let displayMessage = newMessage;
-      console.log("3f");
+     
       
       if (newMessage.encryptedMessage && newMessage.encryptedKey && privateKey) {
         try {
@@ -254,31 +258,34 @@ useEffect(() => {
             messageId: newMessage._id,
             privateKey: privateKey
           });
-          console.log("4f");
+         
           
           if (data.success) {
             displayMessage = { ...newMessage, text: data.decryptedText };
           }
-          console.log("5f");
+         
         } catch (error) {
           displayMessage = { ...newMessage, text: '[Unable to decrypt message]' };
         }
       }
       
-      console.log("6f");
       displayMessage.seen = true;
       setMessages((prevMessages) => [...prevMessages, displayMessage]);
       axios.put(`/api/messages/mark/${newMessage._id}`);
-      console.log("7f");
+    
     } else {
-      console.log("8f");
-      setUnseenMessages((prevUnseenMessages) => ({
-        ...prevUnseenMessages,
-        [newMessage.senderId]: prevUnseenMessages[newMessage.senderId]
-          ? prevUnseenMessages[newMessage.senderId] + 1
-          : 1
-      }));
-      console.log("9f");
+      
+      const senderId = newMessage.senderId._id || newMessage.senderId;
+     setUnseenMessages(prev => {
+  const updated = {
+    ...prev,
+    [senderId]: prev[senderId] ? prev[senderId] + 1 : 1
+  };
+ 
+  return updated;
+});
+
+   
     }
   });
 
@@ -306,6 +313,7 @@ useEffect(() => {
         const { data } = await axios.post("/api/group/new-group", payload);
         if(data.success){
            toast.success("Group created successfully");
+           setTimeout(() => window.location.reload(), 1500);
            return ;
         }
         toast.error(data.message);
@@ -344,7 +352,10 @@ useEffect(() => {
     setTypingUsers,
     typingId,
     setTypingId,
-    selectedGrpRef
+    selectedUserRef,
+    selectedGrpRef,
+    setPrivateTypingUsers,
+    privateTypingUsers,
   }
 
   return (

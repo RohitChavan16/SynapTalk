@@ -282,22 +282,27 @@ export const sendMessage = async (req, res) => {
       encryptedKey,
       hmac: messageHMAC
     });
-    console.log("2b");
+    
+    const populatedMessage = await Message.findById(newMessage._id)
+      .populate("senderId", "fullName profilePic")
+      .populate("receiverId", "fullName profilePic");
     // Send to receiver via socket with decrypted text for real-time display
-    const receiverSocketId = userSocketMap[receiverId];
-    if(receiverSocketId){
+     const receiverRoom = `user_${receiverId}`;
+   
+   
       // Create a version with decrypted text for real-time display
       const socketMessage = {
-        ...newMessage._doc,
+        ...populatedMessage._doc,
         text: text || newMessage.text, // Send original text for real-time display
+        senderId: populatedMessage.senderId,
+        receiverId: populatedMessage.receiverId,
         isRealTime: true // Flag to indicate this is a real-time message
       };
-      console.log("3b");
-      io.to(receiverSocketId).emit("newMessage", socketMessage);
-    }
-    console.log("4b");
-    console.log("Sending newMessage to socketId:", receiverSocketId);
-    console.log("Receiver socket:", receiverSocketId, "receiverId:", receiverId);
+      
+      req.io.to(receiverRoom).emit("newMessage", socketMessage);
+    
+    
+   
     res.json({success: true, newMessage});
   } catch(error) {
     console.log(error.message);

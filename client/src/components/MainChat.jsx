@@ -9,7 +9,8 @@ import { Reply, Trash2, Copy, Languages } from "lucide-react";
 
 const MainChat = () => {
 
-  const {messages, selectedUser, setSelectedUser, sendMessage, getMessages, selectedProfile, setSelectedProfile, selectedProfileGrp, selectedGrpRef, setSelectedProfileGrp, selectedGrp, setSelectedGrp, sendGrpMsg, getGrpMessages, typingUsers, setTypingUsers, setMessages, setUnseenMessages } = useContext(ChatContext);
+  const {messages, selectedUser, setSelectedUser, sendMessage, getMessages, selectedProfile, setSelectedProfile, selectedProfileGrp, selectedGrpRef,
+         setSelectedProfileGrp, selectedGrp, setSelectedGrp, sendGrpMsg, getGrpMessages, typingUsers, setTypingUsers, setMessages, setUnseenMessages, privateTypingUsers } = useContext(ChatContext);
   const {authUser, onlineUsers, socket} = useContext(AuthContext);
   const scrollEnd = useRef();
   const [loading, setLoading] = useState(true);
@@ -98,12 +99,8 @@ const handleTyping = (e) => {
   } else if (selectedUser) {
     console.log("📤 Emitting typing to user:", selectedUser._id);
     socket.emit("typing", {senderId: authUser._id, receiverId: selectedUser._id, senderName: authUser.fullName });
-    setTypingUsers((prev) => {
-        // Check against current selectedUser
-        console.log("✅ Setting typing for current chat");
-        return { ...prev, [authUser._id]: true };
-      });
-      console.log("1", typingUsers);
+  
+      console.log("1", privateTypingUsers);
   }
 
   // Clear previous timeout
@@ -119,14 +116,9 @@ const handleTyping = (e) => {
 
       socket.emit("stopTyping", { receiverId: selectedUser._id, senderId: authUser._id });
       console.log("Uddi baba2");
-      console.log("2", typingUsers);
-      setTypingUsers((prev) => {
-        const copy = { ...prev };
-        delete copy[authUser._id];
-        return copy;
-      });
+      console.log("2", privateTypingUsers);
     }
-    console.log("3", typingUsers);
+    console.log("3", privateTypingUsers);
     
   }, 2000);
 };
@@ -178,16 +170,19 @@ useEffect(() => {
 // This ensures users join group rooms for proper socket communication
 
 useEffect(() => {
-  if (selectedGrp && socket) {
-    console.log("🔵 Joining group room:", selectedGrp._id);
-    socket.emit("joinGroup", selectedGrp._id);
+  if (socket && authUser && authUser.groups?.length) {
+    const groupIds = authUser.groups.map(g => g._id || g);
+    
+    socket.emit("joinMultipleGroups", groupIds);
 
+    // Optional cleanup when disconnecting
     return () => {
-      console.log("🔴 Leaving group room:", selectedGrp._id);
-      socket.emit("leaveGroup", selectedGrp._id);
+      
+      socket.emit("leaveMultipleGroups", groupIds);
     };
   }
-}, [selectedGrp, socket]);
+}, [socket, authUser]);
+
 
 // Also add this debug useEffect to check if socket events are registered
 useEffect(() => {
@@ -351,7 +346,8 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
     {/* Show sender name in group chat */}
     {selectedGrp  ? (
       <p className="text-xs text-purple-400 font-semibold">
-        {mes.senderId?.fullName || "Unknown"}
+        {mes.senderId?.fullName || "Unknown"} 
+        {console.log(mes.senderId)}
       </p>
     ) : (<p className="text-xs text-purple-400 font-semibold">
         {selectedUser.fullName || "Unknown"}
@@ -486,17 +482,13 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
 {/* Bottom Area */}
 <div className='absolute bottom-0 left-0 right-0 flex items-center gap-3 p-3'>
   {/* TYPING INDICATOR - INDIVIDUAL CHAT */}
-  {isTyping && (
-    <div className="absolute bottom-16 left-4 flex items-center gap-2 text-xs text-gray-200 bg-gray-800/70 px-3 py-1.5 rounded-full backdrop-blur-sm border border-gray-600/50 shadow-lg">
-      <span className="text-blue-400 font-medium">{selectedUser.fullName?.split(' ')[0] || 'User'}</span>
-      <span>is typing</span>
-      <div className="flex gap-1 ml-1">
-        <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
-        <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
-        <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
-      </div>
-    </div>
-  )}
+  {selectedUser && privateTypingUsers[selectedUser._id] && (
+    <div className="absolute bottom-16 left-4 flex items-center" >
+  <p className="text-sm text-blue-400 italic">
+    {privateTypingUsers[selectedUser._id]} is typing...
+  </p>
+  </div>
+)}
   {console.log(typingUsers)}
   {/* TYPING INDICATOR - GROUP CHAT */}
   {selectedGrp && 

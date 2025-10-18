@@ -36,7 +36,8 @@ import MenuOption from './MenuOption';
 
 const ChatSidebar = () => {
 
-  const { getUsers, users, selectedUser, setSelectedUser, unseenMessages, setUnseenMessages, newGroupHandle, groups, setGroups, fetchGroups, selectedGrp, setSelectedGrp, active, setActive, typingUsers, setTypingUsers, typingId, setTypingID, selectedGrpRef } = useContext(ChatContext);
+  const { getUsers, users, selectedUser, setSelectedUser, unseenMessages, setUnseenMessages, newGroupHandle, groups, setGroups, fetchGroups, selectedGrp,
+     setSelectedGrp, active, setActive, typingUsers, setTypingUsers, typingId, setTypingID, selectedGrpRef, selectedUserRef, privateTypingUsers } = useContext(ChatContext);
   const { logout, onlineUsers, socialLinks, getSocialLink, deleteSocialLink, addSocialLink, editSocialLink, socket } = useContext(AuthContext);
   const [dropDown, setDropDown] = useState(false);
   const navigate = useNavigate();
@@ -552,6 +553,7 @@ const ChatSidebar = () => {
                 setSelectedUser(user);
                 setSelectedGrp(null);
                 setUnseenMessages((prev) => ({ ...prev, [user._id]: 0 }));
+                selectedUserRef.current = user;
                 }
               }}
               className={`relative flex items-center gap-3 p-3 cursor-pointer transition-all duration-300 rounded-lg
@@ -603,7 +605,13 @@ const ChatSidebar = () => {
                   {isOnline ? "🟢 Online" : "⚫ Offline"}
                 </p>
               </div>
-
+                {privateTypingUsers[user._id] && (
+                 <div className="absolute bottom-2 right-4 z-100  flex items-center gap-2 text-[11px] text-green-300 bg-gray-800/70 px-3 py-1.5 rounded-full backdrop-blur-sm border border-gray-600/50 shadow-lg" >
+                 <p className="text-[11px] text-blue-400 italic">
+                 {privateTypingUsers[user._id]} is typing...
+                 </p>
+                 </div>
+                )}
               {/* Unseen Messages Badge */}
               {unseenCount > 0 && (
                 <span className="absolute top-1/2 -translate-y-1/2 right-4 text-xs h-5 w-5 flex items-center justify-center rounded-full bg-gradient-to-r from-violet-500 to-pink-500 shadow-[0_0_10px_rgba(255,0,255,0.8)] text-white font-bold">

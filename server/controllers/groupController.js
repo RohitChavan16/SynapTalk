@@ -98,7 +98,7 @@ export const sendGrpMsg = async (req, res) => {
    
     // 🔔 Emit to group socket room
     io.to(groupId.toString()).emit("receiveGrpMsg", populatedMsg);
-    console.log("io is hitted my bro")
+   
     res.status(201).json(populatedMsg);
   } catch (err) {
     console.error("Error in sendGrpMsg:", err);

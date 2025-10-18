@@ -70,20 +70,38 @@ io.on("connection", (socket) => {
       roomId: null,
       status: 'online'
     });
+    const personalRoom = `user_${userId}`;
+    socket.join(personalRoom);
+    console.log(`✅ User ${userId} auto-joined personal room: ${personalRoom}`);
   }
 
   
   io.emit("getOnlineUsers", Object.keys(userSocketMap));
 
   // 🔹 Regular Chat Group Room Management
-  socket.on("joinGroup", (groupId) => {
-    
-    socket.join(groupId);
+   socket.on("joinMultipleGroups", (groupIds) => {
+    if (!Array.isArray(groupIds)) return;
+    groupIds.forEach((groupId) => socket.join(groupId));
+    console.log("✅ Joined multiple groups:", groupIds);
   });
 
-  socket.on("leaveGroup", (groupId) => {
-    
-    socket.leave(groupId);
+  socket.on("leaveMultipleGroups", (groupIds) => {
+    if (!Array.isArray(groupIds)) return;
+    groupIds.forEach((groupId) => socket.leave(groupId));
+    console.log("🚪 Left multiple groups:", groupIds);
+  })
+
+
+   socket.on("joinPersonalRoom", (userId) => {
+    const roomName = `user_${userId}`;
+    socket.join(roomName);
+    console.log(`✅ User ${userId} joined personal room: ${roomName}`);
+  });
+
+  socket.on("leavePersonalRoom", (userId) => {
+    const roomName = `user_${userId}`;
+    socket.leave(roomName);
+    console.log(`🚪 User ${userId} left personal room: ${roomName}`);
   });
 
   
@@ -118,8 +136,9 @@ socket.on("typing", ({ receiverId, groupId, senderName, senderId }) => {
       senderId: senderId, 
       senderName: senderName
     });
+    console.log("checked 3")
   }
-  console.log("checked 3")
+   console.log("checked 4")
       
     } else {
       console.log("❌ Receiver not found in userSocketMap");
