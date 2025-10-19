@@ -69,11 +69,7 @@ const Home = () => {
         `}>
         <ChatSidebar />
         <MainChat />
-        
-        {/* Profile Sidebar - Always render when user selected, but control with grid and transitions */}
-        {/* Profile Sidebar - Always render when user or group selected, but control with grid and transitions */}
-{/* Mobile Profile Sidebar */}
-{/* Mobile Profile Sidebar */}
+       
 
 {selectedProfile && (
   <div className="hidden overflow-y-auto h-full md:block">

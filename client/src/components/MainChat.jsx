@@ -17,6 +17,7 @@ const MainChat = () => {
   const [input, setInput] = useState('');
   const [dropDownMsg, setDropDownMsg] = useState(false);
   const [optMsg, setOptMsg] = useState(null);
+  const messagesEndRef = useRef(null);
 
   // Handle sending a message
 const handleSendMessage = async (e) => {
@@ -150,7 +151,18 @@ useEffect(() => {
   }, [selectedUser, selectedGrp]);
 
  
-  
+useEffect(() => {
+  if (!messagesEndRef.current) return;
+
+  // Wait for DOM to paint
+  const scrollToBottom = () => {
+    messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+  };
+
+  // Use requestAnimationFrame to ensure messages are rendered
+  requestAnimationFrame(scrollToBottom);
+}, [messages]);
+
 
 // Add this useEffect RIGHT AFTER your existing useEffects in MainChat.jsx
 // This ensures users join group rooms for proper socket communication
@@ -452,9 +464,9 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
     </div>
   ))
  }</div>) : <p className="flex items-center h-full justify-center text-[15px]  text-blue-300">No Message yet !</p> }
-  <div ref={scrollEnd}></div>
-</div>
-    )}
+  <div ref={messagesEndRef} />
+  </div>
+)}
 
 
 
@@ -463,10 +475,29 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
 <div className='absolute bottom-0 left-0 right-0 flex items-center gap-3 p-3'>
   {/* TYPING INDICATOR - INDIVIDUAL CHAT */}
   {selectedUser && privateTypingUsers[selectedUser._id] && (
-    <div className="absolute bottom-16 left-4 flex items-center" >
-  <p className="text-sm text-blue-400 italic">
-    {privateTypingUsers[selectedUser._id]} is typing...
-  </p>
+    <div className="absolute bottom-16 left-6 flex items-center" >
+  <div className="flex gap-0 items-center">
+            <style>{`
+              @keyframes morph1 {
+                0%, 100% { transform: scale(1) translateX(0); opacity: 1; }
+                50% { transform: scale(1.5) translateX(4px); opacity: 0.7; }
+              }
+              @keyframes morph2 {
+                0%, 100% { transform: scale(1) translateX(0); opacity: 1; }
+                50% { transform: scale(1.5) translateX(0); opacity: 0.7; }
+              }
+              @keyframes morph3 {
+                0%, 100% { transform: scale(1) translateX(0); opacity: 1; }
+                50% { transform: scale(1.5) translateX(-4px); opacity: 0.7; }
+              }
+              .morph1 { animation: morph1 1.4s ease-in-out infinite; }
+              .morph2 { animation: morph2 1.4s ease-in-out infinite 0.2s; }
+              .morph3 { animation: morph3 1.4s ease-in-out infinite 0.4s; }
+            `}</style>
+            <span className="morph1 w-3 h-3 bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full shadow-lg shadow-cyan-500/50"></span>
+            <span className="morph2 w-3 h-3 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full shadow-lg shadow-blue-500/50 -ml-1"></span>
+            <span className="morph3 w-3 h-3 bg-gradient-to-r from-purple-400 to-pink-500 rounded-full shadow-lg shadow-purple-500/50 -ml-1"></span>
+          </div>
   </div>
 )}
   {console.log(typingUsers)}

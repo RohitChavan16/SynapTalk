@@ -606,7 +606,7 @@ const ChatSidebar = () => {
                 </p>
               </div>
                 {privateTypingUsers[user._id] && (
-                 <div className="absolute bottom-2 right-4 z-100  flex items-center gap-2 text-[11px] text-green-300 bg-gray-800/70 px-3 py-1.5 rounded-full backdrop-blur-sm border border-gray-600/50 shadow-lg" >
+                 <div className="absolute bottom-2 right-4 z-100  flex items-center gap-2 text-[11px] text-green-300 bg-[#0a3a7c] px-3 py-1.5 rounded-full backdrop-blur-sm border border-gray-600/50 shadow-lg" >
                  <p className="text-[11px] text-blue-400 italic">
                  {privateTypingUsers[user._id]} is typing...
                  </p>
@@ -638,7 +638,13 @@ const ChatSidebar = () => {
   { active == "My Groups" &&
     <div className="flex flex-col divide-y divide-violet-500/20">
      
-        {groups.map((group) => {
+      { groups
+        .sort((a, b) => {
+         const unseenA = unseenGrpMessages[a._id]?.[authUser._id] || 0;
+         const unseenB = unseenGrpMessages[b._id]?.[authUser._id] || 0;
+         return unseenB - unseenA;
+        })
+        .map((group) => {
           const isSelected = selectedGrp?._id === group._id;
           const unseenCount = unseenGrpMessages[group._id]?.[authUser._id] || 0;
           //const isOnline = onlineUsers.includes(user._id);
