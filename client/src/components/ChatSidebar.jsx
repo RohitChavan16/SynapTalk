@@ -37,8 +37,8 @@ import MenuOption from './MenuOption';
 const ChatSidebar = () => {
 
   const { getUsers, users, selectedUser, setSelectedUser, unseenMessages, setUnseenMessages, newGroupHandle, groups, setGroups, fetchGroups, selectedGrp,
-     setSelectedGrp, active, setActive, typingUsers, setTypingUsers, typingId, setTypingID, selectedGrpRef, selectedUserRef, privateTypingUsers } = useContext(ChatContext);
-  const { logout, onlineUsers, socialLinks, getSocialLink, deleteSocialLink, addSocialLink, editSocialLink, socket } = useContext(AuthContext);
+     setSelectedGrp, active, setActive, typingUsers, setTypingUsers, typingId, setTypingID, selectedGrpRef, selectedUserRef, privateTypingUsers, setUnseenGrpMessages, unseenGrpMessages } = useContext(ChatContext);
+  const { logout, onlineUsers, socialLinks, getSocialLink, deleteSocialLink, addSocialLink, editSocialLink, socket, authUser } = useContext(AuthContext);
   const [dropDown, setDropDown] = useState(false);
   const navigate = useNavigate();
   const [input, setInput] = useState('');
@@ -640,7 +640,7 @@ const ChatSidebar = () => {
      
         {groups.map((group) => {
           const isSelected = selectedGrp?._id === group._id;
-          //const unseenCount = unseenMessages[user._id] || 0;
+          const unseenCount = unseenGrpMessages[group._id]?.[authUser._id] || 0;
           //const isOnline = onlineUsers.includes(user._id);
           
           const onlineCount = group.members?.filter(member =>
@@ -657,7 +657,14 @@ const ChatSidebar = () => {
                 setSelectedGrp(group);
                 setSelectedUser(null);
                 selectedGrpRef.current = group
-                //setUnseenMessages((prev) => ({ ...prev, [user._id]: 0 }));
+                setUnseenGrpMessages((prev) => {
+                 const updated = { ...prev };
+                  if (updated[group._id]) {
+                    delete updated[group._id][authUser._id];
+                    if (Object.keys(updated[group._id]).length === 0) delete updated[group._id];
+                  }
+                 return updated;
+                });
                 
               }}
               className={`relative flex items-center gap-3 p-3 cursor-pointer transition-all duration-300 rounded-lg
@@ -701,30 +708,30 @@ const ChatSidebar = () => {
                 </p>
               </div>
 
-              {/* Unseen Messages Badge 
+               
               {unseenCount > 0 && (
                 <span className="absolute top-1/2 -translate-y-1/2 right-4 text-xs h-5 w-5 flex items-center justify-center rounded-full bg-gradient-to-r from-violet-500 to-pink-500 shadow-[0_0_10px_rgba(255,0,255,0.8)] text-white font-bold">
                   {unseenCount}
                 </span>
               )}
-                */}
+                
 
  {/* Typing indicator */}
-      {usersTyping && Object.keys(usersTyping).length > 0 && (
-        <div className="absolute bottom-2 right-2 z-100  flex items-center gap-2 text-xs text-green-300 bg-gray-800/70 px-3 py-1.5 rounded-full backdrop-blur-sm border border-gray-600/50 shadow-lg">
-          <span className="font-medium text-green-400">
+          {usersTyping && Object.keys(usersTyping).length > 0 && (
+           <div className="absolute bottom-2 right-2 z-100  flex items-center gap-2 text-xs text-green-300 bg-gray-800/70 px-3 py-1.5 rounded-full backdrop-blur-sm border border-gray-600/50 shadow-lg">
+           <span className="font-medium text-green-400">
             {Object.values(usersTyping).slice(0, 2).join(', ')}
             {Object.keys(usersTyping).length > 2 && 
               ` +${Object.keys(usersTyping).length - 2} more`}
-          </span>
-          <span>{Object.keys(usersTyping).length > 1 ? 'are' : 'is'} typing</span>
-          <div className="flex gap-1 ml-1">
+           </span>
+           <span>{Object.keys(usersTyping).length > 1 ? 'are' : 'is'} typing</span>
+           <div className="flex gap-1 ml-1">
             <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
             <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
             <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
-          </div>
-        </div>
-      )}
+           </div>
+           </div>
+          )}
 
 
           </div>

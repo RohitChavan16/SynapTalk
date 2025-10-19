@@ -13,6 +13,7 @@ const [selectedGrp, setSelectedGrp] = useState(null);
 const [selectedProfile, setSelectedProfile] = useState(false);
 const [selectedProfileGrp, setSelectedProfileGrp] = useState(false);
 const [unseenMessages, setUnseenMessages] = useState({});
+const [unseenGrpMessages, setUnseenGrpMessages] = useState({});
 const {socket, axios, privateKey, authUser} = useContext(AuthContext);
 const [groups, setGroups] = useState([]);
 const [active, setActive] = useState("My Chat");
@@ -231,11 +232,13 @@ useEffect(() => {
      
       setMessages((prev) => [...prev, msg]);
     } else {
-      
-      setUnseenMessages((prev) => ({
-        ...prev,
-        [msg.groupId]: prev[msg.groupId] ? prev[msg.groupId] + 1 : 1
-      }));
+    setUnseenGrpMessages((prev) => ({
+    ...prev,
+    [msg.groupId]: {
+      ...(prev[msg.groupId] || {}),
+      [authUser._id]: (prev[msg.groupId]?.[authUser._id] || 0) + 1,
+    },
+  }));
     }
   });
 
@@ -328,6 +331,8 @@ useEffect(() => {
     setSelectedUser, 
     unseenMessages, 
     setUnseenMessages, 
+    unseenGrpMessages,
+    setUnseenGrpMessages,
     selectedProfile, 
     setSelectedProfile,
     selectedProfileGrp,
