@@ -150,11 +150,9 @@ useEffect(() => {
     return;
   }
    socket.onAny((event, ...args) => {
-    console.log("📡 Received event:", event, args);
+    
   });
-  console.log("🔌 Socket ID:", socket.id);
-  console.log("🔌 Socket Connected:", socket.connected);
-  console.log("Client socket ID:", socket.id);
+  
   
   // ✅ Register ALL socket listeners here (only once)
   socket.on("newGroupMessage", (newMessage) => {
@@ -170,8 +168,7 @@ useEffect(() => {
   });
 
   socket.on("userTyping", (data) => {
-    console.log("✅ User Typing la ala ahe ha");
-    console.log("📥 Typing data received:", data);
+   
     
     const { senderId, senderName, groupId } = data;
     
@@ -196,7 +193,6 @@ useEffect(() => {
   });
 
   socket.on("userStopTyping", (data) => {
-    console.log("🛑 Stop typing received:", data);
     const { senderId, groupId } = data;
     
     if (groupId) {
@@ -283,11 +279,9 @@ useEffect(() => {
   };
  
   return updated;
-});
-
-   
-    }
   });
+ }
+});
 
   // ✅ Cleanup: remove listeners when component unmounts
   return () => {

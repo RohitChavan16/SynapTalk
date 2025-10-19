@@ -3,7 +3,7 @@ import Message from "../models/Message.js";
 import cloudinary from "../lib/cloudinary.js";
 import {io, userSocketMap} from "../server.js";
 import { aes, ecc, hmac } from "../crypto/crypto.js"; 
-import Group from "../models/Group.js";
+import mongoose from "mongoose";
 
 export const getUsersForSidebar = async (req, res) => {
   try {
@@ -40,10 +40,10 @@ export const getMessages = async (req, res) => {
   try {
     const {id: selectedUserId} = req.params;
     const myId = req.user._id;
-
+    const selectedUserObjectId = new mongoose.Types.ObjectId(selectedUserId);
     const messages = await Message.find({
       $or: [
-        {senderId: myId, receiverId: selectedUserId},
+        {senderId: myId, receiverId: selectedUserObjectId},
         {senderId: selectedUserId, receiverId: myId},
       ]
     });
@@ -170,7 +170,7 @@ export const getMessages = async (req, res) => {
         // Decrypt the actual message text using AES
        
         const decryptedText = aes.decrypt(encryptedData, sessionKey, iv);
-        
+        console.log("12345");
         return { 
           ...msg._doc, 
           text: decryptedText,
@@ -272,7 +272,6 @@ export const sendMessage = async (req, res) => {
       // Generate HMAC for integrity check
       messageHMAC = hmac.generateHMAC(encryptedData, sessionKey);
     }
-    console.log("1b");
     const newMessage = await Message.create({
       senderId,
       receiverId,

@@ -89,18 +89,13 @@ const handleTyping = (e) => {
     console.log("❌ Socket not available");
     return;
   }
-
-  console.log("⌨️ User is typing...");
-  console.log("I am typing my id is ", authUser._id);
   // Emit typing event
   if (selectedGrp) {
-    console.log("📤 Emitting typing to group:", selectedGrp._id);
     socket.emit("typing", {senderId: authUser._id, groupId: selectedGrp._id, senderName: authUser.fullName });
   } else if (selectedUser) {
-    console.log("📤 Emitting typing to user:", selectedUser._id);
+   
     socket.emit("typing", {senderId: authUser._id, receiverId: selectedUser._id, senderName: authUser.fullName });
-  
-      console.log("1", privateTypingUsers);
+   
   }
 
   // Clear previous timeout
@@ -108,17 +103,13 @@ const handleTyping = (e) => {
   
   // Set timeout to emit stop typing
   typingTimeout.current = setTimeout(() => {
-    console.log("⏹️ Stopping typing indicator");
     if (selectedGrp) {
       socket.emit("stopTyping", { groupId: selectedGrp._id, senderId: authUser._id });
       
     } else if (selectedUser) {
 
       socket.emit("stopTyping", { receiverId: selectedUser._id, senderId: authUser._id });
-      console.log("Uddi baba2");
-      console.log("2", privateTypingUsers);
     }
-    console.log("3", privateTypingUsers);
     
   }, 2000);
 };
@@ -134,7 +125,6 @@ useEffect(() => {
       if (selectedGrp) {
         socket.emit("stopTyping", { groupId: selectedGrp._id, senderId: authUser._id });
       } else if (selectedUser) {
-        console.log("Uddi baba");
         socket.emit("stopTyping", { receiverId: selectedUser._id, senderId: authUser._id });
       }
       
@@ -143,11 +133,7 @@ useEffect(() => {
 }, [selectedGrp, selectedUser, socket]);
 
 
-useEffect(() => {
-  console.log("🔍 Current typingUsers state:", typingUsers);
-  console.log("🔍 Selected User:", selectedUser?._id);
-  console.log("🔍 Selected Group:", selectedGrp?._id);
-}, [typingUsers, selectedUser, selectedGrp]);
+
 
 
 
@@ -185,13 +171,7 @@ useEffect(() => {
 
 
 // Also add this debug useEffect to check if socket events are registered
-useEffect(() => {
-  if (socket) {
-    console.log("🔌 Socket available:", !!socket);
-    console.log("🔌 Socket connected:", socket.connected);
-    console.log("🔌 Socket ID:", socket.id);
-  }
-}, [socket]);
+
 
   const handleCopy = async (text) => {
     // Copy text to clipboard

@@ -72,7 +72,6 @@ io.on("connection", (socket) => {
     });
     const personalRoom = `user_${userId}`;
     socket.join(personalRoom);
-    console.log(`✅ User ${userId} auto-joined personal room: ${personalRoom}`);
   }
 
   
@@ -82,26 +81,23 @@ io.on("connection", (socket) => {
    socket.on("joinMultipleGroups", (groupIds) => {
     if (!Array.isArray(groupIds)) return;
     groupIds.forEach((groupId) => socket.join(groupId));
-    console.log("✅ Joined multiple groups:", groupIds);
   });
 
   socket.on("leaveMultipleGroups", (groupIds) => {
     if (!Array.isArray(groupIds)) return;
     groupIds.forEach((groupId) => socket.leave(groupId));
-    console.log("🚪 Left multiple groups:", groupIds);
+   
   })
 
 
    socket.on("joinPersonalRoom", (userId) => {
     const roomName = `user_${userId}`;
     socket.join(roomName);
-    console.log(`✅ User ${userId} joined personal room: ${roomName}`);
   });
 
   socket.on("leavePersonalRoom", (userId) => {
     const roomName = `user_${userId}`;
     socket.leave(roomName);
-    console.log(`🚪 User ${userId} left personal room: ${roomName}`);
   });
 
   
@@ -121,28 +117,13 @@ socket.on("typing", ({ receiverId, groupId, senderName, senderId }) => {
     
   } else if (receiverId) {
     
-    const receiverSocketId = userSocketMap[receiverId];
+   const receiverRoom = `user_${receiverId}`;
     
-    if (receiverSocketId) {
-      const targetSocket = io.sockets.sockets.get(receiverSocketId);
-      console.log("Checked 1");  
-      console.log("📤 Emitting userTyping to:", receiverSocketId);
-  console.log("🎯 Target socket exists:", !!targetSocket);
-  console.log("🔌 Target socket connected:", targetSocket?.connected);
-  console.log("📦 Data being sent:", { senderId, senderName });    
-      console.log("Checked 2");
-      if (targetSocket) {
-    io.to(receiverSocketId).emit("userTyping", { 
+    io.to(receiverRoom).emit("userTyping", { 
       senderId: senderId, 
-      senderName: senderName
+      senderName: senderName || "Someone"
     });
-    console.log("checked 3")
-  }
-   console.log("checked 4")
-      
-    } else {
-      console.log("❌ Receiver not found in userSocketMap");
-    }
+   
   }
   
 });
@@ -159,17 +140,13 @@ socket.on("stopTyping", ({ receiverId, groupId, senderId }) => {
     
   } else if (receiverId) {
    
-    const receiverSocketId = userSocketMap[receiverId];
+    const receiverRoom = `user_${receiverId}`;
     
     
-    if (receiverSocketId) {
-      io.to(receiverSocketId).emit("userStopTyping", { 
-        senderId
-      });
-     
-    } else {
-      console.log("❌ Receiver not found");
-    }
+    io.to(receiverRoom).emit("userStopTyping", { 
+      senderId
+    });
+   
   }
   
 });
