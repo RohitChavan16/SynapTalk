@@ -6,6 +6,7 @@ import { AuthContext } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import Loading from './Loading';
 import { Reply, Trash2, Copy, Languages } from "lucide-react";
+import { useLayoutEffect } from 'react';
 
 const MainChat = () => {
 
@@ -150,20 +151,14 @@ useEffect(() => {
   }
   }, [selectedUser, selectedGrp]);
 
- 
-useEffect(() => {
-  if (!messagesEndRef.current) return;
-
-  // Wait for DOM to paint
-  const scrollToBottom = () => {
-    messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
-  };
-
-  // Use requestAnimationFrame to ensure messages are rendered
-  requestAnimationFrame(scrollToBottom);
-}, [messages]);
-
-
+const scrollToBottom = (ref) => {
+  if (!ref.current) return;
+  ref.current.scrollIntoView({ behavior: "smooth" });
+};
+useLayoutEffect(() => {
+  // Scroll whenever messages or selected chat changes
+  scrollToBottom(messagesEndRef);
+}, [messages, selectedUser?._id, selectedGrp?._id]);
 // Add this useEffect RIGHT AFTER your existing useEffects in MainChat.jsx
 // This ensures users join group rooms for proper socket communication
 

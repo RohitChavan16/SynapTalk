@@ -124,3 +124,20 @@ export const getGrpMessages = async (req, res) => {
     res.status(500).json({ error: "Failed to fetch group messages" });
   }
 };
+
+
+export const newMember = async (req, res) => {
+   try {
+   
+   } catch (err) {
+    res.status(500).json({ error: "Failed to add new member" });
+  }
+}
+
+export const deleteMember = async (req, res) => {
+   try {
+   
+   } catch (err) {
+    res.status(500).json({ error: "Failed to delete member" });
+  }
+}

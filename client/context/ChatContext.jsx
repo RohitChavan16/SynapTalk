@@ -319,6 +319,14 @@ useEffect(() => {
       }
   }
 
+  const updateGrp = async() => {
+     try {
+
+     } catch (error) {
+      
+     }
+  }
+
  
 
   const value = {
@@ -355,6 +363,7 @@ useEffect(() => {
     selectedGrpRef,
     setPrivateTypingUsers,
     privateTypingUsers,
+    updateGrp,
   }
 
   return (
