@@ -37,8 +37,8 @@ const GroupProfileSidebar = () => {
   const [msgAudios, setMsgAudios] = useState([]);
   const [msgVideos, setMsgVideos] = useState([]);
   const [isEditingName, setIsEditingName] = useState(false);
-  const [grpName, setGrpName] = useState(selectedGrp.name || "");
-  const [grpImage, setGrpImage] = useState(selectedGrp.groupPic);
+  const [grpName, setGrpName] = useState(selectedGrp?.name || "");
+  const [grpImage, setGrpImage] = useState(selectedGrp?.groupPic);
   const [grpFile, setGrpFile] = useState(null);
   const fileInputRef = useRef(null);
 
@@ -112,20 +112,32 @@ const GroupProfileSidebar = () => {
 
 
 const handleSave = async (newDesc) => {
+  try {
+    let base64Image = null;
 
-  if (grpFile) {
-
-   const reader = new FileReader();
-    reader.readAsDataURL(grpFile);
-    reader.onload = async () => {
-    const base64Image = reader.result;
-    await updateGrp({grpId: selectedGrp._id, grpName, description: newDesc, grpImage: base64Image});
+    if (grpFile) {
+      base64Image = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(grpFile);
+        reader.onload = () => resolve(reader.result.toString()); 
+        reader.onerror = (err) => reject(err);
+      });
     }
-  } else {
-  await updateGrp({grpId: selectedGrp._id, grpName, description: newDesc });
-  }
+
+    await updateGrp({
+      grpId: selectedGrp._id,
+      grpName,
+      description: newDesc,
+      grpImage1: base64Image, 
+    });
+
+    setGrpFile(null);
     setIsEditingName(false);
-}
+  } catch (err) {
+    toast.error("Failed to update group: " + err.message);
+  }
+};
+
 
 const updateImage = () => {
    if (!isAdmin) {

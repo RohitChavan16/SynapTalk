@@ -3,6 +3,7 @@ import Group from '../models/Group.js';
 import User from '../models/User.js';
 import { GroupMessage } from '../models/GroupMsg.js';
 import { io, userSocketMap } from '../server.js';
+import cloudinary from "../lib/cloudinary.js";
 
 export const newGroup = async (req, res) => {
        try {
@@ -14,13 +15,13 @@ export const newGroup = async (req, res) => {
 
     const memberIds = members.map(m => m._id ? m._id : m);
     const allMembers = [...new Set([...memberIds, req.user._id.toString()])];
-    
+    const upload = await cloudinary.uploader.upload(groupPic);
     const group = new Group({
       name,
       description,
       privacy,
       members: allMembers,
-      groupPic, 
+      groupPic: upload.secure_url, 
       admins: [req.user._id],
     });
 
@@ -45,6 +46,8 @@ export const newGroup = async (req, res) => {
     res.status(500).json({success: false, message: "Server Error" });
   }
 }
+
+
 
 export const getGroups = async(req, res) => {
     try{
@@ -139,5 +142,40 @@ export const deleteMember = async (req, res) => {
    
    } catch (err) {
     res.status(500).json({ error: "Failed to delete member" });
+  }
+}
+
+export const updateGrp = async (req, res) => {
+    try {
+   
+    const groupId = req.params.id;
+    const userId = req.user._id;
+    const { name, description, groupPic } = req.body;
+
+    const group = await Group.findById(groupId);
+    if(!group){
+      return res.status(400).json({success: false, message: "Group not found"});
+    }
+
+    const isAdmin = group.admins.some(admin =>
+      admin._id.toString() === userId.toString()
+    );
+    if (!isAdmin) return res.status(403).json({ success: false, message: "Only admins can update the group" });
+    
+    if(groupPic && groupPic.startsWith("data:")) {
+    const upload = await cloudinary.uploader.upload(groupPic);
+    group.groupPic = upload.secure_url;
+    }
+
+    if (name) group.name = name;
+    if (description) group.description = description;
+    
+
+    await group.save();
+    
+    res.status(200).json({success: true, message: "Updated successfully", group});
+
+   } catch (err) {
+    res.status(500).json({ error: "Failed to update" });
   }
 }

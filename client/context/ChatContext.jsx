@@ -319,11 +319,34 @@ useEffect(() => {
       }
   }
 
-  const updateGrp = async() => {
+  const updateGrp = async({ grpId, grpName, description, grpImage1 }) => {
      try {
 
-     } catch (error) {
+      if (!grpId){
+        toast.error("Group not selected, please reload the page");
+      }
+
+      const trimmedName = grpName.trim();
+      if (!trimmedName) return toast.error("Name cannot be empty");
+
+      const payload = {};
+
+      if (trimmedName) payload.name = trimmedName;
+      if (description != null) payload.description = description;
+      if (grpImage1) payload.groupPic = grpImage1; 
+
+      const { data } = await axios.put(`/api/group/updateGrp/${grpId}`, payload);
+      if(data.success){
+           toast.success("Group updated successfully");
+           setSelectedGrp(data.group);
+           return ;
+        }
+
+      toast.error(data.message);
       
+     } catch (error) {
+      console.error(error.response?.data || error.message);
+       toast.error(error.message);
      }
   }
 
