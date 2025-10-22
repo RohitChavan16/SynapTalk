@@ -193,9 +193,7 @@ useEffect(() => {
 
 
 
-
-
-
+  
   
   return selectedUser || selectedGrp ? (
 <div className={`h-full max-md:h-screen ${selectedGrp && "max-md:mt-[-41px]"} bg-[url("./src/assets/chatbg.png")] overflow-scroll relative backdrop-blur-lg`}>
@@ -334,7 +332,7 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
     {selectedGrp  ? (
       <p className="text-xs text-purple-400 font-semibold">
         {mes.senderId?.fullName || "Unknown"} 
-        {console.log(mes.senderId)}
+        
       </p>
     ) : (<p className="text-xs text-purple-400 font-semibold">
         {selectedUser.fullName || "Unknown"}
@@ -495,7 +493,7 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
           </div>
   </div>
 )}
-  {console.log(typingUsers)}
+  
   {/* TYPING INDICATOR - GROUP CHAT */}
   {selectedGrp && 
    typingUsers && 

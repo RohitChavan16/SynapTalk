@@ -29,7 +29,7 @@ import toast from 'react-hot-toast';
 import axios from 'axios';
 
 const GroupProfileSidebar = () => {
-  const { selectedGrp, messages, setSelectedProfileGrp, updateGrp } = useContext(ChatContext);
+  const { selectedGrp, messages, setSelectedProfileGrp, updateGrp, users } = useContext(ChatContext);
   const {onlineUsers, authUser} = useContext(AuthContext);
   const [msgImages, setMsgImages] = useState([]);
   const [msgDocs, setMsgDocs] = useState([]);
@@ -40,6 +40,8 @@ const GroupProfileSidebar = () => {
   const [grpName, setGrpName] = useState(selectedGrp?.name || "");
   const [grpImage, setGrpImage] = useState(selectedGrp?.groupPic);
   const [grpFile, setGrpFile] = useState(null);
+  const [addMem, setAddMem] = useState(false);
+    const [selectedNewGroupMembers, setSelectedNewGroupMembers] = useState([]);
   const fileInputRef = useRef(null);
 
 
@@ -114,13 +116,14 @@ const GroupProfileSidebar = () => {
 const handleSave = async (newDesc) => {
   try {
     let base64Image = null;
-
+    console.log("Converted11")
     if (grpFile) {
       base64Image = await new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.readAsDataURL(grpFile);
         reader.onload = () => resolve(reader.result.toString()); 
         reader.onerror = (err) => reject(err);
+        console.log("Converted12")
       });
     }
 
@@ -130,7 +133,7 @@ const handleSave = async (newDesc) => {
       description: newDesc,
       grpImage1: base64Image, 
     });
-
+    console.log("Converted13")
     setGrpFile(null);
     setIsEditingName(false);
   } catch (err) {
@@ -152,9 +155,61 @@ const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     if (!file.type.startsWith("image/")) return toast.error("Only images allowed");
-    setGrpFile(file);
-    setGrpImage(URL.createObjectURL(file));    
+    
+    setGrpImage(URL.createObjectURL(file));  
+    const base64Image = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result.toString());
+    reader.onerror = (err) => reject(err);
+  });
+  
+  try {
+    await updateGrp({
+      grpId: selectedGrp._id,
+      grpName: selectedGrp.name,
+      description: selectedGrp.description,
+      grpImage1: base64Image, 
+    });
+    toast.success("Group image updated successfully");
+  } catch (err) {
+    toast.error("Failed to update group image: " + err.message);
+  }
   };
+
+
+
+
+
+  const handleCheckboxChange = (member) => {
+    if (selectedNewGroupMembers.includes(member)) {
+      // if already selected → remove
+      setSelectedNewGroupMembers(selectedNewGroupMembers.filter((m) => m !== member));
+    } else {
+      // if not selected → add
+      setSelectedNewGroupMembers([...selectedNewGroupMembers, member]);
+    }
+  };
+
+
+
+
+
+
+  const addMember = () => {
+     setAddMem(true);
+  }
+
+
+ const extraMembers = users.filter(
+  user => !selectedGrp.members.some(member => member._id === user._id)
+);
+
+
+
+
+
+
 
   return selectedGrp && (
     <div className="bg-[#8185B2]/10 text-white w-full relative border-l-2 border-l-gray-600 h-[100%] overflow-y-scroll ">
@@ -212,7 +267,7 @@ const handleFileChange = async (e) => {
               <X className="w-3.5 h-3.5" /> Cancel
             </button>
             <button
-              onClick={handleSave}
+              onClick={() => handleSave(selectedGrp.description)}
               className="px-3 py-1.5 text-xs cursor-pointer bg-violet-600/80 hover:bg-violet-800 transition-all text-white font-medium rounded-lg flex items-center gap-1"
             >
               <Check className="w-3.5 h-3.5" /> Save
@@ -254,7 +309,8 @@ const handleFileChange = async (e) => {
         { selectedGrp.admins?.some(admin =>
           (admin._id ? admin._id.toString() : admin.toString()) === authUser._id) && 
         <button
-          className="flex mb-2 gap-1 items-center cursor-pointer justify-center p-2 rounded bg-violet-600/10 border-2 border-[#ff8c20] hover:bg-violet-600/30 transition-all duration-200 group"
+        onClick={() => addMember()}  
+        className="flex mb-2 gap-1 items-center cursor-pointer justify-center p-2 rounded bg-violet-600/10 border-2 border-[#ff8c20] hover:bg-violet-600/30 transition-all duration-200 group"
         >
           <UserPlus className="w-4 h-4 text-emerald-500 group-hover:scale-110 transition-transform" />
           <span className="text-[14px] text-white/80 mt-1 font-medium">Add</span>
@@ -266,6 +322,82 @@ const handleFileChange = async (e) => {
         
       </div>
       
+
+
+
+
+
+
+
+
+      {addMem && <div className="absolute left-0 rounded-xl p-3 z-20 w-full h-60 bg-gradient-to-r  from-[#cc0808e9] via-[#0043a0ed] to-[#610185b4] backdrop-blur-lg">
+        <p className="mb-2">Select the member to add :</p>
+        <div className="flex flex-col gap-2">
+          {extraMembers.map((member) => {
+
+          return (
+          <div 
+            key={member._id} 
+            className=" flex items-center cursor-pointer justify-between p-2.5 rounded-lg hover:bg-white/17 bg-emerald-400/20 transition-all duration-200 border border-[#137aa0] hover:border-[#05b8ef]"
+          >
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+
+            <input
+            type="checkbox"
+            id={`user-${member._id}`}
+            checked={selectedNewGroupMembers.includes(member)}
+            onChange={() => handleCheckboxChange(member)}
+            className={`w-4 h-4 cursor-pointer `}
+            />
+
+              {/* Profile Picture or Avatar */}
+              <div className="relative flex-shrink-0">
+                {member?.profilePic ? (
+                  <img 
+                    src={member.profilePic} 
+                    alt={member.fullName} 
+                    className="w-9 h-9 rounded-full object-cover border-2 border-violet-500/50 shadow-[0_0_10px_rgba(138,43,226,0.4)]" 
+                  />
+                ) : (
+                  <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold border-2 border-violet-500/50 shadow-[0_0_10px_rgba(138,43,226,0.4)] bg-gradient-to-br from-[#ff4800] via-pink-500 to-[#d31b74]">
+                    {member?.fullName
+                      ?.split(" ")
+                      .map((n) => n[0])
+                      .join("")
+                      .toUpperCase()
+                      .slice(0, 2)}
+                  </div>
+                )}
+              </div>
+
+              {/* Member Info */}
+              <div className="flex-1 min-w-0 flex items-center gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-white/90 text-sm font-medium truncate">
+                      {member.fullName}
+                    </span>
+                  </div>
+                  {member.role && (
+                    <p className="text-xs text-white/50 truncate mt-0.5">{member.role}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+          )
+          })}
+        </div>
+      </div> }
+
+
+
+
+
+
+
+
+
       
       <div className="flex flex-col space-y-1.5 max-h-[220px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
         {sortedMembers.map((member, index) => (
