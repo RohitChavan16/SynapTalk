@@ -350,6 +350,52 @@ useEffect(() => {
      }
   }
 
+
+  const addExtraMem = async({mem}) => {
+     try{
+      const grpId = selectedGrp._id;
+      const grpInfo = {}
+      if (!mem || !Array.isArray(mem) || mem.length === 0) {
+      toast.error("No members to add");
+      return;
+      }
+      if (!selectedGrp?._id) {
+      toast.error("No group selected");
+      return;
+      }
+      grpInfo.grpId = grpId;
+      grpInfo.members = mem; 
+      const { data } = await axios.put("/api/group/add-extra-mem", grpInfo);
+      if(data.success){
+        toast.success("Member added successfully");
+        return true;
+      }
+      toast.error(data.message);
+      return false;
+     } catch (error) {
+      toast.error(error.message || "Failed to add member");
+      return false
+     }
+  }
+
+
+
+  const deleteMember = async (memberId) => {
+     try {
+      const groupId = selectedGrp._id;
+       const { data } = await axios.delete(`/api/group/delete-mem/${memberId}`, { data: { groupId } });
+       if(data.success){
+        toast.success("Member deleted successfully");
+        return true;
+       }
+       toast.error(data.message);
+       return false;
+     } catch (error) {
+      toast.error(error.message || "Failed to delete member");
+      return false
+     }
+  }
+
  
 
   const value = {
@@ -387,6 +433,8 @@ useEffect(() => {
     setPrivateTypingUsers,
     privateTypingUsers,
     updateGrp,
+    addExtraMem,
+    deleteMember
   }
 
   return (

@@ -29,7 +29,7 @@ import toast from 'react-hot-toast';
 import axios from 'axios';
 
 const GroupProfileSidebar = () => {
-  const { selectedGrp, messages, setSelectedProfileGrp, updateGrp, users } = useContext(ChatContext);
+  const { selectedGrp, setSelectedGrp, messages, setSelectedProfileGrp, updateGrp, users, addExtraMem, deleteMember, setActive } = useContext(ChatContext);
   const {onlineUsers, authUser} = useContext(AuthContext);
   const [msgImages, setMsgImages] = useState([]);
   const [msgDocs, setMsgDocs] = useState([]);
@@ -195,6 +195,56 @@ const handleFileChange = async (e) => {
 
 
 
+  const handleAddMem = async () => {
+     if (!selectedNewGroupMembers || selectedNewGroupMembers.length === 0) {
+      toast.error("Please select at least one member");
+      return;
+     }
+     try {
+      const success = await addExtraMem({mem: selectedNewGroupMembers});
+      if (success) {
+      setAddMem(false);
+      setSelectedGrp((prevGrp) => ({
+      ...prevGrp,
+      members: [...prevGrp.members, ...selectedNewGroupMembers], // new array reference
+      }));
+      setSelectedNewGroupMembers([]);
+    }
+     } catch (error) {
+      toast.error(error.message);
+     }
+  }
+
+
+  const handleDeleteMem = async (deleteMem) => {
+     if(!deleteMem){
+      toast.success("Choose the member to delete");
+      return ;
+     }
+     const confirmed = window.confirm(
+    `Are you sure you want to remove this member from the group?`
+     );
+  
+     if (!confirmed) return;
+
+     try {
+       const success = await deleteMember(deleteMem);
+      if(success){
+        setSelectedGrp((prevGrp) => {
+         return {
+         ...prevGrp,
+         members: prevGrp.members.filter(
+         (m) => m && m._id && m._id.toString() !== deleteMem.toString()
+         ),
+         };
+        });
+      }
+     } catch (error) {
+       toast.error(error.message);
+     }
+  }
+
+
 
   const addMember = () => {
      setAddMem(true);
@@ -330,7 +380,7 @@ const handleFileChange = async (e) => {
 
 
 
-      {addMem && <div className="absolute left-0 rounded-xl p-3 z-20 w-full h-60 bg-gradient-to-r  from-[#cc0808e9] via-[#0043a0ed] to-[#610185b4] backdrop-blur-lg">
+      {addMem && <div className="absolute left-0 rounded-xl p-3 z-20 w-full h-auto bg-gradient-to-r  from-[#cc0808e9] via-[#0043a0ed] to-[#610185b4] backdrop-blur-lg">
         <p className="mb-2">Select the member to add :</p>
         <div className="flex flex-col gap-2">
           {extraMembers.map((member) => {
@@ -338,7 +388,7 @@ const handleFileChange = async (e) => {
           return (
           <div 
             key={member._id} 
-            className=" flex items-center cursor-pointer justify-between p-2.5 rounded-lg hover:bg-white/17 bg-emerald-400/20 transition-all duration-200 border border-[#137aa0] hover:border-[#05b8ef]"
+            className=" flex items-center cursor-pointer justify-between p-2.5 rounded-lg hover:bg-white/17 bg-emerald-400/10 transition-all duration-200 border border-[#137aa0] hover:border-[#05b8ef]"
           >
             <div className="flex items-center gap-3 flex-1 min-w-0">
 
@@ -387,6 +437,21 @@ const handleFileChange = async (e) => {
           </div>
           )
           })}
+        </div>
+        <div className="flex items-center justify-center gap-6 mt-3 w-full">
+          <button 
+          onClick={() => {
+            setSelectedNewGroupMembers([]);
+            setAddMem(false)
+          }}
+          className="border border-[#888] px-3 py-[4px] rounded cursor-pointer hover:bg-[#8b0e27] bg-[#a20606] text-[14px]">
+            Cancel
+          </button>
+          <button 
+          onClick={() => handleAddMem()}
+          className="border border-[#888] px-2 py-[3.5px] rounded cursor-pointer hover:bg-[#23762d] bg-[#008609] text-[14px]">
+            Confirm
+          </button>
         </div>
       </div> }
 
@@ -469,7 +534,8 @@ const handleFileChange = async (e) => {
                ) && (
                 <div className="flex items-center gap-1">
                   <button 
-                    className="p-1.5 rounded-md hover:bg-red-500/10 transition-colors"
+                    onClick={() => handleDeleteMem(member._id)}
+                    className="p-1.5 cursor-pointer rounded-md hover:bg-red-500/20 transition-colors"
                     title="Remove from group"
                   >
                     <UserMinus className="w-4 h-4 text-red-400" />

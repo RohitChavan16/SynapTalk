@@ -129,21 +129,117 @@ export const getGrpMessages = async (req, res) => {
 };
 
 
-export const newMember = async (req, res) => {
+export const addExtraMem = async (req, res) => {
    try {
-   
+    const {grpId, members} = req.body;
+    const userId = req.user._id;
+
+    if (!grpId || !members || !Array.isArray(members) || members.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Invalid request. Group ID and members array required" 
+      });
+    }
+
+    const group = await Group.findById(grpId)
+    .populate("members", "_id fullName email profilePic")
+    .populate("admins", "_id fullName email profilePic");
+
+    if(!group){
+      return res.status(400).json({success: false, message: "Group not found"});
+    }
+    
+    const isAdmin = group.admins.some(admin =>
+      admin._id.toString() === userId.toString()
+    );
+
+    if (!isAdmin) return res.status(403).json({ success: false, message: "Only admins can update the group" });
+
+    const newMem = [...group.members, ...members];
+
+    group.members = newMem;
+ 
+    await group.save();
+
+    res.status(200).json({success: true, message: "Member added", group});
+
    } catch (err) {
-    res.status(500).json({ error: "Failed to add new member" });
+    res.status(500).json({ success: false, message: err.message });
   }
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
 export const deleteMember = async (req, res) => {
    try {
-   
+     const memberId = req.params.id;
+     const userId = req.user._id;
+     const { groupId } = req.body;
+     const group = await Group.findById(groupId);
+    if(!group){
+      return res.status(400).json({success: false, message: "Group not found"});
+    }
+
+    const isAdmin = group.admins.some(admin =>
+      admin._id.toString() === userId.toString()
+    );
+    if (!isAdmin) return res.status(403).json({ success: false, message: "Only admins can remove members" });
+    
+    const isTargetAdmin = group.admins.some(admin =>
+      admin._id.toString() === memberId.toString()
+    );
+    
+    if (isTargetAdmin && group.admins.length === 1) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Cannot remove the last admin" 
+      });
+    }
+
+    const member = await User.findById(memberId);
+
+    if(!member){
+      res.status(400).json({success: false, message: "User not found"});
+      return ;
+    }
+
+    group.members = group.members.filter(
+      member => member._id.toString() !== memberId.toString()
+    );
+    
+    group.admins = group.admins.filter(
+      admin => admin._id.toString() !== memberId.toString()
+    ); 
+    
+    await group.save();
+
+    res.status(200).json({success: true, message: "Member Deleted", group})
    } catch (err) {
-    res.status(500).json({ error: "Failed to delete member" });
+    res.status(500).json({ success: false, message: err.message });
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
 
 export const updateGrp = async (req, res) => {
     try {
@@ -176,6 +272,6 @@ export const updateGrp = async (req, res) => {
     res.status(200).json({success: true, message: "Updated successfully", group});
 
    } catch (err) {
-    res.status(500).json({ error: "Failed to update" });
+    res.status(500).json({ success: false, message: err.message });
   }
 }
