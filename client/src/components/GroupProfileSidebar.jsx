@@ -54,11 +54,14 @@ const GroupProfileSidebar = () => {
     setMsgAudios(messages.filter(msg => msg.audio).map(msg => msg.audio));
     setMsgVideos(messages.filter(msg => msg.video).map(msg => msg.video));
   }, [messages, selectedGrp]);
- const isAdmin = selectedGrp.admins?.some(
+
+  const isAdmin = selectedGrp?.admins?.some(
     (admin) => (admin._id ? admin._id.toString() : admin.toString()) === authUser._id
   );
-  const ProfileOption = ({ title, subtitle, rightElement, color = "text-white" }) => (
-    <div className={`flex items-center justify-between p-3 cursor-pointer hover:bg-white/10 transition-colors rounded-lg mx-2 my-1 ${color}`}>
+
+
+  const ProfileOption = ({ title, subtitle, onClick, rightElement, color = "text-white" }) => (
+    <div onClick={onClick} className={`flex items-center justify-between p-3 cursor-pointer hover:bg-white/10 transition-colors rounded-lg mx-2 my-1 ${color}`}>
       <div className="flex flex-col">
         <span className="font-medium text-sm">{title}</span>
         {subtitle && <span className="text-xs text-white/60">{subtitle}</span>}
@@ -89,14 +92,14 @@ const GroupProfileSidebar = () => {
     )
   );
 
-  const sortedMembers = [...selectedGrp.members].sort((a, b) => {
+  const sortedMembers = selectedGrp?.members ? [...selectedGrp.members].sort((a, b) => {
   const isAYou = a._id === authUser._id;
   const isBYou = b._id === authUser._id;
 
-  const isAAdmin = selectedGrp.admins?.some(admin =>
+  const isAAdmin = selectedGrp?.admins?.some(admin =>
     (admin._id ? admin._id.toString() : admin.toString()) === a._id
   );
-  const isBAdmin = selectedGrp.admins?.some(admin =>
+  const isBAdmin = selectedGrp?.admins?.some(admin =>
     (admin._id ? admin._id.toString() : admin.toString()) === b._id
   );
 
@@ -110,7 +113,7 @@ const GroupProfileSidebar = () => {
 
   // 3️⃣ Others last
   return 0;
-});
+}) : [];
 
 
 const handleSave = async (newDesc) => {
@@ -222,7 +225,7 @@ const handleFileChange = async (e) => {
       return ;
      }
      const confirmed = window.confirm(
-    `Are you sure you want to remove this member from the group?`
+    `Are you sure you want leave this group?`
      );
   
      if (!confirmed) return;
@@ -252,16 +255,49 @@ const handleFileChange = async (e) => {
 
 
  const extraMembers = users.filter(
-  user => !selectedGrp.members.some(member => member._id === user._id)
+  user => !selectedGrp?.members.some(member => member._id === user._id)
 );
 
 
 
 
+const handleLeaveGrp = async () => { 
+  console.log("Triggered");
+  const confirmed = window.confirm(
+    `Are you sure you want to remove this member from the group?`
+     );
+  
+    if (!confirmed) return;
+    
+    const deleteMem = authUser._id;
+
+   try {
+
+    const success = await deleteMember(deleteMem);
+
+      if(success){
+        setSelectedGrp((prevGrp) => {
+         return {
+         ...prevGrp,
+         members: prevGrp.members.filter(
+         (m) => m && m._id && m._id.toString() !== deleteMem.toString()
+         ),
+         };
+        });
+        toast("You are no longer the member of this group");
+      } 
+    
+   } catch (error) {
+    toast.error(error.message);
+   }
+}
 
 
 
-  return selectedGrp && (
+
+
+
+  return selectedGrp ? (
     <div className="bg-[#8185B2]/10 text-white w-full relative border-l-2 border-l-gray-600 h-[100%] overflow-y-scroll ">
       <button
         className="absolute top-3 right-3 p-2 text-white md:hidden"
@@ -327,7 +363,7 @@ const handleFileChange = async (e) => {
         ) : (
         <h1 className='px-10 text-xl font-semibold mx-auto'>{selectedGrp.name}</h1>
         )}
-        {selectedGrp.admins?.some(admin =>
+        {selectedGrp?.admins?.some(admin =>
           (admin._id ? admin._id.toString() : admin.toString()) === authUser._id) && (
             <button
               onClick={() => setIsEditingName(true)}
@@ -340,7 +376,7 @@ const handleFileChange = async (e) => {
         </div>
         <GroupInfoCard
          description={selectedGrp.description}
-         isAdmin={selectedGrp.admins?.some(admin =>
+         isAdmin={selectedGrp?.admins?.some(admin =>
          (admin._id ? admin._id.toString() : admin.toString()) === authUser._id
          )}
          onSave={(newDesc) => handleSave(newDesc)}
@@ -356,7 +392,7 @@ const handleFileChange = async (e) => {
         <h2 className="text-white/90 text-sm font-semibold tracking-wide">
           Group Members
         </h2>
-        { selectedGrp.admins?.some(admin =>
+        { selectedGrp?.admins?.some(admin =>
           (admin._id ? admin._id.toString() : admin.toString()) === authUser._id) && 
         <button
         onClick={() => addMember()}  
@@ -367,7 +403,7 @@ const handleFileChange = async (e) => {
         </button>
         }
         <span className="text-xs text-white/50 bg-white/5 px-2 py-1 rounded-full">
-          {selectedGrp.members.length} {selectedGrp.members.length === 1 ? 'member' : 'members'}
+          {selectedGrp?.members.length} {selectedGrp?.members.length === 1 ? 'member' : 'members'}
         </span>
         
       </div>
@@ -518,7 +554,7 @@ const handleFileChange = async (e) => {
                 </div>
 
                 {/* Admin Badge */}
-                {selectedGrp.admins?.some(admin =>
+                {selectedGrp?.admins?.some(admin =>
                   (admin._id ? admin._id.toString() : admin.toString()) === member._id
                   ) && (
                   <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-blue-500/10 border border-blue-400/20">
@@ -529,7 +565,7 @@ const handleFileChange = async (e) => {
               </div>
 
               {/* Action Buttons (visible on hover for admin) */}
-              {selectedGrp.admins?.some(admin =>
+              {selectedGrp?.admins?.some(admin =>
                (admin._id ? admin._id.toString() : admin.toString()) === authUser._id
                ) && (
                 <div className="flex items-center gap-1">
@@ -551,6 +587,7 @@ const handleFileChange = async (e) => {
       <hr className="border-[#ffffff50] my-4"/>
 
       {/* Media Sections */}
+      <p className="font-bold ml-4 text-[14px]" > Media :</p>
       <MediaSection title="Media" items={msgImages} type="images" />
       <MediaSection title="Documents" items={msgDocs} type="documents" />
       <MediaSection title="Links" items={msgLinks} type="links" />
@@ -566,12 +603,12 @@ const handleFileChange = async (e) => {
         <ProfileOption title="Export Chat" />
         <ProfileOption title="Share Group" />
         <ProfileOption title="Mute Notifications" />
-        <ProfileOption title="Leave Group" color="text-red-400" />
-        <ProfileOption title="Delete Group" color="text-red-400" />
+        <ProfileOption title="Leave Group" onClick={handleLeaveGrp} color="text-red-400" />
+        <ProfileOption title="Delete Group" onClick={handleLeaveGrp} color="text-red-400" />
       </div>
 
     </div>
-  )
+  ) : null
 };
 
 export default GroupProfileSidebar;

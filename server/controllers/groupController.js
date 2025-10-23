@@ -193,7 +193,7 @@ export const deleteMember = async (req, res) => {
     const isAdmin = group.admins.some(admin =>
       admin._id.toString() === userId.toString()
     );
-    if (!isAdmin) return res.status(403).json({ success: false, message: "Only admins can remove members" });
+    if (!isAdmin && memberId.toString() !== userId.toString()) return res.status(403).json({ success: false, message: "Only admins can remove members" });
     
     const isTargetAdmin = group.admins.some(admin =>
       admin._id.toString() === memberId.toString()
