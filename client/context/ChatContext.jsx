@@ -14,12 +14,14 @@ const [selectedProfile, setSelectedProfile] = useState(false);
 const [selectedProfileGrp, setSelectedProfileGrp] = useState(false);
 const [unseenMessages, setUnseenMessages] = useState({});
 const [unseenGrpMessages, setUnseenGrpMessages] = useState({});
-const {socket, axios, privateKey, authUser} = useContext(AuthContext);
+const {socket, axios, privateKey, authUser, token} = useContext(AuthContext);
 const [groups, setGroups] = useState([]);
 const [active, setActive] = useState("My Chat");
 const [typingUsers, setTypingUsers] = useState({});
 const [typingId, setTypingId] = useState("");
 const [privateTypingUsers, setPrivateTypingUsers] = useState({});
+const [latestMessages, setLatestMessages] = useState({});
+
 
 // function to get all users for sidebar
 
@@ -100,6 +102,15 @@ try {
           text: messageData.text // Keep original text for immediate display
     };
     setMessages((prevMessages) => [...prevMessages, displayMessage]);
+    setLatestMessages(prev => ({
+        ...prev,
+        [selectedUser._id]: {
+          text: messageData.text || (messageData.image ? "📷 Photo" : ""),
+          createdAt: new Date().toISOString(),
+          seen: false,
+          isSender: true
+        }
+      }));
     } else {
     toast.error(data.message);
     }
@@ -245,10 +256,11 @@ useEffect(() => {
   socket.on("newMessage", async (newMessage) => {
     const currentUser = selectedUserRef.current;
    
+    let displayMessage = newMessage;
     
     
     if (currentUser && newMessage.senderId._id === currentUser._id) {
-      let displayMessage = newMessage;
+      
      
       
       if (newMessage.encryptedMessage && newMessage.encryptedKey && privateKey) {
@@ -261,6 +273,7 @@ useEffect(() => {
           
           if (data.success) {
             displayMessage = { ...newMessage, text: data.decryptedText };
+
           }
          
         } catch (error) {
@@ -284,6 +297,25 @@ useEffect(() => {
   return updated;
   });
  }
+
+
+const senderId = newMessage.senderId._id || newMessage.senderId;
+  const receiverId = newMessage.receiverId._id || newMessage.receiverId;
+  
+  // Determine the "other user" ID based on current user
+  const otherUserId = senderId === authUser._id ? receiverId : senderId;
+  
+  setLatestMessages((prev) => ({
+    ...prev,
+    [otherUserId]: {
+      text: displayMessage.text || (displayMessage.image ? "📷 Photo" : ""),
+      createdAt: displayMessage.createdAt,
+      seen: displayMessage.seen || false,
+      isSender: senderId === authUser._id
+    }
+  }));
+
+
 });
 
   // ✅ Cleanup: remove listeners when component unmounts
@@ -396,6 +428,69 @@ useEffect(() => {
      }
   }
 
+
+
+const fetchLatestMessages = async () => {
+  try {
+    
+    const res = await axios.get("/api/messages/latest-msg");
+    
+    if (res.data.success && Array.isArray(res.data.messages)) {
+      const latest = {};
+
+      for (const msg of res.data.messages) {
+        let text = msg.text;
+       
+        // Decrypt if needed
+        if (msg.encryptedMessage && msg.encryptedKey && privateKey) {
+          try {
+           
+            const { data } = await axios.post(`/api/messages/decrypt`, {
+              messageId: msg._id,
+              privateKey: privateKey
+            }, {
+              headers: {
+              Authorization: `Bearer ${token}` 
+             }
+            });
+            if (data.success) text = data.decryptedText;
+          } catch(err) {
+            
+            text = "[Unable to decrypt message]";
+          }
+        }
+
+        // Handle image messages
+        if (!text && msg.image) {
+          text = "📷 Photo";
+        }
+
+        const otherUserId = msg.isSender ? 
+          (msg.receiver._id || msg.receiver) : 
+          (msg.sender._id || msg.sender);
+
+        latest[otherUserId] = {
+          text,
+          createdAt: msg.createdAt,
+          seen: msg.seen || false,
+          isSender: msg.isSender // Track if current user sent this
+        };
+      }
+
+      setLatestMessages(latest);
+      return latest;
+    }
+    return {};
+  } catch (err) {
+    console.error("Error fetching latest messages:", err);
+    return {};
+  }
+};
+
+
+
+
+
  
 
   const value = {
@@ -434,7 +529,10 @@ useEffect(() => {
     privateTypingUsers,
     updateGrp,
     addExtraMem,
-    deleteMember
+    deleteMember,
+    setLatestMessages,
+    latestMessages,
+    fetchLatestMessages,
   }
 
   return (

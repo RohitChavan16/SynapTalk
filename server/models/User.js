@@ -24,7 +24,19 @@ const userSchema = new mongoose.Schema({
 ],
   groups : [{ type: mongoose.Schema.Types.ObjectId, ref : "Group"}],
   publicKey: { type: String, required: true },  // ECC public key
-  privateKey: { type: String, default: null },  
+  privateKey: { type: String, default: null }, 
+  latestMessages: [
+    {
+      chatId: { type: mongoose.Schema.Types.ObjectId, required: true }, // either userId or groupId
+      isGroup: { type: Boolean, default: false }, 
+      lastMessage: { type: String },
+      lastMessageType: { type: String, default: "text" }, // text, image, notification
+      sender: { type: mongoose.Schema.Types.ObjectId, ref: "User" }, // who sent it
+      seenBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+      createdAt: { type: Date, default: Date.now },
+      notificationType: { type: String, default: null }, // e.g., "GROUP_NAME_CHANGE", "USER_ADDED"
+    }
+  ], 
 }, { timestamps: true });
 
 const User = mongoose.model('User', userSchema);

@@ -37,7 +37,8 @@ import MenuOption from './MenuOption';
 const ChatSidebar = () => {
 
   const { getUsers, users, selectedUser, setSelectedUser, unseenMessages, setUnseenMessages, newGroupHandle, groups, setGroups, fetchGroups, selectedGrp,
-     setSelectedGrp, active, setActive, typingUsers, setTypingUsers, typingId, setTypingID, selectedGrpRef, selectedUserRef, privateTypingUsers, setUnseenGrpMessages, unseenGrpMessages } = useContext(ChatContext);
+     setSelectedGrp, active, setActive, typingUsers, setTypingUsers, typingId, setTypingID, selectedGrpRef, 
+     selectedUserRef, privateTypingUsers, setUnseenGrpMessages, unseenGrpMessages, latestMessages, setLatestMessages, fetchLatestMessages } = useContext(ChatContext);
   const { logout, onlineUsers, socialLinks, getSocialLink, deleteSocialLink, addSocialLink, editSocialLink, socket, authUser } = useContext(AuthContext);
   const [dropDown, setDropDown] = useState(false);
   const navigate = useNavigate();
@@ -199,12 +200,49 @@ const ChatSidebar = () => {
     getUsers();
     fetchGroups();
     getSocialLink();
-    
+    fetchLatestMessages();
   }, [onlineUsers]);
 
   const sortedLinks = socialLinks
               .filter(sl => sl.url) // only render links with URL
               .sort((a, b) => b.msgCount - a.msgCount);
+  
+
+  // Add time formatting helper
+const formatMessageTime = (timestamp) => {
+  if (!timestamp) return "";
+  
+  const now = new Date();
+  const msgTime = new Date(timestamp);
+  const diffInHours = (now - msgTime) / (1000 * 60 * 60);
+  
+  // If today, show time
+  if (diffInHours < 24 && now.getDate() === msgTime.getDate()) {
+    return msgTime.toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit',
+      hour12: true 
+    });
+  }
+  
+  // If yesterday
+  if (diffInHours < 48 && now.getDate() - msgTime.getDate() === 1) {
+    return "Yesterday";
+  }
+  
+  // If within last week, show day name
+  if (diffInHours < 168) {
+    return msgTime.toLocaleDateString('en-US', { weekday: 'short' });
+  }
+  
+  // Otherwise show date
+  return msgTime.toLocaleDateString('en-US', { 
+    month: 'short', 
+    day: 'numeric' 
+  });
+};
+
+
 
   return (
     <div className={`bg-transparent relative h-full p-5 overflow-y-scroll border-r-2 border-r-gray-600 text-white  
@@ -536,14 +574,22 @@ const ChatSidebar = () => {
       <div className="flex flex-col divide-y divide-violet-500/20">
         {filteredUsers
         .sort((a, b) => {
-        const unseenA = unseenMessages[a._id] || 0;
-        const unseenB = unseenMessages[b._id] || 0;
-        return unseenB - unseenA; // Descending order (highest unseen first)
+        const timeA = latestMessages[a._id]?.createdAt 
+        ? new Date(latestMessages[a._id].createdAt).getTime() 
+        : 0;
+        const timeB = latestMessages[b._id]?.createdAt 
+        ? new Date(latestMessages[b._id].createdAt).getTime() 
+        : 0; 
+        return timeB - timeA;
         })
         .map((user) => {
           const isSelected = selectedUser?._id === user._id;
           const unseenCount = unseenMessages[user._id] || 0;
           const isOnline = onlineUsers.includes(user._id);
+
+          const latestMsg = latestMessages[user._id];
+
+
 
           return (
             <div
@@ -599,12 +645,36 @@ const ChatSidebar = () => {
               </div>
 
               {/* Name + Status */}
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 ">
                 <p className="truncate font-semibold text-sm drop-shadow-[0_0_4px_rgba(255,255,255,0.6)]">{user.fullName}</p>
-                <p className={`text-xs ${isOnline ? "text-green-400" : "text-gray-400"}`}>
-                  {isOnline ? "🟢 Online" : "⚫ Offline"}
-                </p>
+                {latestMsg?.text && (
+            <div className="flex items-center gap-1">
+              <p className="truncate text-xs text-gray-400 max-w-[180px]">
+                {latestMsg.isSender && <span className="text-blue-400">You: </span>}
+                {latestMsg.text.length > 25 ? latestMsg.text.slice(0, 25) + "..." : latestMsg.text}
+              </p>
+              {!latestMsg.seen && latestMsg.isSender && (
+                <span className="text-gray-500 text-xs">✓</span>
+              )}
+              {latestMsg.seen && latestMsg.isSender && (
+                <span className="text-blue-400 text-xs">✓✓</span>
+              )}
+            </div>
+          )}
+          
+          {!latestMsg?.text && (
+            <p className={`text-xs ${isOnline ? "text-green-400" : "text-gray-400"}`}>
+              {isOnline ? "🟢 Online" : "⚫ Offline"}
+            </p>
+          )}
               </div>
+
+          {latestMsg?.createdAt && (
+           <span className="absolute top-3 right-4 text-[10px] text-gray-400">
+            {formatMessageTime(latestMsg.createdAt)}
+           </span>
+          )}
+
                 {privateTypingUsers[user._id] && (
                  <div className="absolute bottom-2 right-4 z-100  flex items-center gap-2 text-[11px] text-green-300 bg-[#0a3a7c] px-3 py-1.5 rounded-full backdrop-blur-sm border border-gray-600/50 shadow-lg" >
                  <p className="text-[11px] text-blue-400 italic">
@@ -614,7 +684,7 @@ const ChatSidebar = () => {
                 )}
               {/* Unseen Messages Badge */}
               {unseenCount > 0 && (
-                <span className="absolute top-1/2 -translate-y-1/2 right-4 text-xs h-5 w-5 flex items-center justify-center rounded-full bg-gradient-to-r from-violet-500 to-pink-500 shadow-[0_0_10px_rgba(255,0,255,0.8)] text-white font-bold">
+                <span className="absolute top-1/2 -translate-y-1 right-4 text-xs h-4 w-4 flex items-center justify-center rounded-full bg-gradient-to-r from-violet-500 to-pink-500 shadow-[0_0_10px_rgba(255,0,255,0.8)] text-white font-bold">
                   {unseenCount}
                 </span>
               )}

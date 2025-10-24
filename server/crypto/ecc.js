@@ -116,7 +116,7 @@ export const ecc = {
     // Safe logging with null checks
     
     if (recipientPrivateKeyInput && typeof recipientPrivateKeyInput === 'string') {
-      console.log("Recipient Private Key (first 100 chars):", recipientPrivateKeyInput.slice(0, 100));
+      // console.log("Recipient Private Key (first 100 chars):", recipientPrivateKeyInput.slice(0, 100));
     }
 
     const payload =
@@ -135,8 +135,7 @@ export const ecc = {
     
     try {
       recipientPrivPem = toPem(recipientPrivateKeyInput);
-      console.log("Successfully converted to PEM format");
-      console.log("PEM starts with:", recipientPrivPem.substring(0, 50));
+      
       
       recipientPrivKeyObj = crypto.createPrivateKey({
         key: recipientPrivPem,
@@ -147,7 +146,7 @@ export const ecc = {
       
       // Fallback: try raw DER (base64-encoded)
       try {
-        console.log("Trying DER format fallback...");
+        
         recipientPrivKeyObj = crypto.createPrivateKey({
           key: Buffer.from(recipientPrivateKeyInput, 'base64'),
           format: 'der',

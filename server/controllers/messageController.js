@@ -40,11 +40,18 @@ export const getMessages = async (req, res) => {
   try {
     const {id: selectedUserId} = req.params;
     const myId = req.user._id;
+     if (!selectedUserId || !mongoose.Types.ObjectId.isValid(selectedUserId)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid user ID: ${selectedUserId}`
+      });
+    }
     const selectedUserObjectId = new mongoose.Types.ObjectId(selectedUserId);
+    const myObjectId = new mongoose.Types.ObjectId(myId);
     const messages = await Message.find({
       $or: [
-        {senderId: myId, receiverId: selectedUserObjectId},
-        {senderId: selectedUserId, receiverId: myId},
+        {senderId: myObjectId, receiverId: selectedUserObjectId},
+        {senderId: selectedUserObjectId, receiverId: myObjectId},
       ]
     });
 
@@ -281,6 +288,8 @@ export const sendMessage = async (req, res) => {
       encryptedKey,
       hmac: messageHMAC
     });
+
+
     
     const populatedMessage = await Message.findById(newMessage._id)
       .populate("senderId", "fullName profilePic")
@@ -308,6 +317,15 @@ export const sendMessage = async (req, res) => {
     res.json({success: false, message: error.message});
   }
 }
+
+
+
+
+
+
+
+
+
 
 export const decryptMessage = async (req, res) => {
   try {
@@ -368,6 +386,15 @@ export const decryptMessage = async (req, res) => {
     res.json({ success: false, message: error.message });
   }
 };
+
+
+
+
+
+
+
+
+
 
 // Get user's public key (for encryption by others)
 export const getUserPublicKey = async (req, res) => {
@@ -450,5 +477,76 @@ export const bulkDecryptMessages = async (req, res) => {
   } catch (error) {
     console.log(error.message);
     res.json({ success: false, message: error.message });
+  }
+};
+
+
+
+
+export const getLatestMessages = async (req, res) => {
+  try {
+    const userId = new mongoose.Types.ObjectId(req.user._id);
+
+    const messages = await Message.aggregate([
+      {
+        $match: {
+          $or: [
+            { senderId: userId },
+            { receiverId: userId }
+          ]
+        }
+      },
+      { $sort: { createdAt: -1 } },
+      {
+        $group: {
+          _id: {
+            $cond: [
+              { $eq: ["$senderId", userId] },
+              "$receiverId",
+              "$senderId"
+            ]
+          },
+          latestMessage: { $first: "$$ROOT" }
+        }
+      },
+      { $replaceRoot: { newRoot: "$latestMessage" } },
+      {
+        $lookup: {
+          from: "users",
+          localField: "senderId",
+          foreignField: "_id",
+          as: "senderInfo"
+        }
+      },
+      { $unwind: "$senderInfo" },
+      {
+        $lookup: {
+          from: "users",
+          localField: "receiverId",
+          foreignField: "_id",
+          as: "receiverInfo"
+        }
+      },
+      { $unwind: { path: "$receiverInfo", preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          _id: { $toString: "$_id" },
+          text: 1,
+          encryptedMessage: 1,
+          encryptedKey: 1,
+          image: 1,
+          seen: 1,
+          createdAt: 1,
+          sender: "$senderInfo",
+          receiver: "$receiverInfo",
+          isSender: { $eq: ["$senderId", userId] }
+        }
+      }
+    ]);
+
+    res.json({ success: true, messages });
+  } catch (error) {
+    console.error("getLatestMessages error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
