@@ -163,6 +163,7 @@ socket.on("stopTyping", ({ receiverId, groupId, senderId }) => {
       callRooms.set(roomId, {
         participants: new Set(),
         createdAt: Date.now(),
+        screenSharingUserId: null,
         settings: {
           maxParticipants: 10,
           allowRecording: true,
@@ -445,6 +446,67 @@ socket.on("stopTyping", ({ receiverId, groupId, senderId }) => {
     }
   });
 
+
+
+
+
+
+  // Screen sharing events
+socket.on("screen-share-started", (data) => {
+  const { roomId } = data;
+  
+  if (callRooms.has(roomId)) {
+    const room = callRooms.get(roomId);
+    
+    // Check if someone else is already sharing
+    if (room.screenSharingUserId && room.screenSharingUserId !== userId) {
+      socket.emit("call-error", {
+        type: "screen_share_conflict",
+        message: "Another user is already sharing screen"
+      });
+      return;
+    }
+    
+    // Set this user as screen sharer
+    room.screenSharingUserId = userId;
+    
+    // Notify all participants including sender
+    io.to(roomId).emit("participant-screen-share", {
+      userId,
+      action: "started",
+      hasAudio: data.hasAudio || false,
+      timestamp: Date.now()
+    });
+    
+    console.log(`User ${userId} started screen sharing in room ${roomId}`);
+  }
+});
+
+socket.on("screen-share-stopped", (data) => {
+  const { roomId } = data;
+  
+  if (callRooms.has(roomId)) {
+    const room = callRooms.get(roomId);
+    
+    // Clear screen sharing user
+    if (room.screenSharingUserId === userId) {
+      room.screenSharingUserId = null;
+    }
+    
+    // Notify all participants including sender
+    io.to(roomId).emit("participant-screen-share", {
+      userId,
+      action: "stopped",
+      timestamp: Date.now()
+    });
+    
+    console.log(`User ${userId} stopped screen sharing in room ${roomId}`);
+  }
+});
+
+
+
+
   // Handle disconnect
   socket.on("disconnect", (reason) => {
        
@@ -458,6 +520,15 @@ socket.on("stopTyping", ({ receiverId, groupId, senderId }) => {
         // Remove from call room
         if (callRooms.has(roomId)) {
           const room = callRooms.get(roomId);
+
+          if (room.screenSharingUserId === userId) {
+      room.screenSharingUserId = null;
+      socket.to(roomId).emit("participant-screen-share", {
+        userId,
+        action: "stopped",
+        timestamp: Date.now()
+      });
+    }
           room.participants.delete(userId);
           
           // Notify other participants

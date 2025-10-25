@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Mic, MicOff, Video, VideoOff, Phone, PhoneOff, 
   RotateCcw, Volume2, VolumeX, Pause, Play,
-  Maximize2, RotateCw, Settings
+  Maximize2, RotateCw, Settings, Monitor, MonitorOff
 } from 'lucide-react';
+import toast, { Toaster } from "react-hot-toast";
 import { io } from "socket.io-client";
 
 const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -34,7 +35,11 @@ const VideoCalling = ({
     packetLoss: '0%',
     resolution: 'Unknown'
   });
-
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [remoteScreenShare, setRemoteScreenShare] = useState(false);
+  const [isScreenAudioEnabled, setIsScreenAudioEnabled] = useState(false);
+  const [screenAudioSupported, setScreenAudioSupported] = useState(true);
+  
   // Refs
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
@@ -44,7 +49,10 @@ const VideoCalling = ({
   const callStartTime = useRef(null);
   const callTimer = useRef(null);
   const isInitialized = useRef(false);
-
+  const screenStream = useRef(null);
+  const originalVideoTrack = useRef(null);
+  const screenAudioTrack = useRef(null);
+  
   // WebRTC config
   const rtcConfig = {
     iceServers: [
@@ -58,10 +66,23 @@ const VideoCalling = ({
   // Cleanup function
   const cleanup = useCallback(() => {
     console.log("🧹 Cleaning up video call...");
-    
+    // Stop screen sharing if active
+    if (screenStream.current) {
+      screenStream.current.getTracks().forEach(track => track.stop());
+      screenStream.current = null;
+    }
+
+    if (originalVideoTrack.current) {
+      originalVideoTrack.current.stop();
+      originalVideoTrack.current = null;
+    }
     if (callTimer.current) {
       clearInterval(callTimer.current);
       callTimer.current = null;
+    }
+    if (screenAudioTrack.current) {
+      screenAudioTrack.current.stop();
+      screenAudioTrack.current = null;
     }
 
     if (localStream.current) {
@@ -185,6 +206,24 @@ const VideoCalling = ({
           console.log('Call ended:', data);
           handleCallEnded();
         });
+
+socket.current.on('participant-screen-share', (data) => {
+  console.log('Screen share event:', data);
+  
+  if (data.userId !== userId) {
+    // Another user started/stopped sharing
+    if (data.action === 'started') {
+      setRemoteScreenShare(true);
+      const audioText = data.hasAudio ? ' with audio' : '';
+      setCallStatus(`User is sharing screen${audioText}`);
+      toast.success(`User started screen sharing${audioText}`);
+    } else {
+      setRemoteScreenShare(false);
+      setCallStatus('Connected');
+      toast.success('User stopped screen sharing');
+    }
+  }
+});
 
         socket.current.on('connect_error', (err) => {
           console.error('Socket connection error:', err.message);
@@ -503,6 +542,215 @@ const VideoCalling = ({
     }
   }, [isSpeakerOn]);
 
+  // Start Screen Share
+// Start Screen Share with Audio
+const startScreenShare = useCallback(async () => {
+  try {
+    console.log('Starting screen share with audio...');
+    
+    // Request screen sharing with audio
+    const displayMediaOptions = {
+      video: {
+        cursor: 'always',
+        displaySurface: 'monitor',
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+        frameRate: { ideal: 30 }
+      },
+      audio: {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false,
+        sampleRate: 48000
+      }
+    };
+    
+    const screenStreamObj = await navigator.mediaDevices.getDisplayMedia(displayMediaOptions);
+    
+    screenStream.current = screenStreamObj;
+    const screenTrack = screenStreamObj.getVideoTracks()[0];
+    const screenAudio = screenStreamObj.getAudioTracks()[0]; // Get audio track
+    
+    console.log('Screen tracks:', {
+      video: !!screenTrack,
+      audio: !!screenAudio
+    });
+    
+    // Check if audio is available
+    if (screenAudio) {
+      setIsScreenAudioEnabled(true);
+      setScreenAudioSupported(true);
+      screenAudioTrack.current = screenAudio;
+      console.log('✅ Screen audio captured');
+      toast.success('Screen sharing with audio started');
+    } else {
+      setIsScreenAudioEnabled(false);
+      console.log('⚠️ No audio track available (user might have unchecked "Share audio")');
+      toast.success('Screen sharing started (no audio)');
+    }
+    
+    // Save original video track
+    if (localStream.current) {
+      const currentVideoTrack = localStream.current.getVideoTracks()[0];
+      if (currentVideoTrack) {
+        originalVideoTrack.current = currentVideoTrack;
+        currentVideoTrack.enabled = false; // Disable but don't stop
+      }
+    }
+    
+    // Replace video track in peer connection
+    if (peerConnection.current) {
+      const senders = peerConnection.current.getSenders();
+      
+      // Replace video track
+      const videoSender = senders.find(s => s.track && s.track.kind === 'video');
+      if (videoSender) {
+        await videoSender.replaceTrack(screenTrack);
+        console.log('✅ Replaced video track with screen track');
+      }
+      
+      // Add or replace audio track if available
+      if (screenAudio) {
+        const audioSender = senders.find(s => s.track && s.track.kind === 'audio');
+        
+        if (audioSender) {
+          // Replace existing audio with screen audio
+          const originalMicTrack = localStream.current?.getAudioTracks()[0];
+          
+          // Mix both audios or replace (we'll replace for simplicity)
+          await audioSender.replaceTrack(screenAudio);
+          console.log('✅ Replaced audio track with screen audio');
+          
+          // Optionally: Keep mic audio too by creating mixed audio
+          // This is more complex and requires Web Audio API
+        } else {
+          // Add screen audio if no audio sender exists
+          peerConnection.current.addTrack(screenAudio, screenStreamObj);
+          console.log('✅ Added screen audio track');
+        }
+      }
+    }
+    
+    // Update local video preview
+    if (localVideoRef.current) {
+      const newStream = new MediaStream([screenTrack]);
+      
+      // Add screen audio to local preview (optional - you might not want to hear yourself)
+      // if (screenAudio) {
+      //   newStream.addTrack(screenAudio);
+      // }
+      
+      localVideoRef.current.srcObject = newStream;
+    }
+    
+    // Listen for when user stops sharing via browser UI
+    screenTrack.onended = () => {
+      console.log('Screen share ended via browser UI');
+      stopScreenShare();
+    };
+    
+    // Listen for audio track ending
+    if (screenAudio) {
+      screenAudio.onended = () => {
+        console.log('Screen audio ended');
+        setIsScreenAudioEnabled(false);
+      };
+    }
+    
+    setIsScreenSharing(true);
+    
+    // Notify other participants
+    sendSignalingMessage({
+      type: 'screen-share-started',
+      roomId,
+      hasAudio: !!screenAudio
+    });
+    
+  } catch (error) {
+    console.error('Error starting screen share:', error);
+    
+    if (error.name === 'NotAllowedError') {
+      toast.error('Screen sharing permission denied');
+    } else if (error.name === 'NotSupportedError') {
+      toast.error('Screen sharing with audio not supported in this browser');
+      setScreenAudioSupported(false);
+    } else {
+      toast.error('Failed to start screen sharing');
+    }
+  }
+}, [roomId]);
+
+// Stop Screen Share
+// Stop Screen Share and restore audio
+const stopScreenShare = useCallback(async () => {
+  try {
+    console.log('Stopping screen share...');
+    
+    // Stop screen stream (video + audio)
+    if (screenStream.current) {
+      screenStream.current.getTracks().forEach(track => {
+        track.stop();
+        console.log(`Stopped screen ${track.kind} track`);
+      });
+      screenStream.current = null;
+    }
+    
+    // Clear screen audio reference
+    if (screenAudioTrack.current) {
+      screenAudioTrack.current = null;
+    }
+    
+    // Restore original camera video
+    if (originalVideoTrack.current && peerConnection.current) {
+      const senders = peerConnection.current.getSenders();
+      
+      // Restore video track
+      const videoSender = senders.find(s => s.track && s.track.kind === 'video');
+      if (videoSender) {
+        originalVideoTrack.current.enabled = true;
+        await videoSender.replaceTrack(originalVideoTrack.current);
+        console.log('✅ Restored original video track');
+      }
+      
+      // Restore original microphone audio
+      const audioSender = senders.find(s => s.track && s.track.kind === 'audio');
+      if (audioSender && localStream.current) {
+        const originalAudioTrack = localStream.current.getAudioTracks()[0];
+        if (originalAudioTrack) {
+          await audioSender.replaceTrack(originalAudioTrack);
+          console.log('✅ Restored original audio track');
+        }
+      }
+      
+      // Update local video preview
+      if (localVideoRef.current && localStream.current) {
+        localVideoRef.current.srcObject = localStream.current;
+      }
+      
+      originalVideoTrack.current = null;
+    } else {
+      // If no original track, restart camera
+      console.log('No original track, restarting camera...');
+      await startLocalStream();
+    }
+    
+    setIsScreenSharing(false);
+    setIsScreenAudioEnabled(false);
+    
+    // Notify other participants
+    sendSignalingMessage({
+      type: 'screen-share-stopped',
+      roomId
+    });
+    
+    toast.success('Screen sharing stopped');
+    
+  } catch (error) {
+    console.error('Error stopping screen share:', error);
+    toast.error('Error stopping screen share');
+  }
+}, [roomId]);
+
   const endCall = useCallback(() => {
     console.log('Ending call...');
     
@@ -640,6 +888,18 @@ const VideoCalling = ({
             <span>Recording</span>
           </div>
         )}
+        {isScreenSharing && (
+         <div className="bg-green-500 bg-opacity-90 backdrop-blur-md rounded-full px-3 py-1 text-white text-xs flex items-center gap-1 animate-pulse">
+          <Monitor size={12} />
+          <span>Sharing Screen {isScreenAudioEnabled && '+ Audio'}</span>
+         </div>
+        )}
+        {remoteScreenShare && (
+         <div className="bg-blue-500 bg-opacity-90 backdrop-blur-md rounded-full px-3 py-1 text-white text-xs flex items-center gap-1">
+           <Monitor size={12} />
+           <span>Viewing Screen</span>
+         </div>
+        )}
       </div>
 
       {/* Connection Quality Indicator */}
@@ -725,6 +985,19 @@ const VideoCalling = ({
           >
             <RotateCcw size={24} />
           </button>
+
+          {/* Screen Share Button */}
+<button
+  onClick={isScreenSharing ? stopScreenShare : startScreenShare}
+  className={`relative p-4 rounded-full transition-all duration-300 hover:scale-110 ${
+    isScreenSharing
+      ? 'bg-green-500 hover:bg-green-600 animate-pulse'
+      : 'bg-indigo-500 hover:bg-indigo-600'
+  } text-white shadow-lg hover:shadow-xl`}
+  title={isScreenSharing ? "Stop sharing screen" : "Share screen"}
+>
+  {isScreenSharing ? <MonitorOff size={24} /> : <Monitor size={24} />}
+</button>
 
           {/* Speaker Button */}
           <button
