@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { AuthContext } from "./AuthContext";
 import toast from "react-hot-toast";
+import axiosInstance from "../src/lib/axiosInstance.js";
 
 export const ChatContext = createContext();
 
@@ -85,7 +86,7 @@ toast.error(error.message);
 
 // function to send message to selected user
 
-const sendMessage = async (messageData)=>{
+const sendMessage = async (messageData) => {
 try {
     if(!selectedUser) return;
      if (!selectedUser.publicKey) {
@@ -165,6 +166,56 @@ const getGrpMessages = async (groupId) => {
   }
 };
 
+
+
+// Add this function in your ChatContext provider
+// Update the sendAIMessage function in ChatContext.jsx
+
+const sendAIMessage = async ({ text, receiverId, groupId }) => {
+  try {
+    const res = await axios.post("/api/ai/message", {
+      text,
+      receiverId,
+      groupId,
+    });
+
+    // ✅ Immediately add AI response to local messages
+    if (res.data) {
+      const aiMessage = res.data;
+      
+      // Add to messages state immediately for sender
+      setMessages((prev) => [...prev, aiMessage]);
+      
+      // Update latest messages
+      if (receiverId) {
+        setLatestMessages(prev => ({
+          ...prev,
+          [receiverId]: {
+            text: aiMessage.text || "🤖 AI Response",
+            createdAt: new Date().toISOString(),
+            seen: false,
+            isSender: true
+          }
+        }));
+      } else if (groupId) {
+        setLatestGrpMessages(prev => ({
+          ...prev,
+          [groupId]: {
+            text: aiMessage.text || "🤖 AI Response",
+            createdAt: new Date().toISOString(),
+            isSender: true,
+            senderName: authUser.fullName
+          }
+        }));
+      }
+    }
+
+    return res.data;
+  } catch (error) {
+    console.error("Error sending AI message:", error);
+    toast.error(error.response?.data?.error || "Failed to get AI response");
+  }
+};
 
 
 // Register socket listeners ONCE when socket connects
@@ -591,6 +642,7 @@ const fetchLatestGrpMessages = async () => {
     setTotalUserCount,
     totalGrpCount,
     setTotalGrpCount,
+    sendAIMessage,
   }
 
   return (

@@ -10,8 +10,10 @@ import { useLayoutEffect } from 'react';
 
 const MainChat = () => {
 
-  const {messages, selectedUser, setSelectedUser, sendMessage, getMessages, selectedProfile, setSelectedProfile, selectedProfileGrp, selectedGrpRef,
-         setSelectedProfileGrp, selectedGrp, setSelectedGrp, sendGrpMsg, getGrpMessages, typingUsers, setTypingUsers, setMessages, setUnseenMessages, privateTypingUsers } = useContext(ChatContext);
+  const {messages, selectedUser, setSelectedUser, sendMessage, getMessages, selectedProfile, 
+    setSelectedProfile, selectedProfileGrp, selectedGrpRef,
+    setSelectedProfileGrp, selectedGrp, setSelectedGrp, sendGrpMsg, getGrpMessages, 
+    typingUsers, setTypingUsers, setMessages, setUnseenMessages, privateTypingUsers, sendAIMessage } = useContext(ChatContext);
   const {authUser, onlineUsers, socket} = useContext(AuthContext);
   const scrollEnd = useRef();
   const [loading, setLoading] = useState(true);
@@ -21,28 +23,68 @@ const MainChat = () => {
   const messagesEndRef = useRef(null);
 
   // Handle sending a message
+// Handle sending a message
 const handleSendMessage = async (e) => {
   e.preventDefault();
   if (input.trim() === "") return;
 
-  // Make sure selectedUser has a publicKey
-  if (selectedUser) {
-  if (selectedUser && !selectedUser?.publicKey) {
-    toast.error("Receiver's public key not available!");
-    return;
-  }
+  // Check if message starts with @meta (case insensitive)
+  const isAIMessage = input.trim().toLowerCase().startsWith("@meta");
 
-  await sendMessage({
-    text: input.trim(),
-    receiverPublicKey: selectedUser.publicKey
-    //groupId: selectedGrp?._id  send groupId if group chat 🔹 required for encryption
-  });
-} else if (selectedGrp) {
-    // group chat (plain)
-    await sendGrpMsg({
-      text: input.trim(),
-      groupId: selectedGrp._id
-    });
+  if (isAIMessage) {
+    // Handle AI message
+    if (selectedUser) {
+      if (!selectedUser?.publicKey) {
+        toast.error("Receiver's public key not available!");
+        return;
+      }
+      
+      // Show loading toast
+      toast.loading("🤖 Meta AI is thinking...", { id: "ai-loading" });
+      await sendMessage({
+        text: input.trim(),
+        receiverPublicKey: selectedUser.publicKey,
+      });
+      await sendAIMessage({
+        text: input.trim(),
+        receiverId: selectedUser._id,
+      });
+      
+      // Remove loading toast
+      toast.dismiss("ai-loading");
+    } else if (selectedGrp) {
+      // Show loading toast
+      toast.loading("🤖 Meta AI is thinking...", { id: "ai-loading" });
+      await sendGrpMsg({
+        text: input.trim(),
+        groupId: selectedGrp._id,
+      });
+      await sendAIMessage({
+        text: input.trim(),
+        groupId: selectedGrp._id,
+      });
+      
+      // Remove loading toast
+      toast.dismiss("ai-loading");
+    }
+  } else {
+    // Handle normal message
+    if (selectedUser) {
+      if (!selectedUser?.publicKey) {
+        toast.error("Receiver's public key not available!");
+        return;
+      }
+
+      await sendMessage({
+        text: input.trim(),
+        receiverPublicKey: selectedUser.publicKey,
+      });
+    } else if (selectedGrp) {
+      await sendGrpMsg({
+        text: input.trim(),
+        groupId: selectedGrp._id,
+      });
+    }
   }
 
   setInput("");
@@ -281,6 +323,7 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
       }`}
       style={{animationDelay: `${i * 0.05}s`}}
     >
+      
       {/* Avatar for received messages (left side) */}
       {getSenderId(mes) !== authUser._id && (
   <div className="flex flex-col items-center gap-1 flex-shrink-0">
@@ -384,6 +427,29 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
           </div>
         ) : (
           <div className="relative mt-6">
+            {mes.text?.startsWith("🤖 Meta AI:") ? (
+  <div className="px-4 py-3 max-w-[300px] text-sm rounded-2xl shadow-lg backdrop-blur-sm bg-gradient-to-br from-cyan-500/30 to-blue-600/30 border border-cyan-400/40 text-white break-words leading-relaxed">
+    <span className="font-bold text-cyan-100 mb-1 block">Meta AI 🤖</span>
+    {mes.text.replace("🤖 Meta AI:", "").split("\n").map((line, idx) => {
+      if (/^\d+\./.test(line)) {
+        // Numbered list
+        return (
+          <div key={idx} className="ml-4 list-decimal list-inside">
+            {line.replace(/^\d+\.\s*/, "")}
+          </div>
+        );
+      } else if (/^\*/.test(line)) {
+        // Bullet points
+        return (
+          <div key={idx} className="ml-4 list-disc list-inside text-gray-200">
+            {line.replace(/^\*\s*/, "")}
+          </div>
+        );
+      }
+      return <p key={idx}>{line}</p>;
+    })}
+  </div>
+) : (
             <p 
               className={`px-4 py-3 max-w-[280px] text-sm font-light rounded-2xl shadow-lg backdrop-blur-sm transition-all duration-300 hover:shadow-xl break-words leading-relaxed ${
                 getSenderId(mes) === authUser._id 
@@ -400,6 +466,8 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
        
               {mes.text}
             </p>
+
+            )}
             
         <div className={`absolute border bg-sky-700 border-cyan-800 rounded-3xl p-2 flex flex-col top-10 right-0 z-50 items-center gap-2 ${dropDownMsg && optMsg == mes ? "" : "hidden"}`}>
         <div className="flex gap-2">
