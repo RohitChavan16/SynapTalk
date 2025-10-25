@@ -22,6 +22,8 @@ const [typingId, setTypingId] = useState("");
 const [privateTypingUsers, setPrivateTypingUsers] = useState({});
 const [latestMessages, setLatestMessages] = useState({});
 const [latestGrpMessages, setLatestGrpMessages] = useState({});
+const [totalUserCount, setTotalUserCount] = useState(0);
+const [totalGrpCount, setTotalGrpCount] = useState(0);
 
 
 // function to get all users for sidebar
@@ -585,6 +587,10 @@ const fetchLatestGrpMessages = async () => {
     latestGrpMessages,
     setLatestGrpMessages,
     fetchLatestGrpMessages,
+    totalUserCount,
+    setTotalUserCount,
+    totalGrpCount,
+    setTotalGrpCount,
   }
 
   return (

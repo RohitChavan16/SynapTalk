@@ -34,12 +34,15 @@ import {
 import toast from 'react-hot-toast';
 import MenuOption from './MenuOption';
 
+
+export const totalGrpCount = 0;
+
 const ChatSidebar = () => {
 
   const { getUsers, users, selectedUser, setSelectedUser, unseenMessages, setUnseenMessages, newGroupHandle, groups, setGroups, fetchGroups, selectedGrp,
      setSelectedGrp, active, setActive, typingUsers, setTypingUsers, typingId, setTypingID, selectedGrpRef, 
      selectedUserRef, privateTypingUsers, setUnseenGrpMessages, unseenGrpMessages, latestMessages, setLatestMessages,
-     fetchLatestMessages, latestGrpMessages, setLatestGrpMessages, fetchLatestGrpMessages } = useContext(ChatContext);
+     fetchLatestMessages, latestGrpMessages, setLatestGrpMessages, fetchLatestGrpMessages, totalUserCount, setTotalUserCount, totalGrpCount, setTotalGrpCount } = useContext(ChatContext);
   const { logout, onlineUsers, socialLinks, getSocialLink, deleteSocialLink, addSocialLink, editSocialLink, socket, authUser } = useContext(AuthContext);
   const [dropDown, setDropDown] = useState(false);
   const navigate = useNavigate();
@@ -56,7 +59,7 @@ const ChatSidebar = () => {
   const [isEdit, setIsEdit] = useState(false);
   const [currentLink, setCurrentLink] = useState({ platform: "", url: "", privacy: "Public" });
   
-
+  
   const allPlatforms = [
   "Instagram",
   "LinkedIn",
@@ -170,6 +173,7 @@ const ChatSidebar = () => {
     ? users.filter((user) => user.fullName.toLowerCase().includes(input.toLowerCase()))
     : users;
 
+  
 
 
   const iconMap = {
@@ -243,6 +247,24 @@ const formatMessageTime = (timestamp) => {
     day: 'numeric' 
   });
 };
+
+
+
+
+ 
+useEffect(() => {
+  // Calculate total unseen user messages
+  const userCount = Object.values(unseenMessages).reduce((sum, count) => sum + count, 0);
+  setTotalUserCount(userCount);
+  
+  // Calculate total unseen group messages
+  const grpCount = Object.values(unseenGrpMessages).reduce((sum, groupObj) => {
+    return sum + (groupObj[authUser._id] || 0);
+  }, 0);
+  setTotalGrpCount(grpCount);
+}, [unseenMessages, unseenGrpMessages, authUser._id]);
+
+
 
 
 
@@ -621,8 +643,9 @@ const formatMessageTime = (timestamp) => {
           />
              
 
-              {/* Profile Picture */}
-              <div className="relative">
+  {/* Profile Picture */}
+  
+  <div className="relative">
   {user?.profilePic ? (
     <div className="relative">
       {isOnline && (
@@ -642,19 +665,19 @@ const formatMessageTime = (timestamp) => {
     <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center 
       text-white text-sm font-bold bg-gradient-to-r from-[#ff4800] via-pink-500 to-[#d31b74]
       ${isOnline 
-        ? 'border-[2px] border-green-400 animate-pulse shadow-[0_0_20px_rgba(74,222,128,0.8)]' 
+        ? 'border-[3px] border-green-400 animate-none shadow-[0_0_20px_rgba(74,222,128,0.8)]' 
         : 'border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)]'
       }`}>
       {user?.fullName?.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)}
     </div>
   )}
   {isOnline && (
-    <span className="absolute bottom-0 right-0 h-3 w-3 bg-green-400 rounded-full border-2 border-gray-900 shadow-[0_0_8px_rgba(74,222,128,1)] animate-ping"></span>
+    <span className="absolute bottom-0 right-0 h-3 w-3 bg-green-400 rounded-full border-2 border-gray-900 shadow-[0_0_8px_rgba(74,222,128,1)] animate-bounce"></span>
   )}
 </div>
 
               {/* Name + Status */}
-              <div className="flex-1 min-w-0 ">
+            <div className="flex-1 min-w-0 ">
                 <p className="truncate font-semibold text-sm drop-shadow-[0_0_4px_rgba(255,255,255,0.6)]">{user.fullName}</p>
                 {latestMsg?.text && (
             <div className="flex items-center gap-1">
@@ -691,6 +714,7 @@ const formatMessageTime = (timestamp) => {
                  </p>
                  </div>
                 )}
+                
               {/* Unseen Messages Badge */}
               {unseenCount > 0 && (
                 <span className="absolute top-1/2 -translate-y-1 right-4 text-xs h-4 w-4 flex items-center justify-center rounded-full bg-gradient-to-r from-violet-500 to-pink-500 shadow-[0_0_10px_rgba(255,0,255,0.8)] text-white font-bold">
@@ -785,16 +809,18 @@ const formatMessageTime = (timestamp) => {
                       .slice(0, 2)}
                      </div>
                     )}
-                {/*{isOnline && (
-                  <span className="absolute bottom-0 right-0 h-3 w-3 bg-green-400 rounded-full border border-gray-900 animate-ping"></span>
-                )}*/}
+                
               </div>
 
               {/* Name + Status */}
               
-              <div className="flex-1 min-w-0">
+              <div className="flex-1  min-w-0">
+                <div className="flex">
                 <p className="truncate font-semibold text-sm drop-shadow-[0_0_4px_rgba(255,255,255,0.6)]">{group.name}</p>
-                
+                <p className={`ml-2 mt-1 text-xs text-emerald-300`}>
+                    {onlineCount > 1 ? `( ${onlineCount-1} Online )` : "(⚫ Offline)"}
+                  </p>
+                  </div>
                 {latestGrpMessages[group._id]?.text ? (
                   <p className="truncate text-xs text-gray-400 max-w-[180px]">
                     {latestGrpMessages[group._id].isSender ? (
@@ -808,7 +834,7 @@ const formatMessageTime = (timestamp) => {
                   </p>
                 ) : (
                   <p className={`text-xs`}>
-                    {onlineCount > 1 ? `🟢 ${onlineCount-1} Online` : "⚫ Offline"}
+                    No message yet...
                   </p>
                 )}
               </div>

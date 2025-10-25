@@ -15,7 +15,8 @@ import {
 import { ChatContext } from "../../context/ChatContext";
 
 const SidebarMenu = () => {
-  const {active, setActive, setSelectedUser, setSelectedGrp, setSelectedProfile, setSelectedProfileGrp} = useContext(ChatContext);
+  const {active, setActive, setSelectedUser, setSelectedGrp, setSelectedProfile, setSelectedProfileGrp, totalUserCount,
+  totalGrpCount} = useContext(ChatContext);
   const [hovered, setHovered] = useState(null);
 
   const menuItems = [
@@ -61,7 +62,16 @@ const SidebarMenu = () => {
               onMouseLeave={() => setHovered(null)}
             >
               <Icon size={22} />
-
+               {item.name == "My Groups" && totalGrpCount > 0 && (
+                <span className="absolute top-8 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 shadow-lg animate-bounce">
+                {totalGrpCount > 99 ? '99+' : totalGrpCount}
+                </span>
+               )}
+               {item.name == "My Chat" && totalUserCount > 0 && (
+                <span className="absolute top-8 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 shadow-lg animate-bounce">
+                {totalUserCount > 99 ? '99+' : totalUserCount}
+                </span>
+               )}
               {/* Tooltip-style text */}
               {hovered === item.name && (
                 <motion.div
