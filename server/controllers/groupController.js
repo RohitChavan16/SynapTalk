@@ -275,3 +275,56 @@ export const updateGrp = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 }
+
+
+
+
+
+
+
+
+
+export const getLatestGrpMsg = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    // Get all groups the user is part of
+    const groups = await Group.find({ members: userId });
+    
+    if (!groups || groups.length === 0) {
+      return res.json({ success: true, messages: [] });
+    }
+
+    const groupIds = groups.map(g => g._id);
+
+    // Get the latest message for each group
+    const latestMessages = await Promise.all(
+      groupIds.map(async (groupId) => {
+        const latestMsg = await GroupMessage.findOne({ groupId })
+          .sort({ createdAt: -1 })
+          .populate('senderId', 'fullName profilePic')
+          .lean();
+
+        if (!latestMsg) return null;
+
+        return {
+          _id: latestMsg._id,
+          groupId: groupId,
+          text: latestMsg.text,
+          image: latestMsg.image,
+          createdAt: latestMsg.createdAt,
+          sender: latestMsg.senderId,  // ✅ This is correct after populate
+          isSender: latestMsg.senderId._id.toString() === userId.toString()
+        };
+      })
+    );
+
+    // Filter out null values (groups with no messages)
+    const validMessages = latestMessages.filter(msg => msg !== null);
+
+    return res.json({ success: true, messages: validMessages });
+  } catch (error) {
+    console.error("Error fetching latest group messages:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};

@@ -21,6 +21,7 @@ const [typingUsers, setTypingUsers] = useState({});
 const [typingId, setTypingId] = useState("");
 const [privateTypingUsers, setPrivateTypingUsers] = useState({});
 const [latestMessages, setLatestMessages] = useState({});
+const [latestGrpMessages, setLatestGrpMessages] = useState({});
 
 
 // function to get all users for sidebar
@@ -131,6 +132,15 @@ const sendGrpMsg = async ({ text, image, groupId }) => {
     const { data } = await axios.post("/api/group/send-grpmsg", payload, { withCredentials: true });
     if (data) {
       setMessages((prev) => [...prev, data]); // <--- add message to local state
+      setLatestGrpMessages(prev => ({
+        ...prev,
+        [groupId]: {
+          text: text || (image ? "📷 Photo" : ""),
+          createdAt: new Date().toISOString(),
+          isSender: true,
+          senderName: authUser.fullName
+        }
+      }));
     }
     return data;
   } catch (err) {
@@ -251,6 +261,15 @@ useEffect(() => {
     },
   }));
     }
+    setLatestGrpMessages((prev) => ({
+    ...prev,
+    [msg.groupId]: {
+      text: msg.text || (msg.image ? "📷 Photo" : ""),
+      createdAt: msg.createdAt,
+      isSender: false,
+      senderName: msg.senderId?.fullName || msg.sender?.fullName || "Someone"
+    }
+  }));
   });
 
   socket.on("newMessage", async (newMessage) => {
@@ -491,6 +510,36 @@ const fetchLatestMessages = async () => {
 
 
 
+const fetchLatestGrpMessages = async () => {
+  try {
+    const res = await axios.get("/api/group/latest-grpmsg");
+    
+    if (res.data.success && Array.isArray(res.data.messages)) {
+      const latest = {};
+
+      for (const msg of res.data.messages) {
+        console.log("Group message:", msg);
+        latest[msg.groupId] = {
+          text: msg.text || (msg.image ? "📷 Photo" : ""),
+          createdAt: msg.createdAt,
+          isSender: msg.isSender,
+          senderName: msg.sender?.fullName || "Unknown"
+        };
+      }
+
+      setLatestGrpMessages(latest);
+      return latest;
+    }
+    return {};
+  } catch (err) {
+    console.error("Error fetching latest group messages:", err);
+    return {};
+  }
+};
+
+
+
+
  
 
   const value = {
@@ -533,6 +582,9 @@ const fetchLatestMessages = async () => {
     setLatestMessages,
     latestMessages,
     fetchLatestMessages,
+    latestGrpMessages,
+    setLatestGrpMessages,
+    fetchLatestGrpMessages,
   }
 
   return (

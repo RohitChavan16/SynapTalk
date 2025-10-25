@@ -38,7 +38,8 @@ const ChatSidebar = () => {
 
   const { getUsers, users, selectedUser, setSelectedUser, unseenMessages, setUnseenMessages, newGroupHandle, groups, setGroups, fetchGroups, selectedGrp,
      setSelectedGrp, active, setActive, typingUsers, setTypingUsers, typingId, setTypingID, selectedGrpRef, 
-     selectedUserRef, privateTypingUsers, setUnseenGrpMessages, unseenGrpMessages, latestMessages, setLatestMessages, fetchLatestMessages } = useContext(ChatContext);
+     selectedUserRef, privateTypingUsers, setUnseenGrpMessages, unseenGrpMessages, latestMessages, setLatestMessages,
+     fetchLatestMessages, latestGrpMessages, setLatestGrpMessages, fetchLatestGrpMessages } = useContext(ChatContext);
   const { logout, onlineUsers, socialLinks, getSocialLink, deleteSocialLink, addSocialLink, editSocialLink, socket, authUser } = useContext(AuthContext);
   const [dropDown, setDropDown] = useState(false);
   const navigate = useNavigate();
@@ -201,6 +202,7 @@ const ChatSidebar = () => {
     fetchGroups();
     getSocialLink();
     fetchLatestMessages();
+    fetchLatestGrpMessages();
   }, [onlineUsers]);
 
   const sortedLinks = socialLinks
@@ -621,28 +623,35 @@ const formatMessageTime = (timestamp) => {
 
               {/* Profile Picture */}
               <div className="relative">
-               {user?.profilePic ? (
-                <img
-                src={user.profilePic}
-                alt={user.fullName}
-                className="w-[42px] h-[42px] rounded-full object-cover border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)]"
-                />
-               ) : (
-                     <div className="w-[42px] h-[42px] rounded-full flex items-center justify-center 
-                      text-white text-sm font-bold border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)] 
-                      bg-gradient-to-r from-[#ff4800] via-pink-500 to-[#d31b74]">
-                      {user?.fullName
-                      ?.split(" ")
-                      .map((n) => n[0])
-                      .join("")
-                      .toUpperCase()
-                      .slice(0, 2)}
-                     </div>
-                    )}
-                {isOnline && (
-                  <span className="absolute bottom-0 right-0 h-3 w-3 bg-green-400 rounded-full border border-gray-900 animate-ping"></span>
-                )}
-              </div>
+  {user?.profilePic ? (
+    <div className="relative">
+      {isOnline && (
+        <div className="absolute inset-0 rounded-full bg-gradient-to-r from-green-400 via-emerald-500 to-green-400 animate-pulse blur-md opacity-75"></div>
+      )}
+      <img
+        src={user.profilePic}
+        alt={user.fullName}
+        className={`relative w-[42px] h-[42px] rounded-full object-cover ${
+          isOnline 
+            ? 'border-2 border-green-400 animate-pulse shadow-[0_0_20px_rgba(74,222,128,0.8)]' 
+            : 'border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)]'
+        }`}
+      />
+    </div>
+  ) : (
+    <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center 
+      text-white text-sm font-bold bg-gradient-to-r from-[#ff4800] via-pink-500 to-[#d31b74]
+      ${isOnline 
+        ? 'border-[2px] border-green-400 animate-pulse shadow-[0_0_20px_rgba(74,222,128,0.8)]' 
+        : 'border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)]'
+      }`}>
+      {user?.fullName?.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)}
+    </div>
+  )}
+  {isOnline && (
+    <span className="absolute bottom-0 right-0 h-3 w-3 bg-green-400 rounded-full border-2 border-gray-900 shadow-[0_0_8px_rgba(74,222,128,1)] animate-ping"></span>
+  )}
+</div>
 
               {/* Name + Status */}
               <div className="flex-1 min-w-0 ">
@@ -710,10 +719,15 @@ const formatMessageTime = (timestamp) => {
      
       { groups
         .sort((a, b) => {
-         const unseenA = unseenGrpMessages[a._id]?.[authUser._id] || 0;
-         const unseenB = unseenGrpMessages[b._id]?.[authUser._id] || 0;
-         return unseenB - unseenA;
-        })
+    // First sort by latest message time
+    const timeA = latestGrpMessages[a._id]?.createdAt 
+      ? new Date(latestGrpMessages[a._id].createdAt).getTime() 
+      : 0;
+    const timeB = latestGrpMessages[b._id]?.createdAt 
+      ? new Date(latestGrpMessages[b._id].createdAt).getTime() 
+      : 0;
+    return timeB - timeA;
+  })
         .map((group) => {
           const isSelected = selectedGrp?._id === group._id;
           const unseenCount = unseenGrpMessages[group._id]?.[authUser._id] || 0;
@@ -777,16 +791,36 @@ const formatMessageTime = (timestamp) => {
               </div>
 
               {/* Name + Status */}
+              
               <div className="flex-1 min-w-0">
                 <p className="truncate font-semibold text-sm drop-shadow-[0_0_4px_rgba(255,255,255,0.6)]">{group.name}</p>
-                <p className={`text-xs`}>
-                 {onlineCount > 1 ? `🟢 ${onlineCount-1} Online` : "⚫ Offline"}
-                </p>
+                
+                {latestGrpMessages[group._id]?.text ? (
+                  <p className="truncate text-xs text-gray-400 max-w-[180px]">
+                    {latestGrpMessages[group._id].isSender ? (
+                      <span className="text-blue-400">You: </span>
+                    ) : (
+                      <span className="text-green-400">{latestGrpMessages[group._id].senderName}: </span>
+                    )}
+                    {latestGrpMessages[group._id].text.length > 25 
+                      ? latestGrpMessages[group._id].text.slice(0, 25) + "..." 
+                      : latestGrpMessages[group._id].text}
+                  </p>
+                ) : (
+                  <p className={`text-xs`}>
+                    {onlineCount > 1 ? `🟢 ${onlineCount-1} Online` : "⚫ Offline"}
+                  </p>
+                )}
               </div>
 
+               {latestGrpMessages[group._id]?.createdAt && (
+                <span className="absolute top-3 right-4 text-[10px] text-gray-400">
+                  {formatMessageTime(latestGrpMessages[group._id].createdAt)}
+                </span>
+              )}
                
               {unseenCount > 0 && (
-                <span className="absolute top-1/2 -translate-y-1/2 right-4 text-xs h-5 w-5 flex items-center justify-center rounded-full bg-gradient-to-r from-violet-500 to-pink-500 shadow-[0_0_10px_rgba(255,0,255,0.8)] text-white font-bold">
+                <span className="absolute top-1/2 -translate-y-1 right-4 text-xs h-4 w-4 flex items-center justify-center rounded-full bg-gradient-to-r from-violet-500 to-pink-500 shadow-[0_0_10px_rgba(255,0,255,0.8)] text-white font-bold">
                   {unseenCount}
                 </span>
               )}
