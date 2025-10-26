@@ -3,10 +3,8 @@ import { userSocketMap, io } from "../server.js";
 import Message from "../models/Message.js";
 import { GroupMessage } from "../models/GroupMsg.js";
 
-// Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// Helper function to get receiver socket ID
 const getReceiverSocketId = (receiverId) => {
   return userSocketMap[receiverId];
 };
@@ -18,14 +16,12 @@ export const handleAIMessage = async (req, res) => {
 
     console.log("AI Message Request:", { text, receiverId, groupId, senderId });
 
-    // Extract message after @meta
-    const aiQuery = text.replace(/@meta\s*/i, "").trim();
+    const aiQuery = text.replace(/@saras\s*/i, "").trim();
 
     if (!aiQuery) {
       return res.status(400).json({ error: "No message provided for AI" });
     }
 
-    // Get AI response from Gemini
     const model = genAI.getGenerativeModel({ 
       model: "gemini-2.0-flash-exp"
     });
@@ -37,13 +33,13 @@ export const handleAIMessage = async (req, res) => {
 
     let savedMessage;
 
-    // Handle Private Chat
+    
     if (receiverId) {
-      // Save AI response as a message
+      
       savedMessage = new Message({
         senderId: senderId,
         receiverId: receiverId,
-        text: `🤖 Meta AI: ${aiResponse}`,
+        text: `🤖 Saras AI: ${aiResponse}`,
         seen: false,
       });
 
@@ -60,15 +56,13 @@ export const handleAIMessage = async (req, res) => {
         console.log("Emitted to receiver:", receiverId);
       }
 
-      // ✅ Don't emit to sender - frontend adds it locally
-      // This prevents duplicate messages
     }
     // Handle Group Chat
     else if (groupId) {
       savedMessage = new GroupMessage({
         groupId: groupId,
         senderId: senderId,
-        text: `🤖 Meta AI: ${aiResponse}`,
+        text: `🤖 Saras AI: ${aiResponse}`,
       });
 
       await savedMessage.save();
@@ -76,16 +70,13 @@ export const handleAIMessage = async (req, res) => {
 
       console.log("Saved AI message for group chat:", savedMessage);
 
-      // ✅ Emit to all group members EXCEPT sender
-      // Sender already has it in their local state
       io.to(groupId.toString()).except(`user_${senderId}`).emit("newGroupMessage", savedMessage);
       console.log("Emitted to group (excluding sender):", groupId);
     }
 
-    // ✅ Return fully populated message to sender
     res.status(200).json(savedMessage);
   } catch (error) {
     console.error("Error in handleAIMessage:", error);
     res.status(500).json({ error: "Internal server error" });
   }
-};
+}; 

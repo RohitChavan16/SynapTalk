@@ -28,8 +28,8 @@ const handleSendMessage = async (e) => {
   e.preventDefault();
   if (input.trim() === "") return;
 
-  // Check if message starts with @meta (case insensitive)
-  const isAIMessage = input.trim().toLowerCase().startsWith("@meta");
+  // Check if message starts with @saras (case insensitive)
+  const isAIMessage = input.trim().toLowerCase().startsWith("@saras");
 
   if (isAIMessage) {
     // Handle AI message
@@ -40,7 +40,7 @@ const handleSendMessage = async (e) => {
       }
       
       // Show loading toast
-      toast.loading("🤖 Meta AI is thinking...", { id: "ai-loading" });
+      toast.loading("🤖 Saras AI is thinking...", { id: "ai-loading" });
       await sendMessage({
         text: input.trim(),
         receiverPublicKey: selectedUser.publicKey,
@@ -54,7 +54,7 @@ const handleSendMessage = async (e) => {
       toast.dismiss("ai-loading");
     } else if (selectedGrp) {
       // Show loading toast
-      toast.loading("🤖 Meta AI is thinking...", { id: "ai-loading" });
+      toast.loading("🤖 Saras AI is thinking...", { id: "ai-loading" });
       await sendGrpMsg({
         text: input.trim(),
         groupId: selectedGrp._id,
@@ -427,10 +427,10 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
           </div>
         ) : (
           <div className="relative mt-6">
-            {mes.text?.startsWith("🤖 Meta AI:") ? (
+            {mes.text?.startsWith("🤖 Saras AI:") ? (
   <div className="px-4 py-3 max-w-[300px] text-sm rounded-2xl shadow-lg backdrop-blur-sm bg-gradient-to-br from-cyan-500/30 to-blue-600/30 border border-cyan-400/40 text-white break-words leading-relaxed">
-    <span className="font-bold text-cyan-100 mb-1 block">Meta AI 🤖</span>
-    {mes.text.replace("🤖 Meta AI:", "").split("\n").map((line, idx) => {
+    <span className="font-bold text-cyan-100 mb-1 block">Saras AI 🤖</span>
+    {mes.text.replace("🤖 Saras AI:", "").split("\n").map((line, idx) => {
       if (/^\d+\./.test(line)) {
         // Numbered list
         return (
