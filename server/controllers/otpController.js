@@ -195,7 +195,7 @@ export const sendPasswordResetOTP = async (req, res) => {
       <body>
         <div class="container">
           <div class="header">
-            <div class="logo">🎥 SynapTalk</div>
+            <div class="logo">SynapTalk</div>
           </div>
           <div class="content">
             <h2>Password Reset Request</h2>

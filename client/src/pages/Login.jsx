@@ -68,8 +68,8 @@ const Login = () => {
 <>
 <input onChange={(e)=>setEmail(e.target.value)} value={email} type="email" placeholder='Email Address' required className="p-2 border border-gray-500 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
 <input onChange={(e)=>setPassword(e.target.value)} value={password} type="password" placeholder='Password' required className="p-2 border border-gray-500 rounded-md focus: outline-none focus:ring-2 focus:ring-indigo-500"/>
+{ currState !== "Sign in" && <p className=" font-medium cursor-pointer w-27 hover:text-blue-500 text-[12px] text-emerald-400" onClick={() => navigate("/reset-password")} >Forget Password ?</p>}
 </>
-
 )}
 
 {currState === "Sign up" && isDataSubmitted && (

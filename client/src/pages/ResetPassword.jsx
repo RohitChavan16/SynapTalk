@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useContext } from 'react';
 import { Lock, Mail, ArrowRight, CheckCircle, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { AuthContext } from '../../context/AuthContext';
+import assets from '../assets/assets';
 
 const ResetPassword = () => {
   const [step, setStep] = useState(1);
@@ -169,19 +170,20 @@ const ResetPassword = () => {
   const passwordStrength = getPasswordStrength(newPassword);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-500 via-red-500 to-orange-500 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/20"></div>
+    <div className="min-h-screen bg-gradient-to-br from-[#05e7e7b4] via-[#1d00daaa] to-[#ee2fb59e] flex max-md:flex-col md:gap-20 items-center justify-center p-4">
+        <img src={assets.logo_big} className="max-md:w-70 w-110" />
+      <div className="absolute inset-0 bg-black/10"></div>
       
-      <div className="absolute top-20 right-10 w-72 h-72 bg-white/10 rounded-full blur-3xl animate-pulse"></div>
-      <div className="absolute bottom-20 left-10 w-96 h-96 bg-white/10 rounded-full blur-3xl animate-pulse" style={{animationDelay: '700ms'}}></div>
+      <div className="absolute top-20 right-10 w-72 h-72 bg-white/10 rounded blur-3xl animate-pulse"></div>
+      <div className="absolute bottom-20 left-10 w-96 h-96 bg-white/10 rounded blur-3xl animate-pulse" style={{animationDelay: '700ms'}}></div>
 
-      <div className="relative bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md transform transition-all duration-500 hover:scale-[1.02]">
+      <div className="relative bg-white rounded-xl shadow-2xl p-8 w-full max-w-md transform transition-all duration-500 hover:scale-[1.02]">
         <div className="text-center mb-8">
           <div className="inline-block p-4 bg-gradient-to-br from-pink-500 to-red-600 rounded-2xl shadow-lg mb-4 animate-bounce">
             <Lock className="w-10 h-10 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-gray-800 mb-2">Reset Password</h1>
-          <p className="text-gray-600">Secure your ChatConnect account</p>
+          <p className="text-gray-600">Secure your SynapTalk account</p>
         </div>
 
         <div className="flex items-center justify-center mb-6">
@@ -269,7 +271,7 @@ const ResetPassword = () => {
             <button
               onClick={handleVerifyAndReset}
               disabled={loading}
-              className="w-full bg-gradient-to-r from-pink-500 to-red-600 text-white py-3 rounded-xl font-semibold hover:shadow-lg transform hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full bg-gradient-to-r cursor-pointer from-pink-500 to-red-600 text-white py-3 rounded-xl font-semibold hover:shadow-lg transform hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {loading ? (
                 <div className="w-6 h-6 border-3 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -284,7 +286,7 @@ const ResetPassword = () => {
               <button
                 onClick={handleResend}
                 disabled={!canResend || loading}
-                className="text-pink-600 hover:text-pink-700 font-medium disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
+                className="text-pink-600 cursor-pointer hover:text-pink-700 font-medium disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
               >
                 {canResend ? 'Resend OTP' : 'Resend available after timer expires'}
               </button>
@@ -308,7 +310,7 @@ const ResetPassword = () => {
                 />
                 <button
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  className="absolute right-3 top-1/2 cursor-pointer -translate-y-1/2 text-gray-500 hover:text-gray-700"
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
@@ -347,7 +349,7 @@ const ResetPassword = () => {
                 />
                 <button
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  className="absolute right-3 top-1/2 cursor-pointer -translate-y-1/2 text-gray-500 hover:text-gray-700"
                 >
                   {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
@@ -357,7 +359,7 @@ const ResetPassword = () => {
             <button
               onClick={handleVerifyAndReset}
               disabled={loading || !newPassword || !confirmPassword}
-              className="w-full bg-gradient-to-r from-pink-500 to-red-600 text-white py-3 rounded-xl font-semibold hover:shadow-lg transform hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full bg-gradient-to-r cursor-pointer from-pink-500 to-red-600 text-white py-3 rounded-xl font-semibold hover:shadow-lg transform hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {loading ? (
                 <div className="w-6 h-6 border-3 border-white border-t-transparent rounded-full animate-spin"></div>
