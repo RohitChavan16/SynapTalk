@@ -29,7 +29,7 @@ import toast from 'react-hot-toast';
 import axios from 'axios';
 
 const GroupProfileSidebar = () => {
-  const { selectedGrp, setSelectedGrp, messages, setSelectedProfileGrp, updateGrp, users, addExtraMem, deleteMember, setActive } = useContext(ChatContext);
+  const { selectedGrp, setSelectedGrp, messages, setSelectedProfileGrp, updateGrp, users, addExtraMem, deleteMember, setActive, setSelectedUser } = useContext(ChatContext);
   const {onlineUsers, authUser} = useContext(AuthContext);
   const [msgImages, setMsgImages] = useState([]);
   const [msgDocs, setMsgDocs] = useState([]);
@@ -537,7 +537,13 @@ const handleLeaveGrp = async () => {
               </div>
 
               {/* Member Info */}
-              <div className="flex-1 min-w-0 flex items-center gap-2">
+              <div onClick={() => {
+                if (member._id === authUser._id) return;
+                setSelectedGrp(null);
+                setActive("My Chat");
+                setSelectedUser(member);
+                setSelectedProfileGrp(false);
+              }} className="flex-1 min-w-0 flex items-center gap-2">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-white/90 text-sm font-medium truncate">
@@ -545,7 +551,7 @@ const handleLeaveGrp = async () => {
                     </span>
                     
                     {member._id === authUser._id && (
-                      <span className="text-xs text-violet-400 font-medium">(You)</span>
+                      <span className="text-xs text-violet-400 cursor-not-allowed font-medium">(You)</span>
                     )}
                   </div>
                   {member.role && (

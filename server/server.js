@@ -10,6 +10,7 @@ import session from "express-session";
 import passport from "./lib/passport.js";
 import groupRouter from "./routes/groupRoutes.js";
 import aiRouter from "./routes/aiRoutes.js";
+import otpRouter from "./routes/otpRoutes.js";
 
 const app = express();
 const server = http.createServer(app);
@@ -692,6 +693,7 @@ app.use("/api/auth", userRouter);
 app.use("/api/messages", messageRouter);
 app.use("/api/group", groupRouter);
 app.use("/api/ai", aiRouter);
+app.use("/api/otp", otpRouter);
 
 
 

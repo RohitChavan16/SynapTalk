@@ -9,6 +9,8 @@ import Contacts from './pages/Contact'
 import VideoCalling from './pages/VideoCalling'
 import { CallContext } from '../context/CallContext'
 import { Phone, PhoneOff } from 'lucide-react'
+import ResetPassword from './pages/ResetPassword'
+import VerifyEmail from './pages/VerifyEmail'
 
 
 const App = () => {
@@ -147,6 +149,8 @@ const App = () => {
       
       <Routes>
         <Route path="/" element={authUser ? <Home /> : <Navigate to="/login" />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/login" element={!authUser ? <Login /> : <Navigate to="/" />} />
         <Route path="/profile" element={authUser ? <Profile /> : <Navigate to="/login" />} />
         <Route path="/contacts" element={authUser ? <Contacts /> : <Navigate to="/login" />} />
