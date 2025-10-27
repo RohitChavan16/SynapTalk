@@ -1,5 +1,6 @@
 import React, { useContext, useState } from "react";
 import { motion } from "framer-motion";
+import { useNavigate } from 'react-router-dom';
 import {
   MessageSquare,
   Users,
@@ -13,11 +14,14 @@ import {
   LogOut,
 } from "lucide-react";
 import { ChatContext } from "../../context/ChatContext";
+import { AuthContext } from "../../context/AuthContext";
 
 const SidebarMenu = () => {
   const {active, setActive, setSelectedUser, setSelectedGrp, setSelectedProfile, setSelectedProfileGrp, totalUserCount,
   totalGrpCount} = useContext(ChatContext);
+  const { logout } = useContext(AuthContext);
   const [hovered, setHovered] = useState(null);
+  const navigate = useNavigate();
 
   const menuItems = [
     { name: "My Chat", icon: MessageSquare },
@@ -33,12 +37,11 @@ const SidebarMenu = () => {
 
   return (
     <div className="relative bg-gradient-to-b from-[#0ba510e8] via-[#055f9f] to-[#5809c0f7] text-white shadow-2xl rounded-2xl p-3 flex flex-col items-center space-y-2">
-      {/* App Logo */}
+      
       <div className="text-2xl font-bold mb-5 mt-2 tracking-wide">
         <span className="text-yellow-400">S</span>
       </div>
 
-      {/* Sidebar Icons */}
       <div className="flex flex-col justify-center space-y-2">
         {menuItems.map((item) => {
           const Icon = item.icon;
@@ -57,6 +60,15 @@ const SidebarMenu = () => {
                 setSelectedGrp(null);
                 setSelectedProfile(null);
                 setSelectedProfileGrp(null);
+                if(item.name === "Profile"){
+                   navigate("/profile");
+                } else if(item.name === "Logout") {
+                  const confirmed = window.confirm(
+                  `Are you sure you want to logout ?`
+                  );
+                  if (!confirmed) return;
+                   logout();
+                }
               }}
               onMouseEnter={() => setHovered(item.name)}
               onMouseLeave={() => setHovered(null)}

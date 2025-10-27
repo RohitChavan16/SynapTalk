@@ -33,6 +33,7 @@ import {
 } from "react-icons/si";
 import toast from 'react-hot-toast';
 import MenuOption from './MenuOption';
+import NotificationOptions from './Notification/NotificationOptions';
 
 
 export const totalGrpCount = 0;
@@ -875,8 +876,12 @@ useEffect(() => {
         })}
       </div>
   }
-  
-  {active == "My Chat" || active == "My Groups" ? "" : (<div className="">
+
+  {active === "Notifications" && <div>
+     <NotificationOptions />
+  </div> }
+
+  {active === "My Chat" || active === "My Groups" || active === "Profile" || active === "Notifications" ? "" : (<div className="">
     <p className="flex justify-center h-90 items-center">Comming Soon !</p>
   </div>
   )}
