@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useRef, useState } from 'react'
 import assets, { messagesDummyData } from '../assets/assets';
-import { formatMessageTime } from '../lib/formatDateTime';
+import { formatMessageTime, formatDateLabel, isDifferentDay } from '../lib/formatDateTime';
 import { ChatContext } from '../../context/ChatContext';
 import { AuthContext } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
@@ -314,217 +314,226 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
       </div>
     ) : (
 <div className="flex flex-col h-[calc(100%-120px)] overflow-y-scroll p-4 pb-6 space-y-4 scrollbar-thin scrollbar-thumb-purple-600/30 scrollbar-track-transparent">
-  {messages.length > 0 ? (<div>
-  {messages.map((mes, i) => (
-    <div 
-      key={i} 
-      className={`flex items-end gap-3 transition-all duration-300 ease-out animate-fadeIn ${
-        getSenderId(mes) !== authUser._id ? "justify-start" : "justify-end"
-      }`}
-      style={{animationDelay: `${i * 0.05}s`}}
-    >
+ 
+{messages.length > 0 ? (
+  <div>
+    {messages.map((mes, i) => {
       
-      {/* Avatar for received messages (left side) */}
-      {getSenderId(mes) !== authUser._id && (
-  <div className="flex flex-col items-center gap-1 flex-shrink-0">
-   {selectedGrp ? (
-  mes.senderId?.profilePic ? (
-    <img
-      src={mes.senderId.profilePic}
-      alt={mes.senderId.fullName}
-      className="w-[33px] h-[33px] rounded-full object-cover border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)]"
-    />
-  ) : (
-    <div
-      className="w-[33px] h-[33px] rounded-full flex items-center justify-center 
-        text-white text-[11px] font-bold border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)] 
-        bg-gradient-to-r from-[#ff4800] via-pink-500 to-[#d31b74]"
-    >
-      {mes.senderId?.fullName
-        ?.split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2)}
-    </div>
-  )
-) : selectedUser ? (
-  selectedUser.profilePic ? (
-    <img
-      src={selectedUser.profilePic}
-      alt={selectedUser.fullName}
-      className="w-[33px] h-[33px] rounded-full object-cover border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)]"
-    />
-  ) : (
-    <div
-      className="w-[33px] h-[33px] rounded-full flex items-center justify-center 
-        text-white text-[11px] font-bold border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)] 
-        bg-gradient-to-r from-[#ff4800] via-pink-500 to-[#d31b74]"
-    >
-      {selectedUser.fullName
-        ?.split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2)}
-    </div>
-  )
-) : null}
-
-    {/* Show sender name in group chat */}
-    {selectedGrp  ? (
-      <p className="text-xs text-purple-400 font-semibold">
-        {mes.senderId?.fullName || "Unknown"} 
-        
-      </p>
-    ) : (<p className="text-xs text-purple-400 font-semibold">
-        {selectedUser.fullName || "Unknown"}
-      </p>)}
-    <p className="text-xs text-gray-400 font-medium">
-      {formatMessageTime(mes.createdAt)}
-    </p>
-  </div>
-)}
-     
-    
-
-
-      {/* Message Content */}
-      <div className={`flex flex-col max-w-[320px] ${mes.senderId === authUser._id ? 'items-end' : 'items-start'}`}>
-        {/* Message Image (if exists) */}
-         {selectedGrp &&
-    getSenderId(mes) !== authUser._id &&
-    mes.senderId?.fullName && (
-      <span className="">
-        
-      </span>
-    )}
-        {mes.image ? (
-          <div className={`relative group overflow-hidden rounded-2xl shadow-xl border-2 transition-all duration-300 hover:shadow-2xl hover:scale-[1.02] ${
-            getSenderId(mes) === authUser._id 
-              ? 'border-purple-500/40 bg-gradient-to-br from-purple-600/10 to-violet-600/10' 
-              : 'border-gray-600/40 bg-gradient-to-br from-gray-700/10 to-gray-800/10'
-          }`}>
-            <img 
-              src={mes.image} 
-              alt="Shared image" 
-              className="max-w-[230px] w-full h-auto object-cover transition-transform duration-300 group-hover:scale-105" 
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            
-            {/* Image overlay icons */}
-            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-             
-              <div className="flex gap-1">
-                <div className="w-6 h-6 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center">
-                  <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                  </svg>
-                </div>
+      const showDateLabel = i === 0 || isDifferentDay(messages[i - 1].createdAt, mes.createdAt);
+      
+      return (
+        <React.Fragment key={i}>
+          {/* Date Separator */}
+          {showDateLabel && (
+            <div className="flex items-center justify-center my-4">
+              <div className="bg-gray-800/70 backdrop-blur-sm px-4 py-1.5 rounded-full border border-gray-600/50 shadow-lg">
+                <p className="text-xs font-medium text-gray-300">
+                  {formatDateLabel(mes.createdAt)}
+                </p>
               </div>
             </div>
-          </div>
-        ) : (
-          <div className="relative mt-6">
-            {mes.text?.startsWith("🤖 Saras AI:") ? (
-  <div className="px-4 py-3 max-w-[300px] text-sm rounded-2xl shadow-lg backdrop-blur-sm bg-gradient-to-br from-cyan-500/30 to-blue-600/30 border border-cyan-400/40 text-white break-words leading-relaxed">
-    <span className="font-bold text-cyan-100 mb-1 block">Saras AI 🤖</span>
-    {mes.text.replace("🤖 Saras AI:", "").split("\n").map((line, idx) => {
-      if (/^\d+\./.test(line)) {
-        // Numbered list
-        return (
-          <div key={idx} className="ml-4 list-decimal list-inside">
-            {line.replace(/^\d+\.\s*/, "")}
-          </div>
-        );
-      } else if (/^\*/.test(line)) {
-        // Bullet points
-        return (
-          <div key={idx} className="ml-4 list-disc list-inside text-gray-200">
-            {line.replace(/^\*\s*/, "")}
-          </div>
-        );
-      }
-      return <p key={idx}>{line}</p>;
-    })}
-  </div>
-) : (
-            <p 
-              className={`px-4 py-3 max-w-[280px] text-sm font-light rounded-2xl shadow-lg backdrop-blur-sm transition-all duration-300 hover:shadow-xl break-words leading-relaxed ${
-                getSenderId(mes) === authUser._id 
-                  ? "bg-gradient-to-br from-[#296dff] to-[#4f029d] border-2 border-purple-400/30 text-white rounded-br-md shadow-purple-500/20" 
-                  : "bg-gradient-to-br from-gray-600/80 to-gray-900/90 border-2 border-gray-600/30 text-white rounded-bl-md shadow-gray-500/20"
-              }`}
-            >  
-            <img src={assets.menu_icon} 
-            onClick={() => {
-              setDropDownMsg(prev => !prev)
-              setOptMsg(mes);
-            }}
-            className="absolute cursor-pointer hover:scale-115 h-4 top-1.5 right-0 z=20"/>
-       
-              {mes.text}
-            </p>
+          )}
 
+          {/* Message */}
+          <div 
+            className={`flex items-end gap-3 transition-all duration-300 ease-out animate-fadeIn ${
+              getSenderId(mes) !== authUser._id ? "justify-start" : "justify-end"
+            }`}
+            style={{animationDelay: `${i * 0.05}s`}}
+          >
+            
+            {/* Avatar for received messages (left side) */}
+            {getSenderId(mes) !== authUser._id && (
+              <div className="flex flex-col items-center gap-1 flex-shrink-0">
+                {selectedGrp ? (
+                  mes.senderId?.profilePic ? (
+                    <img
+                      src={mes.senderId.profilePic}
+                      alt={mes.senderId.fullName}
+                      className="w-[33px] h-[33px] rounded-full object-cover border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)]"
+                    />
+                  ) : (
+                    <div
+                      className="w-[33px] h-[33px] rounded-full flex items-center justify-center 
+                        text-white text-[11px] font-bold border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)] 
+                        bg-gradient-to-r from-[#ff4800] via-pink-500 to-[#d31b74]"
+                    >
+                      {mes.senderId?.fullName
+                        ?.split(" ")
+                        .map((n) => n[0])
+                        .join("")
+                        .toUpperCase()
+                        .slice(0, 2)}
+                    </div>
+                  )
+                ) : selectedUser ? (
+                  selectedUser.profilePic ? (
+                    <img
+                      src={selectedUser.profilePic}
+                      alt={selectedUser.fullName}
+                      className="w-[33px] h-[33px] rounded-full object-cover border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)]"
+                    />
+                  ) : (
+                    <div
+                      className="w-[33px] h-[33px] rounded-full flex items-center justify-center 
+                        text-white text-[11px] font-bold border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)] 
+                        bg-gradient-to-r from-[#ff4800] via-pink-500 to-[#d31b74]"
+                    >
+                      {selectedUser.fullName
+                        ?.split(" ")
+                        .map((n) => n[0])
+                        .join("")
+                        .toUpperCase()
+                        .slice(0, 2)}
+                    </div>
+                  )
+                ) : null}
+
+                {/* Show sender name in group chat */}
+                {selectedGrp ? (
+                  <p className="text-xs text-purple-400 font-semibold">
+                    {mes.senderId?.fullName || "Unknown"} 
+                  </p>
+                ) : (
+                  <p className="text-xs text-purple-400 font-semibold">
+                    {selectedUser.fullName || "Unknown"}
+                  </p>
+                )}
+                <p className="text-xs text-gray-400 font-medium">
+                  {formatMessageTime(mes.createdAt)}
+                </p>
+              </div>
             )}
-            
-        <div className={`absolute border bg-sky-700 border-cyan-800 rounded-3xl p-2 flex flex-col top-10 right-0 z-50 items-center gap-2 ${dropDownMsg && optMsg == mes ? "" : "hidden"}`}>
-        <div className="flex gap-2">
-          <button className="p-2 cursor-pointer rounded-full bg-white/20 hover:bg-white/30 transition">
-          <Reply className="w-5 h-5 text-white" />
-        </button>
-        <button className="p-2 cursor-pointer rounded-full bg-white/20 hover:bg-white/30 transition">
-          <Languages className="w-5 h-5 text-white" />
-        </button>
-        </div>
-        <div className="flex gap-2">
-        <button onClick={() => handleCopy(mes.text)} className="p-2 cursor-pointer rounded-full bg-white/20 hover:bg-white/30 transition">
-          <Copy className="w-5 h-5 text-white" />
-        </button>
-        <button className="p-2 cursor-pointer rounded-full bg-white/20 hover:bg-white/30 transition">
-          <Trash2 className="w-5 h-5 text-white" />
-        </button>
-        </div>
-      </div>
-           
-            
-          </div>
-        )}
-      </div>
 
-      {/* Avatar + Time for sent messages (right side) */}
-      {getSenderId(mes) === authUser._id && (
-        <div className="flex flex-col items-center gap-1 flex-shrink-0">
-          {authUser?.profilePic ? (
-                <img
-                src={authUser.profilePic}
-                alt={authUser.fullName}
-                className="w-[33px] h-[33px] rounded-full object-cover border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)]"
-                />
-               ) : (
-                     <div className="w-[33px] h-[33px] rounded-full flex items-center justify-center 
-                      text-white text-[11px] font-bold border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)] 
-                      bg-gradient-to-r from-[#ff4800] via-pink-500 to-[#d31b74]">
-                      {authUser?.fullName
+            {/* Message Content */}
+            <div className={`flex flex-col max-w-[320px] ${mes.senderId === authUser._id ? 'items-end' : 'items-start'}`}>
+              {/* Message Image (if exists) */}
+              {mes.image ? (
+                <div className={`relative group overflow-hidden rounded-2xl shadow-xl border-2 transition-all duration-300 hover:shadow-2xl hover:scale-[1.02] ${
+                  getSenderId(mes) === authUser._id 
+                    ? 'border-purple-500/40 bg-gradient-to-br from-purple-600/10 to-violet-600/10' 
+                    : 'border-gray-600/40 bg-gradient-to-br from-gray-700/10 to-gray-800/10'
+                }`}>
+                  <img 
+                    src={mes.image} 
+                    alt="Shared image" 
+                    className="max-w-[230px] w-full h-auto object-cover transition-transform duration-300 group-hover:scale-105" 
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  
+                  {/* Image overlay icons */}
+                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <div className="flex gap-1">
+                      <div className="w-6 h-6 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center">
+                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="relative mt-6">
+                  {mes.text?.startsWith("🤖 Saras AI:") ? (
+                    <div className="px-4 py-3 max-w-[300px] text-sm rounded-2xl shadow-lg backdrop-blur-sm bg-gradient-to-br from-cyan-500/30 to-blue-600/30 border border-cyan-400/40 text-white break-words leading-relaxed">
+                      <span className="font-bold text-cyan-100 mb-1 block">Saras AI 🤖</span>
+                      {mes.text.replace("🤖 Saras AI:", "").split("\n").map((line, idx) => {
+                        if (/^\d+\./.test(line)) {
+                          return (
+                            <div key={idx} className="ml-4 list-decimal list-inside">
+                              {line.replace(/^\d+\.\s*/, "")}
+                            </div>
+                          );
+                        } else if (/^\*/.test(line)) {
+                          return (
+                            <div key={idx} className="ml-4 list-disc list-inside text-gray-200">
+                              {line.replace(/^\*\s*/, "")}
+                            </div>
+                          );
+                        }
+                        return <p key={idx}>{line}</p>;
+                      })}
+                    </div>
+                  ) : (
+                    <p 
+                      className={`px-4 py-3 max-w-[280px] text-sm font-light rounded-2xl shadow-lg backdrop-blur-sm transition-all duration-300 hover:shadow-xl break-words leading-relaxed ${
+                        getSenderId(mes) === authUser._id 
+                          ? "bg-gradient-to-br from-[#296dff] to-[#4f029d] border-2 border-purple-400/30 text-white rounded-br-md shadow-purple-500/20" 
+                          : "bg-gradient-to-br from-gray-600/80 to-gray-900/90 border-2 border-gray-600/30 text-white rounded-bl-md shadow-gray-500/20"
+                      }`}
+                    >  
+                      <img 
+                        src={assets.menu_icon} 
+                        onClick={() => {
+                          setDropDownMsg(prev => !prev)
+                          setOptMsg(mes);
+                        }}
+                        className="absolute cursor-pointer hover:scale-115 h-4 top-1.5 right-0 z-20"
+                      />
+                      {mes.text}
+                    </p>
+                  )}
+                  
+                  <div className={`absolute border bg-sky-700 border-cyan-800 rounded-3xl p-2 flex flex-col top-10 right-0 z-50 items-center gap-2 ${dropDownMsg && optMsg == mes ? "" : "hidden"}`}>
+                    <div className="flex gap-2">
+                      <button className="p-2 cursor-pointer rounded-full bg-white/20 hover:bg-white/30 transition">
+                        <Reply className="w-5 h-5 text-white" />
+                      </button>
+                      <button className="p-2 cursor-pointer rounded-full bg-white/20 hover:bg-white/30 transition">
+                        <Languages className="w-5 h-5 text-white" />
+                      </button>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => handleCopy(mes.text)} className="p-2 cursor-pointer rounded-full bg-white/20 hover:bg-white/30 transition">
+                        <Copy className="w-5 h-5 text-white" />
+                      </button>
+                      <button className="p-2 cursor-pointer rounded-full bg-white/20 hover:bg-white/30 transition">
+                        <Trash2 className="w-5 h-5 text-white" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Avatar + Time for sent messages (right side) */}
+            {getSenderId(mes) === authUser._id && (
+              <div className="flex flex-col items-center gap-1 flex-shrink-0">
+                {authUser?.profilePic ? (
+                  <img
+                    src={authUser.profilePic}
+                    alt={authUser.fullName}
+                    className="w-[33px] h-[33px] rounded-full object-cover border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)]"
+                  />
+                ) : (
+                  <div className="w-[33px] h-[33px] rounded-full flex items-center justify-center 
+                    text-white text-[11px] font-bold border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)] 
+                    bg-gradient-to-r from-[#ff4800] via-pink-500 to-[#d31b74]">
+                    {authUser?.fullName
                       ?.split(" ")
                       .map((n) => n[0])
                       .join("")
                       .toUpperCase()
                       .slice(0, 2)}
-                     </div>
-                    )}
-          {selectedGrp && (
-      <p className="text-xs text-purple-400 font-semibold">
-        {"You"}
-      </p>
-    )}
-          <p className="text-xs text-gray-400 font-medium">{formatMessageTime(mes.createdAt)}</p>
-        </div>
-      )}
-    </div>
-  ))
- }</div>) : <p className="flex items-center h-full justify-center text-[15px]  text-blue-300">No Message yet !</p> }
+                  </div>
+                )}
+                {selectedGrp && (
+                  <p className="text-xs text-purple-400 font-semibold">
+                    {"You"}
+                  </p>
+                )}
+                <p className="text-xs text-gray-400 font-medium">{formatMessageTime(mes.createdAt)}</p>
+              </div>
+            )}
+          </div>
+        </React.Fragment>
+      );
+    })}
+  </div>
+) : (
+  <p className="flex items-center h-full justify-center text-[15px] text-blue-300">No Message yet!</p>
+)}
   <div ref={messagesEndRef} />
   </div>
 )}

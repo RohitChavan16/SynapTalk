@@ -9,3 +9,32 @@
 ::-webkit-scrollbar{
   display: none;
 }
+
+@keyframes gradientMove {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-gradientMove {
+  background-size: 300% 300%;
+  animation: gradientMove 8s ease-in-out infinite;
+}
+
+.animate-borderGlow::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #ec4899, #6366f1, #f97316, #8b5cf6);
+  background-size: 400% 400%;
+  z-index: -1;
+  animation: gradientMove 8s ease-in-out infinite;
+  filter: blur(3px);
+}

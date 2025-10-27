@@ -11,6 +11,7 @@ import { CallContext } from '../context/CallContext'
 import { Phone, PhoneOff } from 'lucide-react'
 import ResetPassword from './pages/ResetPassword'
 import VerifyEmail from './pages/VerifyEmail'
+import assets from './assets/assets'
 
 
 const App = () => {
@@ -141,6 +142,19 @@ const App = () => {
     <div className="bg-[url('/bgsnaptalk.avif')] bg-contain">
       <Toaster />
       
+      <div className="absolute w-full mt-[7px] max-md:hidden">
+       <div className="relative w-fit mx-auto rounded-[4px] p-[2px] animate-borderGlow">
+       {/* This is your animated gradient border */}
+       <div className="absolute inset-0 rounded-[8px] bg-gradient-to-br from-pink-500 via-indigo-500 to-orange-500 animate-gradientMove"></div>
+
+       {/* Image inside border */}
+       <img
+        src={assets.SynapTalkCrop}
+        className="relative rounded-[8px] h-15 w-70 "
+       />
+       </div>
+      </div>
+
       {/* Incoming call overlay */}
       {incomingCall && <IncomingCallOverlay />}
       

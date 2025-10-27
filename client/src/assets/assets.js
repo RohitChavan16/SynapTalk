@@ -22,6 +22,7 @@ import pic4 from './pic4.png'
 import img1 from './img1.jpg'
 import img2 from './img2.jpg'
 import logo from './logo.svg'
+import SynapTalkCrop from './SynapTalkCrop.png'
 
 
 const assets = {
@@ -39,6 +40,7 @@ const assets = {
     code,
     bgImage,
     profile_martin,
+    SynapTalkCrop,
 }
 
 export default assets;
