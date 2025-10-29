@@ -30,13 +30,37 @@ userRouter.get(
 );
 
 // Google callback
+// Google callback
 userRouter.get(
   "/google/callback",
   passport.authenticate("google", { failureRedirect: "/" }),
-  (req, res) => {
-    const token = generateToken(req.user._id); // server JWT
-
-    res.redirect(`${process.env.CLIENT_URL}/?token=${token}`);
+  async (req, res) => {
+    try {
+      const token = generateToken(req.user._id);
+      
+      const user = await User.findById(req.user._id);
+      
+      if (user.privateKey) {
+        
+        console.log("🔑 Sending private key to new Google user");
+        const privateKey = user.privateKey;
+        
+        user.privateKey = null;
+        await user.save();
+        
+        
+        res.redirect(
+          `${process.env.CLIENT_URL}/?token=${token}&privateKey=${encodeURIComponent(privateKey)}&newUser=true`
+        );
+      } else {
+        
+        console.log("✅ Existing user login");
+        res.redirect(`${process.env.CLIENT_URL}/?token=${token}`);
+      }
+    } catch (error) {
+      console.error("❌ Callback error:", error);
+      res.redirect(`${process.env.CLIENT_URL}/?error=auth_failed`);
+    }
   }
 );
 

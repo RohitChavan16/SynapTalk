@@ -41,8 +41,6 @@ export const AuthProvider = ({ children }) => {
     newSocket.on("getOnlineUsers", (userIds) => setOnlineUsers(userIds));
   };
 
- 
-  // Check auth with backend JWT
 
   const checkAuth = async (jwtToken) => {
     try {
@@ -60,23 +58,51 @@ export const AuthProvider = ({ children }) => {
       return false;
     }
   };
-
-
-  // Handle backend JWT from Google login
  
-  const handleGoogleLogin = async () => {
-    const params = new URLSearchParams(window.location.search);
-    const jwtToken = params.get("token");
-    if (!jwtToken) return false;
 
-    localStorage.setItem("token", jwtToken);
-    setToken(jwtToken);
-    await checkAuth(jwtToken);
 
-    // Remove token from URL
+  
+ const handleGoogleLogin = async () => {
+  const params = new URLSearchParams(window.location.search);
+  const jwtToken = params.get("token");
+  const privateKeyParam = params.get("privateKey");
+  const isNewUser = params.get("newUser");
+  const authError = params.get("error");
+  
+  if (authError) {
+    toast.error("Google authentication failed. Please try again.");
     window.history.replaceState({}, document.title, "/");
-    return true;
-  };
+    return false;
+  }
+  
+  if (!jwtToken) return false;
+
+  localStorage.setItem("token", jwtToken);
+  setToken(jwtToken);
+  
+  if (isNewUser === "true" && privateKeyParam) {
+    console.log("🔑 Storing private key for new Google user");
+    const decodedPrivateKey = decodeURIComponent(privateKeyParam);
+    localStorage.setItem("privateKey", decodedPrivateKey);
+    setPrivateKey(decodedPrivateKey);
+    toast.success("Account created! Private key stored securely.");
+  } else {
+
+    const storedKey = localStorage.getItem("privateKey");
+    if (storedKey) {
+      setPrivateKey(storedKey);
+      console.log("✅ Private key found locally");
+    } else {
+      console.warn("⚠️ No private key found on this device");
+      toast.warning("Private key not found on this device. Messages cannot be decrypted.");
+    }
+  }
+  
+  await checkAuth(jwtToken);
+
+  window.history.replaceState({}, document.title, "/");
+  return true;
+ };
 
   // -----------------------
   // Manual login
