@@ -5,6 +5,7 @@ import { GroupMessage } from '../models/GroupMsg.js';
 import { io, userSocketMap } from '../server.js';
 import cloudinary from "../lib/cloudinary.js";
 
+
 export const newGroup = async (req, res) => {
        try {
     const { name, description, privacy, members, groupPic } = req.body;
@@ -96,10 +97,8 @@ export const sendGrpMsg = async (req, res) => {
       image
     });
 
-    // Populate sender for frontend display
-    const populatedMsg = await message.populate("senderId", "username avatar");
+    const populatedMsg = await message.populate("senderId", "fullName profilePic");
    
-    // 🔔 Emit to group socket room
     io.to(groupId.toString()).emit("receiveGrpMsg", populatedMsg);
    
     res.status(201).json(populatedMsg);

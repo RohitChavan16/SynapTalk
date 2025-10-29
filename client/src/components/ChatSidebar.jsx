@@ -709,7 +709,7 @@ useEffect(() => {
           )}
 
                 {privateTypingUsers[user._id] && (
-                 <div className="absolute bottom-2 right-4 z-100  flex items-center gap-2 text-[11px] text-green-300 bg-[#0a3a7c] px-3 py-1.5 rounded-full backdrop-blur-sm border border-gray-600/50 shadow-lg" >
+                 <div className="absolute bottom-2 right-6 z-100  flex items-center gap-2 text-[11px] text-green-300 bg-[#0a3a7c] px-3 py-1.5 rounded-full backdrop-blur-sm border border-gray-600/50 shadow-lg" >
                  <p className="text-[11px] text-blue-400 italic">
                  {privateTypingUsers[user._id]} is typing...
                  </p>
@@ -855,7 +855,7 @@ useEffect(() => {
 
  {/* Typing indicator */}
           {usersTyping && Object.keys(usersTyping).length > 0 && (
-           <div className="absolute bottom-2 right-2 z-100  flex items-center gap-2 text-xs text-green-300 bg-gray-800/70 px-3 py-1.5 rounded-full backdrop-blur-sm border border-gray-600/50 shadow-lg">
+           <div className="absolute bottom-2 right-8 z-100  flex items-center gap-2 text-xs text-green-300 bg-gray-800/70 px-3 py-1.5 rounded-full backdrop-blur-sm border border-gray-600/50 shadow-lg">
            <span className="font-medium text-green-400">
             {Object.values(usersTyping).slice(0, 2).join(', ')}
             {Object.keys(usersTyping).length > 2 && 

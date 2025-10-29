@@ -14,8 +14,6 @@ export const handleAIMessage = async (req, res) => {
     const { text, receiverId, groupId } = req.body;
     const senderId = req.user._id;
 
-    console.log("AI Message Request:", { text, receiverId, groupId, senderId });
-
     const aiQuery = text.replace(/@saras\s*/i, "").trim();
 
     if (!aiQuery) {
@@ -28,8 +26,6 @@ export const handleAIMessage = async (req, res) => {
     
     const result = await model.generateContent(aiQuery);
     const aiResponse = result.response.text();
-
-    console.log("AI Response:", aiResponse);
 
     let savedMessage;
 
@@ -47,17 +43,14 @@ export const handleAIMessage = async (req, res) => {
       await savedMessage.populate("senderId", "fullName profilePic");
       await savedMessage.populate("receiverId", "fullName profilePic");
 
-      console.log("Saved AI message for private chat:", savedMessage);
-
-      // Emit to receiver via socket
       const receiverSocketId = getReceiverSocketId(receiverId);
       if (receiverSocketId) {
         io.to(receiverSocketId).emit("newMessage", savedMessage);
-        console.log("Emitted to receiver:", receiverId);
+       
       }
 
     }
-    // Handle Group Chat
+   
     else if (groupId) {
       savedMessage = new GroupMessage({
         groupId: groupId,
@@ -68,10 +61,9 @@ export const handleAIMessage = async (req, res) => {
       await savedMessage.save();
       await savedMessage.populate("senderId", "fullName profilePic");
 
-      console.log("Saved AI message for group chat:", savedMessage);
 
-      io.to(groupId.toString()).except(`user_${senderId}`).emit("newGroupMessage", savedMessage);
-      console.log("Emitted to group (excluding sender):", groupId);
+      io.to(groupId.toString()).except(`user_${senderId}`).emit("receiveGrpMsg", savedMessage);
+      
     }
 
     res.status(200).json(savedMessage);

@@ -227,19 +227,6 @@ useEffect(() => {
     
   });
   
-  
-  // ✅ Register ALL socket listeners here (only once)
-  socket.on("newGroupMessage", (newMessage) => {
-    
-    if (selectedGrp && newMessage.groupId === selectedGrp._id) {
-      setMessages((prev) => [...prev, newMessage]);
-    } else {
-      setUnseenMessages((prev) => ({
-        ...prev,
-        [newMessage.groupId]: prev[newMessage.groupId] ? prev[newMessage.groupId] + 1 : 1
-      }));
-    }
-  });
 
   socket.on("userTyping", (data) => {
    
