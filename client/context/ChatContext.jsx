@@ -557,7 +557,7 @@ const fetchLatestGrpMessages = async () => {
       const latest = {};
 
       for (const msg of res.data.messages) {
-        console.log("Group message:", msg);
+       
         latest[msg.groupId] = {
           text: msg.text || (msg.image ? "📷 Photo" : ""),
           createdAt: msg.createdAt,

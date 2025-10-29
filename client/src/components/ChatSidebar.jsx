@@ -48,6 +48,7 @@ const ChatSidebar = () => {
   const [dropDown, setDropDown] = useState(false);
   const navigate = useNavigate();
   const [input, setInput] = useState('');
+  const [inputGrp, setInputGrp] = useState('');
   const [newGroup, setNewGroup] = useState(false);
   const [selectedNewGroupMembers, setSelectedNewGroupMembers] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -174,7 +175,8 @@ const ChatSidebar = () => {
     ? users.filter((user) => user.fullName.toLowerCase().includes(input.toLowerCase()))
     : users;
 
-  
+  const filteredGrps = inputGrp ? groups.filter((group) => group.name.toLowerCase().includes(inputGrp.toLowerCase())) : groups;
+
 
 
   const iconMap = {
@@ -264,6 +266,11 @@ useEffect(() => {
   }, 0);
   setTotalGrpCount(grpCount);
 }, [unseenMessages, unseenGrpMessages, authUser._id]);
+
+
+
+
+
 
 
 
@@ -550,7 +557,7 @@ useEffect(() => {
        <div className="bg-gradient-to-r from-purple-700/30 to-pink-500/30 rounded-full flex items-center gap-3 py-2.5 px-4 mt-5 border border-violet-500/40 focus-within:border-pink-400 transition-colors backdrop-blur-md">
           <img src={assets.search_icon} alt="Search Icon" className="w-4 h-4 opacity-80 drop-shadow-[0_0_4px_rgba(255,255,255,0.7)]" />
           <input 
-            onChange={(e) => setInput(e.target.value)} 
+            onChange={(e) => setInputGrp(e.target.value)} 
             type="text" 
             className="bg-transparent border-none outline-none text-white text-sm placeholder-gray-400 flex-1"
             placeholder="🔍 Search group name..." 
@@ -742,7 +749,7 @@ useEffect(() => {
   { active == "My Groups" &&
     <div className="flex flex-col divide-y divide-violet-500/20">
      
-      { groups
+      { filteredGrps
         .sort((a, b) => {
     // First sort by latest message time
     const timeA = latestGrpMessages[a._id]?.createdAt 

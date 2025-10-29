@@ -144,13 +144,10 @@ const App = () => {
       
       <div className="absolute w-full mt-[7px] max-md:hidden">
        <div className="relative w-fit mx-auto rounded-[4px] p-[2px] animate-borderGlow">
-       
-       <div className="absolute inset-0 rounded-[8px] bg-gradient-to-br from-pink-500 via-indigo-500 to-orange-500 animate-gradientMove"></div>
-
-      
+       <div className="absolute inset-0 rounded-[8px] bg-gradient-to-br from-[#f100dd] via-[#04c6e8] to-[#030891] animate-gradientMove"></div>
        <img
         src={assets.SynapTalkCrop}
-        className="relative rounded-[8px] h-15 w-70 "
+        className="relative rounded-[8px] h-15 w-65 "
        />
        </div>
       </div>
