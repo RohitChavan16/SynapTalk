@@ -36,7 +36,7 @@ userRouter.get(
   (req, res) => {
     const token = generateToken(req.user._id); // server JWT
 
-    res.redirect(`http://localhost:5173/?token=${token}`);
+    res.redirect(`${process.env.CLIENT_URL}/?token=${token}`);
   }
 );
 

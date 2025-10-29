@@ -179,7 +179,7 @@ const ResetPassword = () => {
 
       <div className="relative bg-white rounded-xl shadow-2xl p-8 w-full max-w-md transform transition-all duration-500 hover:scale-[1.02]">
         <div className="text-center mb-8">
-          <div className="inline-block p-4 bg-gradient-to-br from-pink-500 to-red-600 rounded-2xl shadow-lg mb-4 animate-bounce">
+          <div className="inline-block p-4 bg-gradient-to-br from-[#00c3dd] to-[#040688] rounded-2xl shadow-lg mb-4 animate-bounce">
             <Lock className="w-10 h-10 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-gray-800 mb-2">Reset Password</h1>
@@ -392,7 +392,7 @@ const ResetPassword = () => {
         <div className="mt-6 text-center">
           <button
             onClick={() => window.location.href = '/login'}
-            className="text-gray-600 hover:text-gray-800 text-sm font-medium transition-colors"
+            className="text-gray-600 cursor-pointer hover:text-[#1961a4] text-sm font-medium transition-colors"
           >
             Back to Login
           </button>
