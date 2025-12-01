@@ -14,15 +14,20 @@ export const newGroup = async (req, res) => {
       return res.status(400).json({ success: false, message: "Group name and members are required" });
     }
 
+    let uploadedImageURL = null;
+
     const memberIds = members.map(m => m._id ? m._id : m);
     const allMembers = [...new Set([...memberIds, req.user._id.toString()])];
+    if (groupPic) {
     const upload = await cloudinary.uploader.upload(groupPic);
+    uploadedImageURL = upload.secure_url;
+    }
     const group = new Group({
       name,
       description,
       privacy,
       members: allMembers,
-      groupPic: upload.secure_url, 
+      groupPic: uploadedImageURL, 
       admins: [req.user._id],
     });
 
