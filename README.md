@@ -23,6 +23,15 @@ Built with end-to-end encryption, low-latency infrastructure, and modern web tec
 ✅ Observability & Monitoring — Server-side metrics, error tracking, and logs for production readiness.</br>
 
 </br>
+<p align="center">
+  <a href="https://synap-talk-kuub.vercel.app/" target="_blank">
+    <img src="https://img.shields.io/badge/Live%20Demo-Visit-blue?style=for-the-badge&logo=vercel" alt="Live Demo"/>
+  </a>
+  <a href="https://github.com/RohitChavan16/SynapTalk" target="_blank">
+    <img src="https://img.shields.io/badge/GitHub-Repository-black?style=for-the-badge&logo=github" alt="GitHub Repo"/>
+  </a>
+</p>
+<br>
 
 ## 📸 Screenshots :
 
@@ -84,6 +93,70 @@ Built with end-to-end encryption, low-latency infrastructure, and modern web tec
 </br>
 
 <img width="1896" height="910" alt="Screenshot 2025-10-14 145737" src="https://github.com/user-attachments/assets/b3b8fab5-7af8-4cee-8f4a-58cfc45f65b0" />
+
+</br>
+</br>
+
+<p align="center">
+  🌴🎄🌳🌲 ⭐💖 - 🌍🌎🌏 - 💖⭐ 🌲🌳🎄🌴
+</p>
+</br>
+
+<img width="1919" height="898" alt="Screenshot 2025-12-01 221413" src="https://github.com/user-attachments/assets/87b6de6a-2822-4cb5-8373-76d022bc627f" />
+
+</br>
+</br>
+<p align="center">
+  🌴🎄🌳🌲 ⭐💖 - 🌍🌎🌏 - 💖⭐ 🌲🌳🎄🌴
+</p>
+</br>
+
+<img width="1919" height="904" alt="Screenshot 2025-12-01 230706" src="https://github.com/user-attachments/assets/67fde675-5dc1-4944-b678-9069a785d1f6" />
+
+</br>
+</br>
+<p align="center">
+  🌴🎄🌳🌲 ⭐💖 - 🌍🌎🌏 - 💖⭐ 🌲🌳🎄🌴
+</p>
+</br>
+
+<img width="1919" height="907" alt="Screenshot 2025-12-01 231222" src="https://github.com/user-attachments/assets/6a318798-089d-4f09-b024-f2eb6f5b1b99" />
+
+</br>
+</br>
+<p align="center">
+  🌴🎄🌳🌲 ⭐💖 - 🌍🌎🌏 - 💖⭐ 🌲🌳🎄🌴
+</p>
+</br>
+
+<img width="1919" height="906" alt="Screenshot 2025-12-01 233450" src="https://github.com/user-attachments/assets/f05b2eaf-afa2-420d-83b9-0d15c3aaeb3c" />
+
+</br>
+</br>
+<p align="center">
+  🌴🎄🌳🌲 ⭐💖 - 🌍🌎🌏 - 💖⭐ 🌲🌳🎄🌴
+</p>
+</br>
+
+<img width="1919" height="902" alt="Screenshot 2025-12-01 233732" src="https://github.com/user-attachments/assets/30660182-7f98-4a5b-b029-3993074361ef" />
+
+</br>
+</br>
+<p align="center">
+  🌴🎄🌳🌲 ⭐💖 - 🌍🌎🌏 - 💖⭐ 🌲🌳🎄🌴
+</p>
+</br>
+
+<img width="1919" height="907" alt="Screenshot 2025-12-01 233811" src="https://github.com/user-attachments/assets/afefa721-590a-4815-93c1-a24787195212" />
+
+</br>
+</br>
+<p align="center">
+  🌴🎄🌳🌲 ⭐💖 - 🌍🌎🌏 - 💖⭐ 🌲🌳🎄🌴
+</p>
+</br>
+
+<img width="1919" height="913" alt="Screenshot 2025-12-01 233845" src="https://github.com/user-attachments/assets/85da4d93-f7f6-4449-837c-36dd6e007dee" />
 
 </br>
 </br>
