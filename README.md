@@ -172,7 +172,7 @@ Built with end-to-end encryption, low-latency infrastructure, and modern web tec
 <p align="center">
   🌴🎄🌳🌲 ⭐💖 - 🌍🌎🌏 - 💖⭐ 🌲🌳🎄🌴
 </p>
-</br>n=
+</br>ScreenSharing
 <img width="1900" height="1022" alt="Screenshot 2025-12-02 222022" src="https://github.com/user-attachments/assets/8963dbe2-5a24-433e-9ebf-c451922c96b4" />
 
 </br>
