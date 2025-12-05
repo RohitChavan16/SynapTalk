@@ -177,6 +177,24 @@ Built with end-to-end encryption, low-latency infrastructure, and modern web tec
 
 </br>
 </br>
+<p align="center">
+  🌴🎄🌳🌲 ⭐💖 - 🌍🌎🌏 - 💖⭐ 🌲🌳🎄🌴
+</p>
+</br>
+
+<img width="1919" height="898" alt="Screenshot 2025-12-01 221413" src="https://github.com/user-attachments/assets/7e276cc3-f2ee-420d-b2db-c8888d33adc2" />
+
+</br>
+</br>
+<p align="center">
+  🌴🎄🌳🌲 ⭐💖 - 🌍🌎🌏 - 💖⭐ 🌲🌳🎄🌴
+</p>
+</br>
+
+<img width="1919" height="901" alt="Screenshot 2025-12-05 143916" src="https://github.com/user-attachments/assets/527b28d0-42c1-4635-a09b-73272b9bffbf" />
+
+</br>
+</br>
  <p align="center">
   MORE SCREENSHOT WILL BE ADDED SOON !
 </p>
