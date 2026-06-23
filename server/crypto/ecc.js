@@ -116,7 +116,7 @@ export const ecc = {
     // Safe logging with null checks
     
     if (recipientPrivateKeyInput && typeof recipientPrivateKeyInput === 'string') {
-      // console.log("Recipient Private Key (first 100 chars):", recipientPrivateKeyInput.slice(0, 100));
+      // logger.debug("Recipient Private Key (first 100 chars):", recipientPrivateKeyInput.slice(0, 100));
     }
 
     const payload =

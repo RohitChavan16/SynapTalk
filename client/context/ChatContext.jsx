@@ -25,6 +25,8 @@ const [latestMessages, setLatestMessages] = useState({});
 const [latestGrpMessages, setLatestGrpMessages] = useState({});
 const [totalUserCount, setTotalUserCount] = useState(0);
 const [totalGrpCount, setTotalGrpCount] = useState(0);
+const [hasMoreMessages, setHasMoreMessages] = useState(true);
+const [nextCursor, setNextCursor] = useState(null);
 
 
 // function to get all users for sidebar
@@ -50,7 +52,7 @@ setUnseenMessages(data.unseenMessages);
 }
 
 } catch (error) {
-    toast.error(error.message);
+    toast.error(error.response?.data?.message || error.message);
 }
 }
 
@@ -61,25 +63,38 @@ const fetchGroups = async () => {
           setGroups(data.groups);
         }
       } catch (error) {
-        console.error("Error fetching groups:", error.message);
+        console.error("Error fetching groups:", error.response?.data?.message || error.message);
       }
     };
 
 
-const getMessages = async (userId)=>{
-
+const getMessages = async (userId, cursor = null)=>{
 try {
-  console.log("user id is ", userId);
-const { data } = await axios.post(`/api/messages/${userId}`, {
-        privateKey: privateKey
-      });
+  let url = `/api/messages/${userId}`;
+  if (cursor) {
+    url += `?cursor=${cursor}`;
+  } else {
+    // Reset cursor state for new user
+    setHasMoreMessages(true);
+    setNextCursor(null);
+  }
 
-if (data.success){
-setMessages(data.messages);
-}
+  const { data } = await axios.post(url, {
+    privateKey: privateKey
+  });
+
+  if (data.success){
+    if (cursor) {
+      setMessages(prev => [...data.messages, ...prev]);
+    } else {
+      setMessages(data.messages);
+    }
+    setNextCursor(data.nextCursor);
+    setHasMoreMessages(!!data.nextCursor);
+  }
 
 } catch (error) {
-toast.error(error.message);
+  toast.error(error.response?.data?.message || error.message);
 }
 }
 
@@ -153,15 +168,28 @@ const sendGrpMsg = async ({ text, image, groupId }) => {
 
 
 
-const getGrpMessages = async (groupId) => {
+const getGrpMessages = async (groupId, cursor = null) => {
   try {
-    const { data } = await axios.get(`/api/group/get-grpmsg/${groupId}`, { withCredentials: true });
-     if (data) {
-      setMessages(data); // <--- update messages state
+    let url = `/api/group/get-grpmsg/${groupId}`;
+    if (cursor) {
+      url += `?cursor=${cursor}`;
+    } else {
+      setHasMoreMessages(true);
+      setNextCursor(null);
+    }
+    const { data } = await axios.get(url, { withCredentials: true });
+     if (data.success) {
+       if (cursor) {
+         setMessages(prev => [...data.messages, ...prev]);
+       } else {
+         setMessages(data.messages);
+       }
+       setNextCursor(data.nextCursor);
+       setHasMoreMessages(!!data.nextCursor);
     }
     return data;
   } catch (err) {
-    console.error("Error fetching group messages:", err);
+    console.error("Error fetching group messages:", err.response?.data?.message || err.message);
     return [];
   }
 };
@@ -644,6 +672,8 @@ const fetchLatestGrpMessages = async () => {
     totalGrpCount,
     setTotalGrpCount,
     sendAIMessage,
+    hasMoreMessages,
+    nextCursor,
   }
 
   return (

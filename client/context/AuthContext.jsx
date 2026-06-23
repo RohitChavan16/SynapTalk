@@ -183,7 +183,7 @@ export const AuthProvider = ({ children }) => {
             toast.error(data.message);
           }
         } catch (error) {
-          toast.error("Unable to get the Social Links");
+          toast.error(error.response?.data?.message || "Unable to get the Social Links");
         }
     }
 
@@ -199,7 +199,7 @@ export const AuthProvider = ({ children }) => {
           toast.error(data.message);
          }
        } catch (error) {
-        toast.error("Unable to delete the Social Links");
+        toast.error(error.response?.data?.message || "Unable to delete the Social Links");
        }
     }
 
@@ -213,7 +213,7 @@ export const AuthProvider = ({ children }) => {
           toast.error(data.message);
          }
        } catch (error) {
-        toast.error("Unable to add the Social Links");
+        toast.error(error.response?.data?.message || "Unable to add the Social Links");
        }
     }
 
@@ -227,7 +227,7 @@ export const AuthProvider = ({ children }) => {
           toast.error(data.message);
          }
        } catch (error) {
-        toast.error("Unable to edit the Social Links");
+        toast.error(error.response?.data?.message || "Unable to edit the Social Links");
        }
      }
 

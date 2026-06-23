@@ -20,6 +20,10 @@ export const handleAIMessage = async (req, res) => {
       return res.status(400).json({ error: "No message provided for AI" });
     }
 
+    if (aiQuery.length > 1000) {
+      return res.status(400).json({ error: "Message exceeds the maximum limit of 1000 characters." });
+    }
+
     const model = genAI.getGenerativeModel({ 
       model: "gemini-2.5-flash-lite"
     });

@@ -13,7 +13,8 @@ const MainChat = () => {
   const {messages, selectedUser, setSelectedUser, sendMessage, getMessages, selectedProfile, 
     setSelectedProfile, selectedProfileGrp, selectedGrpRef,
     setSelectedProfileGrp, selectedGrp, setSelectedGrp, sendGrpMsg, getGrpMessages, 
-    typingUsers, setTypingUsers, setMessages, setUnseenMessages, privateTypingUsers, sendAIMessage } = useContext(ChatContext);
+    typingUsers, setTypingUsers, setMessages, setUnseenMessages, privateTypingUsers, sendAIMessage,
+    hasMoreMessages, nextCursor } = useContext(ChatContext);
   const {authUser, onlineUsers, socket} = useContext(AuthContext);
   const scrollEnd = useRef();
   const [loading, setLoading] = useState(true);
@@ -21,6 +22,23 @@ const MainChat = () => {
   const [dropDownMsg, setDropDownMsg] = useState(false);
   const [optMsg, setOptMsg] = useState(null);
   const messagesEndRef = useRef(null);
+
+  const handleScroll = async (e) => {
+    const { scrollTop, scrollHeight } = e.target;
+    if (scrollTop === 0 && hasMoreMessages) {
+      const oldScrollHeight = scrollHeight;
+      if (selectedUser) {
+        await getMessages(selectedUser._id, nextCursor);
+      } else if (selectedGrp) {
+        await getGrpMessages(selectedGrp._id, nextCursor);
+      }
+      setTimeout(() => {
+        if (e.target) {
+          e.target.scrollTop = e.target.scrollHeight - oldScrollHeight;
+        }
+      }, 0);
+    }
+  };
 
   // Handle sending a message
 // Handle sending a message
@@ -313,7 +331,10 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
         <Loading size="lg" color="blue" text="Loading messages..." />
       </div>
     ) : (
-<div className="flex flex-col h-[calc(100%-120px)] overflow-y-scroll p-4 pb-6 space-y-4 scrollbar-thin scrollbar-thumb-purple-600/30 scrollbar-track-transparent">
+<div 
+  onScroll={handleScroll}
+  className="flex flex-col h-[calc(100%-120px)] overflow-y-scroll p-4 pb-6 space-y-4 scrollbar-thin scrollbar-thumb-purple-600/30 scrollbar-track-transparent"
+>
  
 {messages.length > 0 ? (
   <div>

@@ -1,5 +1,7 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js"; // ✅ make sure path is correct
+import AppError from '../utils/AppError.js';
+import logger from '../lib/logger.js'; // ✅ make sure path is correct
 
 export const protectRoute = async (req, res, next) => {
   try {
@@ -16,7 +18,7 @@ export const protectRoute = async (req, res, next) => {
     req.user = user;
     next();
   } catch (error) {
-    console.log(error.message);
+    logger.error("Authentication Error:", error.message);
     res.status(401).json({ success: false, message: error.message });
   }
 };

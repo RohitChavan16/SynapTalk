@@ -2,11 +2,13 @@ import User from "../models/User.js";
 import Message from "../models/Message.js";
 import cloudinary from "../lib/cloudinary.js";
 import {io, userSocketMap} from "../server.js";
+import logger from "../lib/logger.js";
 import { aes, ecc, hmac } from "../crypto/crypto.js"; 
 import mongoose from "mongoose";
+import AppError from "../utils/AppError.js";
+import { catchAsync } from "../utils/catchAsync.js";
 
-export const getUsersForSidebar = async (req, res) => {
-  try {
+export const getUsersForSidebar = catchAsync(async (req, res, next) => {
     const userId = req.user._id;
 
     // Include publicKey when fetching users
@@ -37,30 +39,34 @@ export const getUsersForSidebar = async (req, res) => {
     });
 
     res.json({ success: true, users: filteredUsers, unseenMessages });
-  } catch (error) {
-    console.log(error.message);
-    res.json({ success: false, message: error.message });
-  }
-};
+});
 
-export const getMessages = async (req, res) => {
-  try {
+export const getMessages = catchAsync(async (req, res, next) => {
     const {id: selectedUserId} = req.params;
+    const { cursor, limit = 50 } = req.query;
     const myId = req.user._id;
      if (!selectedUserId || !mongoose.Types.ObjectId.isValid(selectedUserId)) {
-      return res.status(400).json({
-        success: false,
-        message: `Invalid user ID: ${selectedUserId}`
-      });
+      return next(new AppError(`Invalid user ID: ${selectedUserId}`, 400));
     }
     const selectedUserObjectId = new mongoose.Types.ObjectId(selectedUserId);
     const myObjectId = new mongoose.Types.ObjectId(myId);
-    const messages = await Message.find({
+    
+    const query = {
       $or: [
         {senderId: myObjectId, receiverId: selectedUserObjectId},
         {senderId: selectedUserObjectId, receiverId: myObjectId},
       ]
-    });
+    };
+
+    if (cursor) {
+      query._id = { $lt: new mongoose.Types.ObjectId(cursor) };
+    }
+
+    let messages = await Message.find(query)
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit));
+
+    messages.reverse();
 
     await Message.updateMany({senderId: selectedUserId, receiverId: myId}, {seen: true});
 
@@ -70,13 +76,13 @@ export const getMessages = async (req, res) => {
         
         // Check if message has encrypted content
         if (!msg.encryptedMessage || !msg.encryptedKey || !msg.hmac) {
-          console.log('Message not encrypted, returning as-is');
+          logger.debug('Message not encrypted, returning as-is');
           return msg; // Return original message if not encrypted
         }
 
         // Check if we have private key for decryption
         if (!req.body.privateKey) {
-          console.log('Private key not provided');
+          logger.warn('Private key not provided');
           return {
             ...msg._doc,
             text: '[Private key not provided for decryption]',
@@ -89,7 +95,7 @@ export const getMessages = async (req, res) => {
         const [encryptedData, iv] = msg.encryptedMessage.split(":");
         
         if (!encryptedData || !iv) {
-          console.log('Invalid encrypted message format');
+          logger.error('Invalid encrypted message format');
           return {
             ...msg._doc,
             text: '[Invalid encrypted message format]',
@@ -184,7 +190,7 @@ export const getMessages = async (req, res) => {
         // Decrypt the actual message text using AES
        
         const decryptedText = aes.decrypt(encryptedData, sessionKey, iv);
-        console.log("12345");
+
         return { 
           ...msg._doc, 
           text: decryptedText,
@@ -205,15 +211,12 @@ export const getMessages = async (req, res) => {
 
     // Count successful vs failed decryptions
     const successCount = decryptedMessages.filter(msg => msg.decryptionStatus === 'success').length;
-    const totalCount = decryptedMessages.length;
-    
-    res.json({success: true, messages: decryptedMessages});
-    
-  } catch(error) {
-    console.error('getMessages error:', error);
-    res.json({success: false, message: error.message});
-  }
-}
+    res.json({
+      success: true, 
+      messages: decryptedMessages,
+      nextCursor: messages.length === parseInt(limit) ? messages[0]._id : null
+    });
+});
 
 
 
@@ -225,16 +228,11 @@ export const getMessages = async (req, res) => {
 
 
 
-export const markMessageSeen = async (req, res) => {
-  try{
+export const markMessageSeen = catchAsync(async (req, res, next) => {
     const {id} = req.params;
     await Message.findByIdAndUpdate(id, {seen: true});
     res.json({success: true});
-  } catch(error) {
-    console.log(error.message);
-    res.json({success: false, message: error.message});
-  }
-} 
+});
 
 
 
@@ -244,16 +242,21 @@ export const markMessageSeen = async (req, res) => {
 
 
 
-export const sendMessage = async (req, res) => {
-  try {
+export const sendMessage = catchAsync(async (req, res, next) => {
     const {text, image, receiverPublicKey} = req.body;
     const receiverId = req.params.id;
     const senderId = req.user._id;
     
     let imageUrl;
     if(image) {
-      const uploadResponse = await cloudinary.uploader.upload(image)
-      imageUrl = uploadResponse.secure_url;
+      try {
+        const uploadResponse = await cloudinary.uploader.upload(image);
+        imageUrl = uploadResponse.secure_url;
+      } catch (err) {
+        if (!text) {
+          return next(new AppError("Failed to upload image. Please try again.", 502));
+        }
+      }
     }
 
     let encryptedMessage, encryptedKey, messageHMAC;
@@ -319,11 +322,7 @@ export const sendMessage = async (req, res) => {
     
    
     res.json({success: true, newMessage});
-  } catch(error) {
-    console.log(error.message);
-    res.json({success: false, message: error.message});
-  }
-}
+});
 
 
 
@@ -334,21 +333,20 @@ export const sendMessage = async (req, res) => {
 
 
 
-export const decryptMessage = async (req, res) => {
-  try {
+export const decryptMessage = catchAsync(async (req, res, next) => {
     const { messageId, privateKey } = req.body;
     
     if (!privateKey) {
-      return res.json({ success: false, message: "Private key required for decryption" });
+      return next(new AppError("Private key required for decryption", 400));
     }
 
     const message = await Message.findById(messageId);
     if (!message) {
-      return res.json({ success: false, message: "Message not found" });
+      return next(new AppError("Message not found", 404));
     }
 
     if (!message.encryptedMessage || !message.encryptedKey || !message.hmac) {
-      return res.json({ success: false, message: "Message is not encrypted" });
+      return next(new AppError("Message is not encrypted", 400));
     }
 
     try {
@@ -377,7 +375,7 @@ export const decryptMessage = async (req, res) => {
       
       // Verify message integrity
       if (!hmac.verifyHMAC(encryptedData, sessionKey, message.hmac)) {
-        return res.json({ success: false, message: "Message integrity check failed" });
+        return next(new AppError("Message integrity check failed", 400));
       }
       
       // Decrypt the message
@@ -386,13 +384,9 @@ export const decryptMessage = async (req, res) => {
       res.json({ success: true, decryptedText });
     } catch (decryptError) {
       console.error('Decryption error:', decryptError);
-      res.json({ success: false, message: "Failed to decrypt message" });
+      return next(new AppError("Failed to decrypt message", 400));
     }
-  } catch (error) {
-    console.log(error.message);
-    res.json({ success: false, message: error.message });
-  }
-};
+});
 
 
 
@@ -404,29 +398,23 @@ export const decryptMessage = async (req, res) => {
 
 
 // Get user's public key (for encryption by others)
-export const getUserPublicKey = async (req, res) => {
-  try {
+export const getUserPublicKey = catchAsync(async (req, res, next) => {
     const { userId } = req.params;
     
     const user = await User.findById(userId, 'publicKey');
     if (!user) {
-      return res.json({ success: false, message: "User not found" });
+      return next(new AppError("User not found", 404));
     }
     
     res.json({ success: true, publicKey: user.publicKey });
-  } catch (error) {
-    console.log(error.message);
-    res.json({ success: false, message: error.message });
-  }
-};
+});
 
 // Bulk decrypt messages (for initial message load)
-export const bulkDecryptMessages = async (req, res) => {
-  try {
+export const bulkDecryptMessages = catchAsync(async (req, res, next) => {
     const { messageIds, privateKey } = req.body;
     
     if (!privateKey || !messageIds || !Array.isArray(messageIds)) {
-      return res.json({ success: false, message: "Invalid request data" });
+      return next(new AppError("Invalid request data", 400));
     }
 
     const messages = await Message.find({ _id: { $in: messageIds } });
@@ -481,17 +469,12 @@ export const bulkDecryptMessages = async (req, res) => {
     }
 
     res.json({ success: true, decryptedMessages });
-  } catch (error) {
-    console.log(error.message);
-    res.json({ success: false, message: error.message });
-  }
-};
+});
 
 
 
 
-export const getLatestMessages = async (req, res) => {
-  try {
+export const getLatestMessages = catchAsync(async (req, res, next) => {
     const userId = new mongoose.Types.ObjectId(req.user._id);
 
     const messages = await Message.aggregate([
@@ -552,10 +535,6 @@ export const getLatestMessages = async (req, res) => {
     ]);
 
     res.json({ success: true, messages });
-  } catch (error) {
-    console.error("getLatestMessages error:", error);
-    res.status(500).json({ success: false, message: "Server error" });
-  }
-};
+});
 
 

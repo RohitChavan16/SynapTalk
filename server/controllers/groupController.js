@@ -4,14 +4,16 @@ import User from '../models/User.js';
 import { GroupMessage } from '../models/GroupMsg.js';
 import { io, userSocketMap } from '../server.js';
 import cloudinary from "../lib/cloudinary.js";
+import AppError from "../utils/AppError.js";
+import { catchAsync } from "../utils/catchAsync.js";
+import logger from "../lib/logger.js";
+import mongoose from "mongoose";
 
-
-export const newGroup = async (req, res) => {
-       try {
+export const newGroup = catchAsync(async (req, res, next) => {
     const { name, description, privacy, members, groupPic } = req.body;
 
     if (!name || !members || members.length === 0) {
-      return res.status(400).json({ success: false, message: "Group name and members are required" });
+      return next(new AppError("Group name and members are required", 400));
     }
 
     let uploadedImageURL = null;
@@ -47,16 +49,9 @@ export const newGroup = async (req, res) => {
     
 
     res.status(201).json({success: true, message: "New Group Created Successfully"});
-  } catch (error) {
-    console.error("Error creating group:", error);
-    res.status(500).json({success: false, message: "Server Error" });
-  }
-}
+});
 
-
-
-export const getGroups = async(req, res) => {
-    try{
+export const getGroups = catchAsync(async(req, res, next) => {
      const userId = req.user._id; 
      const groups = await Group.find({ members: userId })
       .select("name description privacy groupPic admins members")
@@ -64,34 +59,37 @@ export const getGroups = async(req, res) => {
       .populate("members", "fullName email profilePic");
 
      res.json({ success: true, groups });
+});
 
-    } catch(error){
-      console.error("Error fetching groups:", error);
-      res.status(500).json({ success: false, message: error.message });
-    }
-}
-
-
-
-
-
-export const sendGrpMsg = async (req, res) => {
-  try {
+export const sendGrpMsg = catchAsync(async (req, res, next) => {
     const { groupId, text, image } = req.body;
 
     if (!groupId || (!text && !image)) {
-      return res.status(400).json({ error: "groupId and message required" });
+      return next(new AppError("groupId and message required", 400));
     }
 
     // Ensure user is part of the group
     const group = await Group.findById(groupId).populate("members", "_id");
-    if (!group) return res.status(404).json({ error: "Group not found" });
+    if (!group) return next(new AppError("Group not found", 404));
 
     const isMember = group.members.some(
       (m) => m._id.toString() === req.user._id.toString()
     );
     if (!isMember) {
-      return res.status(403).json({ error: "You are not a member of this group" });
+      return next(new AppError("You are not a member of this group", 403));
+    }
+
+    let imageUrl = null;
+    if (image) {
+      try {
+        const uploadResponse = await cloudinary.uploader.upload(image);
+        imageUrl = uploadResponse.secure_url;
+      } catch (err) {
+        logger.error("Cloudinary upload error in sendGrpMsg:", err);
+        if (!text) {
+          return next(new AppError("Failed to upload image. Upstream service unavailable.", 502));
+        }
+      }
     }
 
     // Save plain message
@@ -99,7 +97,7 @@ export const sendGrpMsg = async (req, res) => {
       senderId: req.user._id,
       groupId,
       text,
-      image
+      image: imageUrl
     });
 
     const populatedMsg = await message.populate("senderId", "fullName profilePic");
@@ -107,55 +105,56 @@ export const sendGrpMsg = async (req, res) => {
     io.to(groupId.toString()).emit("receiveGrpMsg", populatedMsg);
    
     res.status(201).json(populatedMsg);
-  } catch (err) {
-    console.error("Error in sendGrpMsg:", err);
-    res.status(500).json({ error: "Failed to send group message" });
-  }
-};
+});
 
 
 
 
 
 
-export const getGrpMessages = async (req, res) => {
-  try {
+export const getGrpMessages = catchAsync(async (req, res, next) => {
     const { groupId } = req.params;
+    const { cursor, limit = 50 } = req.query;
 
-    const messages = await GroupMessage.find({ groupId })
+    const query = { groupId };
+    if (cursor) {
+      query._id = { $lt: new mongoose.Types.ObjectId(cursor) };
+    }
+
+    let messages = await GroupMessage.find(query)
       .populate("senderId", "fullName profilePic")
-      .sort({ createdAt: 1 });
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit));
 
-    res.json(messages);
-  } catch (err) {
-    res.status(500).json({ error: "Failed to fetch group messages" });
-  }
-};
+    messages.reverse();
+
+    res.json({
+      success: true,
+      messages: messages,
+      nextCursor: messages.length === parseInt(limit) ? messages[0]._id : null
+    });
+});
 
 
-export const addExtraMem = async (req, res) => {
-   try {
+export const addExtraMem = catchAsync(async (req, res, next) => {
     const {grpId, members} = req.body;
     const userId = req.user._id;
 
     if (!grpId || !members || !Array.isArray(members) || members.length === 0) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Invalid request. Group ID and members array required" 
-      });
+      return next(new AppError("Invalid request. Group ID and members array required", 400));
     }
 
     const groupCheck = await Group.findById(grpId).select("admins");
 
     if(!groupCheck){
-      return res.status(400).json({success: false, message: "Group not found"});
+      return next(new AppError("Group not found", 404));
     }
     
     const isAdmin = groupCheck.admins.some(admin =>
       admin.toString() === userId.toString()
     );
 
-    if (!isAdmin) return res.status(403).json({ success: false, message: "Only admins can update the group" });
+    if (!isAdmin) return next(new AppError("Only admins can update the group", 403));
 
     // Atomic update prevents duplicates and handles concurrent updates
     const updatedGroup = await Group.findByIdAndUpdate(
@@ -167,11 +166,7 @@ export const addExtraMem = async (req, res) => {
     .populate("admins", "_id fullName email profilePic");
 
     res.status(200).json({success: true, message: "Member added", group: updatedGroup});
-
-   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-}
+});
 
 
 
@@ -185,37 +180,32 @@ export const addExtraMem = async (req, res) => {
 
 
 
-export const deleteMember = async (req, res) => {
-   try {
+export const deleteMember = catchAsync(async (req, res, next) => {
      const memberId = req.params.id;
      const userId = req.user._id;
      const { groupId } = req.body;
      const group = await Group.findById(groupId);
     if(!group){
-      return res.status(400).json({success: false, message: "Group not found"});
+      return next(new AppError("Group not found", 404));
     }
 
     const isAdmin = group.admins.some(admin =>
       admin._id.toString() === userId.toString()
     );
-    if (!isAdmin && memberId.toString() !== userId.toString()) return res.status(403).json({ success: false, message: "Only admins can remove members" });
+    if (!isAdmin && memberId.toString() !== userId.toString()) return next(new AppError("Only admins can remove members", 403));
     
     const isTargetAdmin = group.admins.some(admin =>
       admin._id.toString() === memberId.toString()
     );
     
     if (isTargetAdmin && group.admins.length === 1) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Cannot remove the last admin" 
-      });
+      return next(new AppError("Cannot remove the last admin", 400));
     }
 
     const member = await User.findById(memberId);
 
     if(!member){
-      res.status(400).json({success: false, message: "User not found"});
-      return ;
+      return next(new AppError("User not found", 404));
     }
 
     group.members = group.members.filter(
@@ -229,10 +219,7 @@ export const deleteMember = async (req, res) => {
     await group.save();
 
     res.status(200).json({success: true, message: "Member Deleted", group})
-   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-}
+});
 
 
 
@@ -246,22 +233,20 @@ export const deleteMember = async (req, res) => {
 
 
 
-export const updateGrp = async (req, res) => {
-    try {
-   
+export const updateGrp = catchAsync(async (req, res, next) => {
     const groupId = req.params.id;
     const userId = req.user._id;
     const { name, description, groupPic } = req.body;
 
     const group = await Group.findById(groupId);
     if(!group){
-      return res.status(400).json({success: false, message: "Group not found"});
+      return next(new AppError("Group not found", 404));
     }
 
     const isAdmin = group.admins.some(admin =>
       admin._id.toString() === userId.toString()
     );
-    if (!isAdmin) return res.status(403).json({ success: false, message: "Only admins can update the group" });
+    if (!isAdmin) return next(new AppError("Only admins can update the group", 403));
     
     if(groupPic && groupPic.startsWith("data:")) {
     const upload = await cloudinary.uploader.upload(groupPic);
@@ -275,11 +260,7 @@ export const updateGrp = async (req, res) => {
     await group.save();
     
     res.status(200).json({success: true, message: "Updated successfully", group});
-
-   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-}
+});
 
 
 
@@ -289,8 +270,7 @@ export const updateGrp = async (req, res) => {
 
 
 
-export const getLatestGrpMsg = async (req, res) => {
-  try {
+export const getLatestGrpMsg = catchAsync(async (req, res, next) => {
     const userId = req.user._id;
 
     // Get all groups the user is part of
@@ -328,8 +308,4 @@ export const getLatestGrpMsg = async (req, res) => {
     const validMessages = latestMessages.filter(msg => msg !== null);
 
     return res.json({ success: true, messages: validMessages });
-  } catch (error) {
-    console.error("Error fetching latest group messages:", error);
-    return res.status(500).json({ success: false, message: error.message });
-  }
-};
+});

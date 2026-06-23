@@ -1,4 +1,5 @@
 import transporter from "../config/nodemailer.js";
+import logger from "../lib/logger.js";
 
 
 export const sendConfirmationEmail = async (to, subject, htmlContent, attachments = []) => {
@@ -12,7 +13,7 @@ export const sendConfirmationEmail = async (to, subject, htmlContent, attachment
 
   try {
     const info = await transporter.sendMail(mailOptions);
-    console.log(`📧 Email sent successfully to ${to}:`, info.messageId);
+    logger.info(`📧 Email sent successfully to ${to}:`, info.messageId);
   } catch (error) {
     console.error(`❌ Email failed to ${to}:`, error.message);
   }

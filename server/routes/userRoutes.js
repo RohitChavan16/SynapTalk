@@ -1,6 +1,8 @@
 import express from 'express';
 import { addSocialLink, checkAuth, deleteSocialLink, editSocialLink, getSocialLink, login, signup, updateProfile } from '../controllers/userController.js';
 import { protectRoute } from '../middleware/auth.js';
+import { globalRateLimitMiddleware, strictRateLimitMiddleware } from "../middleware/rateLimiter.js";
+import logger from "../lib/logger.js";
 import passport from "passport";
 import { google } from "googleapis";
 import { generateToken } from "../utils/jwtToken.js";
@@ -9,8 +11,8 @@ import jwt from "jsonwebtoken";
 const userRouter = express.Router();
 
 // Standard auth routes
-userRouter.post("/signup", signup);
-userRouter.post("/login", login);
+userRouter.post("/signup", strictRateLimitMiddleware, signup);
+userRouter.post("/login", strictRateLimitMiddleware, login);
 userRouter.put("/update-profile", protectRoute, updateProfile);
 userRouter.get("/check", protectRoute, checkAuth);
 
@@ -42,7 +44,7 @@ userRouter.get(
       
       if (user.privateKey) {
         
-        console.log("🔑 Sending private key to new Google user");
+        logger.info("🔑 Sending private key to new Google user");
         const privateKey = user.privateKey;
         
         user.privateKey = null;
@@ -54,7 +56,7 @@ userRouter.get(
         );
       } else {
         
-        console.log("✅ Existing user login");
+        logger.info("✅ Existing user login");
         res.redirect(`${process.env.CLIENT_URL}/?token=${token}`);
       }
     } catch (error) {
@@ -71,7 +73,7 @@ userRouter.get("/google/contacts", async (req, res) => {
 
     const authHeader = req.headers.authorization;
     if (!authHeader) {
-      console.log("❌ No Authorization header");
+      logger.warn("❌ No Authorization header");
       return res.status(401).json({ message: "No token provided" });
     }
 
@@ -83,12 +85,12 @@ userRouter.get("/google/contacts", async (req, res) => {
 
     const user = await User.findById(decoded.userId);
     if (!user) {
-      console.log("❌ User not found");
+      logger.warn("❌ User not found");
       return res.status(401).json({ message: "User not found" });
     }
 
     if (!user.googleAccessToken) {
-      console.log("❌ Missing Google Access Token");
+      logger.warn("❌ Missing Google Access Token");
       return res.status(400).json({ message: "Google login required" });
     }
 

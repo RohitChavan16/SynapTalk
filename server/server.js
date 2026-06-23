@@ -11,6 +11,13 @@ import passport from "./lib/passport.js";
 import groupRouter from "./routes/groupRoutes.js";
 import aiRouter from "./routes/aiRoutes.js";
 import otpRouter from "./routes/otpRoutes.js";
+import healthRouter from "./routes/healthRoutes.js";
+import { logger } from "./lib/logger.js";
+import { globalErrorHandler } from "./middleware/errorHandler.js";
+import pinoHttp from "pino-http";
+import crypto from "crypto";
+import mongoose from "mongoose";
+import { globalRateLimitMiddleware } from "./middleware/rateLimiter.js";
 
 const app = express();
 const server = http.createServer(app);
@@ -27,10 +34,24 @@ export const io = new Server(server, {
   pingInterval: 25000,
 });
 
+app.use(
+  pinoHttp({
+    logger,
+    genReqId: (req) => req.headers['x-request-id'] || crypto.randomUUID(),
+    customProps: (req, res) => {
+      return {
+        userId: req.user?._id || 'unauthenticated',
+      };
+    },
+  })
+);
+
 app.use((req, res, next) => {
   req.io = io; 
   next();
 });
+
+app.use(globalRateLimitMiddleware);
 
 // Storing online users and call rooms
 export const userSocketMap = {};
@@ -62,7 +83,7 @@ const broadcastToRoom = (roomId, event, data, excludeUserId = null) => {
 
 io.on("connection", (socket) => {
   const userId = socket.handshake.query.userId;
-  console.log("User Connected", userId);
+  logger.info("User Connected", { userId });
 
   if (userId) {
     userSocketMap[userId] = socket.id;
@@ -219,13 +240,13 @@ socket.on("stopTyping", ({ receiverId, groupId, senderId }) => {
       roomSettings: room.settings
     });
 
-    console.log(`User ${userId} joined call room ${roomId}. Total participants: ${room.participants.size}`);
+    logger.info(`User ${userId} joined call room ${roomId}. Total participants: ${room.participants.size}`);
   });
 
   // Leave video call room
   socket.on("leave-call-room", (data) => {
     const { roomId, reason = "user_left" } = data;
-    console.log(`User ${userId} leaving call room ${roomId}`);
+    logger.info(`User ${userId} leaving call room ${roomId}`);
 
     if (callRooms.has(roomId)) {
       const room = callRooms.get(roomId);
@@ -251,7 +272,7 @@ socket.on("stopTyping", ({ receiverId, groupId, senderId }) => {
       // Clean up empty rooms
       if (room.participants.size === 0) {
         callRooms.delete(roomId);
-        console.log(`Call room ${roomId} deleted (empty)`);
+        logger.info(`Call room ${roomId} deleted (empty)`);
       }
     }
   });
@@ -480,7 +501,7 @@ socket.on("screen-share-started", (data) => {
       timestamp: Date.now()
     });
     
-    console.log(`User ${userId} started screen sharing in room ${roomId}`);
+    logger.info(`User ${userId} started screen sharing in room ${roomId}`);
   }
 });
 
@@ -502,7 +523,7 @@ socket.on("screen-share-stopped", (data) => {
       timestamp: Date.now()
     });
     
-    console.log(`User ${userId} stopped screen sharing in room ${roomId}`);
+    logger.info(`User ${userId} stopped screen sharing in room ${roomId}`);
   }
 });
 
@@ -563,7 +584,7 @@ socket.on("screen-share-stopped", (data) => {
 
   socket.on("call-request", (data) => {
   const { to, from, fromName, roomId } = data;
-  console.log(`Call request from ${from} (${fromName}) to ${to}`);
+  logger.info(`Call request from ${from} (${fromName}) to ${to}`);
   
   const targetSocket = getSocketByUserId(to);
   if (targetSocket) {
@@ -810,14 +831,11 @@ app.get("/api/call/stats", (req, res) => {
 
 
 
+app.use("/api/healthz", healthRouter);
+
 app.get("/", (req, res) => {
   res.send("API is working with Video Calling Support 🚀📹");
 });
-
-
-
-
-
 
 // Cleanup function for inactive rooms (run periodically)
 const cleanupInactiveRooms = () => {
@@ -827,7 +845,7 @@ const cleanupInactiveRooms = () => {
   for (const [roomId, room] of callRooms.entries()) {
     if (room.participants.size === 0 && (now - room.createdAt) > inactiveTimeout) {
       callRooms.delete(roomId);
-      console.log(`Cleaned up inactive room: ${roomId}`);
+      logger.info(`Cleaned up inactive room: ${roomId}`);
     }
   }
 };
@@ -835,11 +853,44 @@ const cleanupInactiveRooms = () => {
 // Run cleanup every 30 minutes
 setInterval(cleanupInactiveRooms, 30 * 60 * 1000);
 
+// Global Error Handler
+app.use(globalErrorHandler);
 
 await connectDB();
 
 const PORT = process.env.PORT || 5001;
 server.listen(PORT, () => {
-  console.log(`Server with Video Calling is running on port ${PORT} 🚀📹`);
-  console.log(`WebSocket signaling server ready for video calls`);
+  logger.info(`Server with Video Calling is running on port ${PORT} 🚀📹`);
+  logger.info(`WebSocket signaling server ready for video calls`);
 });
+
+// Graceful Shutdown
+const gracefulShutdown = () => {
+  logger.info("Received shutdown signal, shutting down gracefully...");
+
+  // Notify clients
+  if (io) {
+    io.emit("server_shutdown", { message: "Server is shutting down for maintenance" });
+  }
+
+  server.close(async () => {
+    logger.info("Closed out remaining HTTP connections.");
+    try {
+      await mongoose.connection.close();
+      logger.info("MongoDB connection closed.");
+      process.exit(0);
+    } catch (err) {
+      logger.error(err, "Error during MongoDB disconnection");
+      process.exit(1);
+    }
+  });
+
+  // Force close after 10s
+  setTimeout(() => {
+    logger.error("Could not close connections in time, forcefully shutting down");
+    process.exit(1);
+  }, 10000);
+};
+
+process.on("SIGTERM", gracefulShutdown);
+process.on("SIGINT", gracefulShutdown);
