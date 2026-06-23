@@ -15,20 +15,27 @@ export const getUsersForSidebar = async (req, res) => {
       "fullName email publicKey profilePic bio"
     );
 
-    const unseenMessages = {};
-    const promises = filteredUsers.map(async (user) => {
-      const messages = await Message.find({
-        senderId: user._id,
-        receiverId: userId,
-        seen: false,
-      });
-
-      if (messages.length > 0) {
-        unseenMessages[user._id] = messages.length;
+    // Aggregate unseen messages grouped by senderId
+    const unseenCounts = await Message.aggregate([
+      { 
+        $match: { 
+          receiverId: new mongoose.Types.ObjectId(userId), 
+          seen: false 
+        } 
+      },
+      { 
+        $group: { 
+          _id: "$senderId", 
+          count: { $sum: 1 } 
+        } 
       }
+    ]);
+
+    const unseenMessages = {};
+    unseenCounts.forEach((item) => {
+      unseenMessages[item._id.toString()] = item.count;
     });
 
-    await Promise.all(promises);
     res.json({ success: true, users: filteredUsers, unseenMessages });
   } catch (error) {
     console.log(error.message);

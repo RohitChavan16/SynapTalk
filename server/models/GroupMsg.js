@@ -10,4 +10,7 @@ const groupMessageSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Performance Indexes
+groupMessageSchema.index({ groupId: 1, createdAt: -1 });
+
 export const GroupMessage = mongoose.model("GroupMessage", groupMessageSchema);

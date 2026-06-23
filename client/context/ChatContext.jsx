@@ -490,32 +490,47 @@ const senderId = newMessage.senderId._id || newMessage.senderId;
 
 const fetchLatestMessages = async () => {
   try {
-    
     const res = await axios.get("/api/messages/latest-msg");
     
     if (res.data.success && Array.isArray(res.data.messages)) {
       const latest = {};
 
+      // Step 1: Collect IDs of encrypted messages
+      const encryptedMsgIds = [];
+      res.data.messages.forEach(msg => {
+        if (msg.encryptedMessage && msg.encryptedKey && privateKey) {
+          encryptedMsgIds.push(msg._id);
+        }
+      });
+
+      // Step 2: Bulk decrypt all at once
+      const decryptedMap = {};
+      if (encryptedMsgIds.length > 0) {
+        try {
+          const { data } = await axios.post(`/api/messages/bulk-decrypt`, {
+            messageIds: encryptedMsgIds,
+            privateKey: privateKey
+          }, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          
+          if (data.success && Array.isArray(data.decryptedMessages)) {
+            data.decryptedMessages.forEach((item) => {
+              decryptedMap[item.messageId] = item.decryptedText;
+            });
+          }
+        } catch (err) {
+          console.error("Bulk decryption failed:", err);
+        }
+      }
+
+      // Step 3: Map the results
       for (const msg of res.data.messages) {
         let text = msg.text;
        
         // Decrypt if needed
         if (msg.encryptedMessage && msg.encryptedKey && privateKey) {
-          try {
-           
-            const { data } = await axios.post(`/api/messages/decrypt`, {
-              messageId: msg._id,
-              privateKey: privateKey
-            }, {
-              headers: {
-              Authorization: `Bearer ${token}` 
-             }
-            });
-            if (data.success) text = data.decryptedText;
-          } catch(err) {
-            
-            text = "[Unable to decrypt message]";
-          }
+          text = decryptedMap[msg._id] || "[Unable to decrypt message]";
         }
 
         // Handle image messages

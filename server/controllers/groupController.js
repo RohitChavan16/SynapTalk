@@ -145,27 +145,28 @@ export const addExtraMem = async (req, res) => {
       });
     }
 
-    const group = await Group.findById(grpId)
-    .populate("members", "_id fullName email profilePic")
-    .populate("admins", "_id fullName email profilePic");
+    const groupCheck = await Group.findById(grpId).select("admins");
 
-    if(!group){
+    if(!groupCheck){
       return res.status(400).json({success: false, message: "Group not found"});
     }
     
-    const isAdmin = group.admins.some(admin =>
-      admin._id.toString() === userId.toString()
+    const isAdmin = groupCheck.admins.some(admin =>
+      admin.toString() === userId.toString()
     );
 
     if (!isAdmin) return res.status(403).json({ success: false, message: "Only admins can update the group" });
 
-    const newMem = [...group.members, ...members];
+    // Atomic update prevents duplicates and handles concurrent updates
+    const updatedGroup = await Group.findByIdAndUpdate(
+      grpId,
+      { $addToSet: { members: { $each: members } } },
+      { new: true }
+    )
+    .populate("members", "_id fullName email profilePic")
+    .populate("admins", "_id fullName email profilePic");
 
-    group.members = newMem;
- 
-    await group.save();
-
-    res.status(200).json({success: true, message: "Member added", group});
+    res.status(200).json({success: true, message: "Member added", group: updatedGroup});
 
    } catch (err) {
     res.status(500).json({ success: false, message: err.message });

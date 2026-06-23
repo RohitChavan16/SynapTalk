@@ -6,12 +6,12 @@ const messageRouter = express.Router();
 
 messageRouter.get("/users", protectRoute, getUsersForSidebar);
 messageRouter.post("/decrypt", protectRoute, decryptMessage);
+messageRouter.post("/bulk-decrypt", protectRoute, bulkDecryptMessages);
+messageRouter.get("/latest-msg", protectRoute, getLatestMessages);
+messageRouter.get("/public-key/:userId", protectRoute, getUserPublicKey);
+
 messageRouter.post("/:id", protectRoute, getMessages);
 messageRouter.put("/mark/:id", protectRoute, markMessageSeen);
 messageRouter.post("/send/:id", protectRoute, sendMessage);
-messageRouter.get("/latest-msg", protectRoute, getLatestMessages);
-
-messageRouter.get("/public-key/:userId", protectRoute, getUserPublicKey);
-messageRouter.post("/bulk-decrypt", protectRoute, bulkDecryptMessages);
 
 export default messageRouter;
