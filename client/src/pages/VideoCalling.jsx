@@ -52,6 +52,8 @@ const VideoCalling = ({
   const screenStream = useRef(null);
   const originalVideoTrack = useRef(null);
   const screenAudioTrack = useRef(null);
+  const reconnectTimer = useRef(null);
+  const reconnectAttempts = useRef(0);
   
   // WebRTC config
   const rtcConfig = {
@@ -283,9 +285,49 @@ socket.current.on('participant-screen-share', (data) => {
     peerConnection.current.oniceconnectionstatechange = () => {
       const state = peerConnection.current?.iceConnectionState;
       console.log('ICE connection state:', state);
-      if (state === 'disconnected' || state === 'failed') {
-        setCallStatus('Connection lost');
-        setConnectionQuality(0);
+      if (state === 'connected' || state === 'completed') {
+        if (reconnectTimer.current) {
+          clearTimeout(reconnectTimer.current);
+          reconnectTimer.current = null;
+        }
+        reconnectAttempts.current = 0;
+        setCallStatus('connected');
+        updateConnectionQuality(state);
+      } else if (state === 'disconnected' || state === 'failed') {
+        if (reconnectAttempts.current === 0) {
+          setCallStatus('Reconnecting...');
+          setConnectionQuality(0);
+          reconnectAttempts.current = 1;
+          
+          reconnectTimer.current = setTimeout(async () => {
+            if (peerConnection.current && peerConnection.current.iceConnectionState !== 'connected') {
+              console.log('Triggering ICE restart...');
+              try {
+                const offer = await peerConnection.current.createOffer({ iceRestart: true });
+                await peerConnection.current.setLocalDescription(offer);
+                if (socket.current) {
+                  socket.current.emit("webrtc-offer", {
+                    to: remoteUserId,
+                    from: authUser?._id,
+                    offer
+                  });
+                }
+                
+                reconnectTimer.current = setTimeout(() => {
+                  if (peerConnection.current && peerConnection.current.iceConnectionState !== 'connected') {
+                    setCallStatus('Connection Failed');
+                    setConnectionQuality(0);
+                    handleCallEnded();
+                  }
+                }, 8000); // 8s additional wait
+              } catch (err) {
+                console.error("ICE restart failed:", err);
+                setCallStatus('Connection Failed');
+                handleCallEnded();
+              }
+            }
+          }, 2000); // Wait 2s before triggering restart
+        }
       }
     };
   };

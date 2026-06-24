@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { AuthContext } from "./AuthContext";
+import { CryptoContext } from "./CryptoContext";
 import toast from "react-hot-toast";
 import axiosInstance from "../src/lib/axiosInstance.js";
 
@@ -15,7 +16,8 @@ const [selectedProfile, setSelectedProfile] = useState(false);
 const [selectedProfileGrp, setSelectedProfileGrp] = useState(false);
 const [unseenMessages, setUnseenMessages] = useState({});
 const [unseenGrpMessages, setUnseenGrpMessages] = useState({});
-const {socket, axios, privateKey, authUser, token} = useContext(AuthContext);
+const {socket, axios, authUser, token} = useContext(AuthContext); // Removed privateKey
+const { encryptMessage, decryptMessage, isCryptoReady } = useContext(CryptoContext);
 const [groups, setGroups] = useState([]);
 const [active, setActive] = useState("My Chat");
 const [typingUsers, setTypingUsers] = useState({});
@@ -27,6 +29,8 @@ const [totalUserCount, setTotalUserCount] = useState(0);
 const [totalGrpCount, setTotalGrpCount] = useState(0);
 const [hasMoreMessages, setHasMoreMessages] = useState(true);
 const [nextCursor, setNextCursor] = useState(null);
+const [isUsersLoading, setIsUsersLoading] = useState(true);
+const [isGroupsLoading, setIsGroupsLoading] = useState(true);
 
 
 // function to get all users for sidebar
@@ -42,7 +46,7 @@ useEffect(() => {
 }, [selectedGrp]);
 
 const getUsers = async () =>{
-
+setIsUsersLoading(true);
 try {
 const { data } = await axios.get("/api/messages/users");
 
@@ -53,10 +57,13 @@ setUnseenMessages(data.unseenMessages);
 
 } catch (error) {
     toast.error(error.response?.data?.message || error.message);
+} finally {
+    setIsUsersLoading(false);
 }
 }
 
 const fetchGroups = async () => {
+      setIsGroupsLoading(true);
       try {
         const { data } = await axios.get("/api/group/get-groups");
         if (data.success) {
@@ -64,80 +71,97 @@ const fetchGroups = async () => {
         }
       } catch (error) {
         console.error("Error fetching groups:", error.response?.data?.message || error.message);
+      } finally {
+        setIsGroupsLoading(false);
       }
     };
 
 
-const getMessages = async (userId, cursor = null)=>{
-try {
-  let url = `/api/messages/${userId}`;
-  if (cursor) {
-    url += `?cursor=${cursor}`;
-  } else {
-    // Reset cursor state for new user
-    setHasMoreMessages(true);
-    setNextCursor(null);
-  }
-
-  const { data } = await axios.post(url, {
-    privateKey: privateKey
-  });
-
-  if (data.success){
+const getMessages = async (userId, cursor = null) => {
+  try {
+    let url = `/api/messages/${userId}`;
     if (cursor) {
-      setMessages(prev => [...data.messages, ...prev]);
+      url += `?cursor=${cursor}`;
     } else {
-      setMessages(data.messages);
+      setHasMoreMessages(true);
+      setNextCursor(null);
     }
-    setNextCursor(data.nextCursor);
-    setHasMoreMessages(!!data.nextCursor);
+
+    const { data } = await axios.post(url);
+
+    if (data.success) {
+      // Local Decryption Phase
+      const decryptedMessages = await Promise.all(
+        data.messages.map(async (msg) => {
+          const isSender = msg.senderId === authUser._id || msg.senderId?._id === authUser._id;
+          const decryptedText = await decryptMessage(msg, isSender);
+          return { ...msg, text: decryptedText };
+        })
+      );
+
+      if (cursor) {
+        setMessages((prev) => [...decryptedMessages, ...prev]);
+      } else {
+        setMessages(decryptedMessages);
+      }
+      setNextCursor(data.nextCursor);
+      setHasMoreMessages(!!data.nextCursor);
+    }
+  } catch (error) {
+    toast.error(error.response?.data?.message || error.message);
   }
-
-} catch (error) {
-  toast.error(error.response?.data?.message || error.message);
-}
-}
-
-
-// function to send message to selected user
+};
 
 const sendMessage = async (messageData) => {
-try {
-    if(!selectedUser) return;
-     if (!selectedUser.publicKey) {
-        toast.error("Unable to encrypt message: recipient's public key not found");
-        return;
+  try {
+    if (!selectedUser) return;
+    if (!selectedUser.publicKey) {
+      toast.error("Unable to encrypt message: recipient's public key not found");
+      return;
+    }
+
+    let payload = { ...messageData };
+
+    // Local Encryption Phase
+    if (messageData.text) {
+      const encryptedPayload = await encryptMessage(
+        messageData.text,
+        selectedUser.publicKey,
+        selectedUser._id
+      );
+      payload = { ...payload, ...encryptedPayload };
+      delete payload.text;
+    }
+
+    const { data } = await axios.post(`/api/messages/send/${selectedUser._id}`, payload);
+
+    if (data.success) {
+      const displayMessage = {
+        ...data.newMessage,
+        text: messageData.text // Keep original text for immediate UI display
+      };
+      
+      if (seenMessageIds.current.has(String(displayMessage._id))) {
+        displayMessage.seen = true;
       }
-    const payload = {
-      ...messageData,
-      receiverPublicKey: selectedUser.publicKey  // 🔹 add this
-    };
-
-    const {data} = await axios.post(`/api/messages/send/${selectedUser._id}`, payload);
-
-    if(data.success){
-    const displayMessage = {
-          ...data.newMessage,
-          text: messageData.text // Keep original text for immediate display
-    };
-    setMessages((prevMessages) => [...prevMessages, displayMessage]);
-    setLatestMessages(prev => ({
+      
+      setMessages((prevMessages) => [...prevMessages, displayMessage]);
+      setLatestMessages((prev) => ({
         ...prev,
         [selectedUser._id]: {
           text: messageData.text || (messageData.image ? "📷 Photo" : ""),
           createdAt: new Date().toISOString(),
           seen: false,
-          isSender: true
-        }
+          isSender: true,
+        },
       }));
     } else {
-    toast.error(data.message);
+      toast.error(data.message);
     }
-
-} catch (error) {
-   toast.error(error.message);
-}
-}
+  } catch (error) {
+    toast.error(error.message);
+  }
+};
 
 
 
@@ -244,6 +268,7 @@ const sendAIMessage = async ({ text, receiverId, groupId }) => {
   }
 };
 
+  const seenMessageIds = useRef(new Set());
 
 // Register socket listeners ONCE when socket connects
 useEffect(() => {
@@ -254,7 +279,55 @@ useEffect(() => {
    socket.onAny((event, ...args) => {
     
   });
-  
+  socket.on("messagesSeen", ({ byUserId }) => {
+    setMessages((prev) => 
+      prev.map((msg) => {
+        const senderIdStr = String(typeof msg.senderId === 'object' ? (msg.senderId?._id || msg.senderId) : msg.senderId);
+        const receiverIdStr = String(typeof msg.receiverId === 'object' ? (msg.receiverId?._id || msg.receiverId) : msg.receiverId);
+        
+        if (senderIdStr === String(authUser._id) && receiverIdStr === String(byUserId) && !msg.seen) {
+          return { ...msg, seen: true };
+        }
+        return msg;
+      })
+    );
+    
+    setLatestMessages((prev) => {
+      if (prev[byUserId] && prev[byUserId].isSender && !prev[byUserId].seen) {
+        return {
+          ...prev,
+          [byUserId]: { ...prev[byUserId], seen: true }
+        };
+      }
+      return prev;
+    });
+  });
+
+  socket.on("messageSeen", ({ byUserId, messageId }) => {
+    console.log("🔥 RECEIVED messageSeen via SOCKET for msg:", messageId, "byUser:", byUserId);
+    seenMessageIds.current.add(String(messageId));
+    
+    setMessages((prev) => 
+      prev.map((msg) => {
+        if (String(msg._id) === String(messageId)) {
+          console.log("✅ MATCHED msg locally, updating seen: true");
+          return { ...msg, seen: true };
+        }
+        return msg;
+      })
+    );
+    
+    setLatestMessages((prev) => {
+      if (prev[byUserId] && prev[byUserId].isSender && !prev[byUserId].seen) {
+        return {
+          ...prev,
+          [byUserId]: { ...prev[byUserId], seen: true }
+        };
+      }
+      return prev;
+    });
+  });
+
 
   socket.on("userTyping", (data) => {
    
@@ -348,21 +421,13 @@ useEffect(() => {
     if (currentUser && newMessage.senderId._id === currentUser._id) {
       
      
-      
-      if (newMessage.encryptedMessage && newMessage.encryptedKey && privateKey) {
+      if (newMessage.encryptedMessage) {
         try {
-          const { data } = await axios.post(`/api/messages/decrypt`, {
-            messageId: newMessage._id,
-            privateKey: privateKey
-          });
-         
-          
-          if (data.success) {
-            displayMessage = { ...newMessage, text: data.decryptedText };
-
-          }
-         
+          const isSender = false; // We are receiving it from socket
+          const decryptedText = await decryptMessage(newMessage, isSender);
+          displayMessage = { ...newMessage, text: decryptedText };
         } catch (error) {
+          console.error("Local decryption failed for socket message:", error);
           displayMessage = { ...newMessage, text: '[Unable to decrypt message]' };
         }
       }
@@ -411,6 +476,8 @@ const senderId = newMessage.senderId._id || newMessage.senderId;
     socket.off("userTyping");
     socket.off("userStopTyping");
     socket.off("receiveGrpMsg");
+    socket.off("messagesSeen");
+    socket.off("messageSeen");
   };
 }, [socket]); // ⚠️ Only depend on socket, not selectedUser/selectedGrp
 
@@ -428,7 +495,7 @@ const senderId = newMessage.senderId._id || newMessage.senderId;
         const { data } = await axios.post("/api/group/new-group", payload);
         if(data.success){
            toast.success("Group created successfully");
-           setTimeout(() => window.location.reload(), 1500);
+           await fetchGroups();
            return ;
         }
         toast.error(data.message);
@@ -523,58 +590,32 @@ const fetchLatestMessages = async () => {
     if (res.data.success && Array.isArray(res.data.messages)) {
       const latest = {};
 
-      // Step 1: Collect IDs of encrypted messages
-      const encryptedMsgIds = [];
-      res.data.messages.forEach(msg => {
-        if (msg.encryptedMessage && msg.encryptedKey && privateKey) {
-          encryptedMsgIds.push(msg._id);
-        }
-      });
-
-      // Step 2: Bulk decrypt all at once
-      const decryptedMap = {};
-      if (encryptedMsgIds.length > 0) {
-        try {
-          const { data } = await axios.post(`/api/messages/bulk-decrypt`, {
-            messageIds: encryptedMsgIds,
-            privateKey: privateKey
-          }, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
+      const decryptedResults = await Promise.all(
+        res.data.messages.map(async (msg) => {
+          let text = msg.text;
           
-          if (data.success && Array.isArray(data.decryptedMessages)) {
-            data.decryptedMessages.forEach((item) => {
-              decryptedMap[item.messageId] = item.decryptedText;
-            });
+          if (msg.encryptedMessage) {
+             text = await decryptMessage(msg, msg.isSender);
           }
-        } catch (err) {
-          console.error("Bulk decryption failed:", err);
-        }
-      }
 
-      // Step 3: Map the results
-      for (const msg of res.data.messages) {
-        let text = msg.text;
-       
-        // Decrypt if needed
-        if (msg.encryptedMessage && msg.encryptedKey && privateKey) {
-          text = decryptedMap[msg._id] || "[Unable to decrypt message]";
-        }
+          if (!text && msg.image) {
+            text = "📷 Photo";
+          }
+          
+          return { ...msg, text };
+        })
+      );
 
-        // Handle image messages
-        if (!text && msg.image) {
-          text = "📷 Photo";
-        }
-
+      for (const msg of decryptedResults) {
         const otherUserId = msg.isSender ? 
           (msg.receiver._id || msg.receiver) : 
           (msg.sender._id || msg.sender);
 
         latest[otherUserId] = {
-          text,
+          text: msg.text,
           createdAt: msg.createdAt,
           seen: msg.seen || false,
-          isSender: msg.isSender // Track if current user sent this
+          isSender: msg.isSender
         };
       }
 
@@ -674,6 +715,8 @@ const fetchLatestGrpMessages = async () => {
     sendAIMessage,
     hasMoreMessages,
     nextCursor,
+    isUsersLoading,
+    isGroupsLoading
   }
 
   return (

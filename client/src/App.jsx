@@ -1,17 +1,18 @@
-import React, { useContext } from 'react'
+import React, { useContext, Suspense, lazy } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import Home from './pages/Home'
 import Login from './pages/Login'
-import Profile from './pages/Profile'
 import toast, { Toaster } from "react-hot-toast"
 import { AuthContext } from '../context/AuthContext'
-import Contacts from './pages/Contact'
-import VideoCalling from './pages/VideoCalling'
 import { CallContext } from '../context/CallContext'
 import { Phone, PhoneOff } from 'lucide-react'
 import ResetPassword from './pages/ResetPassword'
 import VerifyEmail from './pages/VerifyEmail'
 import assets from './assets/assets'
+
+const Profile = lazy(() => import('./pages/Profile'));
+const Contacts = lazy(() => import('./pages/Contact'));
+const VideoCalling = lazy(() => import('./pages/VideoCalling'));
 
 
 const App = () => {
@@ -92,6 +93,14 @@ const App = () => {
         statusText = "Call Rejected";
         statusColor = "bg-red-600";
         break;
+      case "Reconnecting...":
+        statusText = "Reconnecting...";
+        statusColor = "bg-yellow-600";
+        break;
+      case "Connection Failed":
+        statusText = "Connection Failed";
+        statusColor = "bg-red-600";
+        break;
       default:
         return null;
     }
@@ -127,14 +136,16 @@ const App = () => {
   if (isInCall) {
     const backendUrl = import.meta.env.VITE_BACKEND_URL;
     return (
-      <VideoCalling
-        roomId={roomId}
-        userId={authUser._id}
-        remoteUserId={remoteUserId}
-        onCallEnd={handleCallEnd}
-        userName={authUser.fullName}
-        signalingServerUrl={backendUrl}
-      />
+      <Suspense fallback={<div className="flex justify-center items-center h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div><span className="ml-2 text-white">Loading Call...</span></div>}>
+        <VideoCalling
+          roomId={roomId}
+          userId={authUser._id}
+          remoteUserId={remoteUserId}
+          onCallEnd={handleCallEnd}
+          userName={authUser.fullName}
+          signalingServerUrl={backendUrl}
+        />
+      </Suspense>
     );
   }
 
@@ -156,15 +167,17 @@ const App = () => {
       
       <CallingStatusOverlay />
       
-      <Routes>
-        <Route path="/" element={authUser ? <Home /> : <Navigate to="/login" />} />
-        <Route path="/verify-email" element={<VerifyEmail />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="/login" element={!authUser ? <Login /> : <Navigate to="/" />} />
-        <Route path="/profile" element={authUser ? <Profile /> : <Navigate to="/login" />} />
-        <Route path="/contacts" element={authUser ? <Contacts /> : <Navigate to="/login" />} />
-        <Route path="/call" element={authUser ? <VideoCalling /> : <Navigate to="/login" />} />
-      </Routes>
+      <Suspense fallback={<div className="flex justify-center items-center h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div><span className="ml-2 text-white">Loading...</span></div>}>
+        <Routes>
+          <Route path="/" element={authUser ? <Home /> : <Navigate to="/login" />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/login" element={!authUser ? <Login /> : <Navigate to="/" />} />
+          <Route path="/profile" element={authUser ? <Profile /> : <Navigate to="/login" />} />
+          <Route path="/contacts" element={authUser ? <Contacts /> : <Navigate to="/login" />} />
+          <Route path="/call" element={authUser ? <VideoCalling /> : <Navigate to="/login" />} />
+        </Routes>
+      </Suspense>
     </div>
   )
 }

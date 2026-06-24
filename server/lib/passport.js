@@ -2,7 +2,6 @@ import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import User from "../models/User.js";
 import { generateToken } from "../utils/jwtToken.js";
-import { generateKeyPair } from "../crypto/crypto.js";
 
 passport.use(
   new GoogleStrategy(
@@ -28,7 +27,6 @@ passport.use(
             await user.save();
           } else {
             // create new Google user
-            const { publicKey, privateKey } = generateKeyPair();
 
             user = await User.create({
               googleId: profile.id,
@@ -37,8 +35,7 @@ passport.use(
               googleAccessToken: accessToken,
               googleRefreshToken: refreshToken || null,
               isOAuthUser: true,
-              publicKey,
-              privateKey, // ✅ Store temporarily to send to client
+              privateKey: null,
             });
           }
         } else {

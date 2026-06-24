@@ -6,14 +6,18 @@ import { AuthProvider } from '../context/AuthContext.jsx'
 import {ChatProvider} from "../context/ChatContext.jsx"
 import { CallProvider } from '../context/CallContext.jsx'
 
+import { CryptoContextProvider } from '../context/CryptoContext.jsx'
+
 createRoot(document.getElementById('root')).render(
   <BrowserRouter>
     <AuthProvider>
-      <ChatProvider>
-        <CallProvider>
-     <App />
-     </CallProvider>
-     </ChatProvider>
+      <CryptoContextProvider>
+        <ChatProvider>
+          <CallProvider>
+            <App />
+          </CallProvider>
+        </ChatProvider>
+      </CryptoContextProvider>
     </AuthProvider>
   </BrowserRouter>,
 )

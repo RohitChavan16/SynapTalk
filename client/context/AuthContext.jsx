@@ -14,7 +14,6 @@ export const AuthProvider = ({ children }) => {
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [socket, setSocket] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [privateKey, setPrivateKey] = useState(localStorage.getItem("privateKey"));
   const [socialLinks, setSocialLinks] = useState([]);
 
 
@@ -65,8 +64,6 @@ export const AuthProvider = ({ children }) => {
  const handleGoogleLogin = async () => {
   const params = new URLSearchParams(window.location.search);
   const jwtToken = params.get("token");
-  const privateKeyParam = params.get("privateKey");
-  const isNewUser = params.get("newUser");
   const authError = params.get("error");
   
   if (authError) {
@@ -79,24 +76,6 @@ export const AuthProvider = ({ children }) => {
 
   localStorage.setItem("token", jwtToken);
   setToken(jwtToken);
-  
-  if (isNewUser === "true" && privateKeyParam) {
-    console.log("🔑 Storing private key for new Google user");
-    const decodedPrivateKey = decodeURIComponent(privateKeyParam);
-    localStorage.setItem("privateKey", decodedPrivateKey);
-    setPrivateKey(decodedPrivateKey);
-    toast.success("Account created! Private key stored securely.");
-  } else {
-
-    const storedKey = localStorage.getItem("privateKey");
-    if (storedKey) {
-      setPrivateKey(storedKey);
-      console.log("✅ Private key found locally");
-    } else {
-      console.warn("⚠️ No private key found on this device");
-      toast.warning("Private key not found on this device. Messages cannot be decrypted.");
-    }
-  }
   
   await checkAuth(jwtToken);
 
@@ -121,21 +100,7 @@ export const AuthProvider = ({ children }) => {
       axios.defaults.headers.common["Authorization"] = `Bearer ${jwtToken}`;
 
       setAuthUser(data.userData);
-     setTimeout(() => connectSocket(data.userData), 0);
-
-      if (state === "signup" && data.privateKey) {
-        // Store private key as PEM string directly (don't convert)
-        localStorage.setItem("privateKey", data.privateKey);
-        setPrivateKey(data.privateKey);
-        toast.success("Private key stored");
-      } else if (state === "login") {
-        const storedPrivateKey = localStorage.getItem("privateKey");
-        if (storedPrivateKey) {
-          setPrivateKey(storedPrivateKey);
-        } else {
-          toast.error("Private key not found. Messages cannot be decrypted on this device.");
-        }
-      }
+      setTimeout(() => connectSocket(data.userData), 0);
 
       toast.success(data.message);
       return true;
@@ -146,13 +111,10 @@ export const AuthProvider = ({ children }) => {
   };
 
   
-  // Logout
-  
   const logout = () => {
     localStorage.removeItem("token");
     setToken(null);
     setAuthUser(null);
-    setPrivateKey(null);
     setOnlineUsers([]);
     axios.defaults.headers.common["Authorization"] = null;
     socket?.disconnect();
@@ -255,8 +217,6 @@ export const AuthProvider = ({ children }) => {
     updateProfile,
     loading,
     token,
-    privateKey,
-    setPrivateKey,
     socialLinks,
     setSocialLinks,
     getSocialLink,

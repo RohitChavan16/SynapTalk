@@ -43,7 +43,7 @@ const ChatSidebar = () => {
   const { getUsers, users, selectedUser, setSelectedUser, unseenMessages, setUnseenMessages, newGroupHandle, groups, setGroups, fetchGroups, selectedGrp,
      setSelectedGrp, active, setActive, typingUsers, setTypingUsers, typingId, setTypingID, selectedGrpRef, 
      selectedUserRef, privateTypingUsers, setUnseenGrpMessages, unseenGrpMessages, latestMessages, setLatestMessages,
-     fetchLatestMessages, latestGrpMessages, setLatestGrpMessages, fetchLatestGrpMessages, totalUserCount, setTotalUserCount, totalGrpCount, setTotalGrpCount } = useContext(ChatContext);
+     fetchLatestMessages, latestGrpMessages, setLatestGrpMessages, fetchLatestGrpMessages, totalUserCount, setTotalUserCount, totalGrpCount, setTotalGrpCount, isUsersLoading, isGroupsLoading } = useContext(ChatContext);
   const { logout, onlineUsers, socialLinks, getSocialLink, deleteSocialLink, addSocialLink, editSocialLink, socket, authUser } = useContext(AuthContext);
   const [dropDown, setDropDown] = useState(false);
   const navigate = useNavigate();
@@ -604,7 +604,22 @@ useEffect(() => {
       {/*All Users List */}
     { active == "My Chat" && 
       <div className="flex flex-col divide-y divide-violet-500/20">
-        {filteredUsers
+        {isUsersLoading ? (
+          [...Array(5)].map((_, i) => (
+            <div key={i} className="flex items-center gap-3 p-3 animate-pulse border-b border-violet-500/10">
+              <div className="w-[42px] h-[42px] rounded-full bg-slate-700/50 flex-shrink-0" />
+              <div className="flex-1 min-w-0 py-1">
+                <div className="h-4 bg-slate-700/50 rounded w-24 mb-2" />
+                <div className="h-3 bg-slate-700/50 rounded w-32" />
+              </div>
+            </div>
+          ))
+        ) : filteredUsers.length === 0 ? (
+          <div className="flex justify-center items-center h-40 text-gray-500 text-sm font-medium">
+            No users available
+          </div>
+        ) : (
+          filteredUsers
         .sort((a, b) => {
         const timeA = latestMessages[a._id]?.createdAt 
         ? new Date(latestMessages[a._id].createdAt).getTime() 
@@ -687,7 +702,16 @@ useEffect(() => {
               {/* Name + Status */}
             <div className="flex-1 min-w-0 ">
                 <p className="truncate font-semibold text-sm drop-shadow-[0_0_4px_rgba(255,255,255,0.6)]">{user.fullName}</p>
-                {latestMsg?.text && (
+                {privateTypingUsers[user._id] ? (
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <p className="text-xs text-green-400 italic">Typing</p>
+                    <div className="flex gap-1 ml-1 mt-1.5">
+                      <span className="w-1 h-1 bg-green-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                      <span className="w-1 h-1 bg-green-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                      <span className="w-1 h-1 bg-green-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                    </div>
+                  </div>
+                ) : latestMsg?.text ? (
             <div className="flex items-center gap-1">
               <p className="truncate text-xs text-gray-400 max-w-[180px]">
                 {latestMsg.isSender && <span className="text-blue-400">You: </span>}
@@ -700,11 +724,9 @@ useEffect(() => {
                 <span className="text-blue-400 text-xs">✓✓</span>
               )}
             </div>
-          )}
-          
-          {!latestMsg?.text && (
-            <p className={`text-xs ${isOnline ? "text-green-400" : "text-gray-400"}`}>
-              {isOnline ? "🟢 Online" : "⚫ Offline"}
+          ) : (
+            <p className="text-xs text-gray-500 italic">
+              Tap to start chat
             </p>
           )}
               </div>
@@ -715,13 +737,7 @@ useEffect(() => {
            </span>
           )}
 
-                {privateTypingUsers[user._id] && (
-                 <div className="absolute bottom-2 right-6 z-100  flex items-center gap-2 text-[11px] text-green-300 bg-[#0a3a7c] px-3 py-1.5 rounded-full backdrop-blur-sm border border-gray-600/50 shadow-lg" >
-                 <p className="text-[11px] text-blue-400 italic">
-                 {privateTypingUsers[user._id]} is typing...
-                 </p>
-                 </div>
-                )}
+                {/* Removed floating typing indicator */}
                 
               {/* Unseen Messages Badge */}
               {unseenCount > 0 && (
@@ -732,7 +748,8 @@ useEffect(() => {
 
             </div>
           );
-        })}
+        })
+        )}
       </div>
 
     }
@@ -749,7 +766,22 @@ useEffect(() => {
   { active == "My Groups" &&
     <div className="flex flex-col divide-y divide-violet-500/20">
      
-      { filteredGrps
+      {isGroupsLoading ? (
+          [...Array(5)].map((_, i) => (
+            <div key={i} className="flex items-center gap-3 p-3 animate-pulse border-b border-violet-500/10">
+              <div className="w-[42px] h-[42px] rounded-full bg-slate-700/50 flex-shrink-0" />
+              <div className="flex-1 min-w-0 py-1">
+                <div className="h-4 bg-slate-700/50 rounded w-24 mb-2" />
+                <div className="h-3 bg-slate-700/50 rounded w-32" />
+              </div>
+            </div>
+          ))
+      ) : filteredGrps.length === 0 ? (
+          <div className="flex justify-center items-center h-40 text-gray-500 text-sm font-medium">
+            No groups available
+          </div>
+        ) : (
+          filteredGrps
         .sort((a, b) => {
     // First sort by latest message time
     const timeA = latestGrpMessages[a._id]?.createdAt 
@@ -880,7 +912,8 @@ useEffect(() => {
 
           </div>
           );
-        })}
+        })
+        )}
       </div>
   }
 

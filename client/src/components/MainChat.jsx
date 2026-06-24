@@ -442,6 +442,16 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                   
+                  {getSenderId(mes) === authUser._id && !selectedGrp && (
+                    <div className="absolute bottom-2 right-2 bg-black/40 backdrop-blur-md px-1.5 py-0.5 rounded-full text-[10px]">
+                      {mes.seen ? (
+                        <span className="text-blue-400 font-bold">✓✓</span>
+                      ) : (
+                        <span className="text-white font-bold">✓</span>
+                      )}
+                    </div>
+                  )}
+                  
                   {/* Image overlay icons */}
                   <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                     <div className="flex gap-1">
@@ -492,7 +502,16 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
                         }}
                         className="absolute cursor-pointer hover:scale-115 h-4 top-1.5 right-0 z-20"
                       />
-                      {mes.text}
+                      <span className="inline-block">{mes.text}</span>
+                      {getSenderId(mes) === authUser._id && !selectedGrp && (
+                        <span className="float-right ml-2 mt-1 flex items-center text-[10px] opacity-90">
+                          {mes.seen ? (
+                            <span className="text-blue-300 font-bold drop-shadow-md">✓✓</span>
+                          ) : (
+                            <span className="text-gray-300 font-bold drop-shadow-md">✓</span>
+                          )}
+                        </span>
+                      )}
                     </p>
                   )}
                   

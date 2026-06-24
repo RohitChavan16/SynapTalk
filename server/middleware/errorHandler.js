@@ -1,6 +1,18 @@
 import { logger } from '../lib/logger.js';
 
 export const globalErrorHandler = (err, req, res, next) => {
+  if (err.name === 'ValidationError') {
+    err.statusCode = 400;
+    err.isOperational = true;
+    err.message = Object.values(err.errors).map(val => val.message).join(', ');
+  }
+  if (err.code === 11000) {
+    err.statusCode = 400;
+    err.isOperational = true;
+    const field = Object.keys(err.keyValue)[0];
+    err.message = `${field} already exists.`;
+  }
+
   err.statusCode = err.statusCode || 500;
   err.status = err.status || 'error';
 

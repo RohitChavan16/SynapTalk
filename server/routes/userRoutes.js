@@ -1,5 +1,5 @@
 import express from 'express';
-import { addSocialLink, checkAuth, deleteSocialLink, editSocialLink, getSocialLink, login, signup, updateProfile } from '../controllers/userController.js';
+import { addSocialLink, checkAuth, deleteSocialLink, editSocialLink, getSocialLink, login, signup, updateProfile, exportLegacyKey, uploadPublicKey, updateBackupStatus } from '../controllers/userController.js';
 import { protectRoute } from '../middleware/auth.js';
 import { globalRateLimitMiddleware, strictRateLimitMiddleware } from "../middleware/rateLimiter.js";
 import logger from "../lib/logger.js";
@@ -21,6 +21,11 @@ userRouter.post("/add-links", protectRoute, addSocialLink);
 userRouter.delete("/delete-links", protectRoute, deleteSocialLink);
 userRouter.put("/edit-links", protectRoute, editSocialLink);
 
+// E2EE Key Management
+userRouter.get("/keys/export-legacy", protectRoute, exportLegacyKey);
+userRouter.post("/keys/upload", protectRoute, uploadPublicKey);
+userRouter.post("/keys/backup-status", protectRoute, updateBackupStatus);
+
 // Google OAuth login
 userRouter.get(
   "/google",
@@ -40,25 +45,8 @@ userRouter.get(
     try {
       const token = generateToken(req.user._id);
       
-      const user = await User.findById(req.user._id);
-      
-      if (user.privateKey) {
-        
-        logger.info("🔑 Sending private key to new Google user");
-        const privateKey = user.privateKey;
-        
-        user.privateKey = null;
-        await user.save();
-        
-        
-        res.redirect(
-          `${process.env.CLIENT_URL}/?token=${token}&privateKey=${encodeURIComponent(privateKey)}&newUser=true`
-        );
-      } else {
-        
-        logger.info("✅ Existing user login");
-        res.redirect(`${process.env.CLIENT_URL}/?token=${token}`);
-      }
+      logger.info("✅ Google user login");
+      res.redirect(`${process.env.CLIENT_URL}/?token=${token}`);
     } catch (error) {
       console.error("❌ Callback error:", error);
       res.redirect(`${process.env.CLIENT_URL}/?error=auth_failed`);

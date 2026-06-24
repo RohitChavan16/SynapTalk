@@ -188,7 +188,7 @@ export const CallProvider = ({ children }) => {
     }
 
     toast.success("Call Ended");
-    setTimeout(() => window.location.reload(), 1500);
+    // Removed setTimeout(() => window.location.reload(), 1500);
 
     setIsInCall(false);
     setRoomId("");

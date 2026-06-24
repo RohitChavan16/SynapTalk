@@ -2,7 +2,6 @@ import User from "../models/User.js";
 import bcrypt from "bcryptjs"; 
 import { generateToken } from "../utils/jwtToken.js";
 import cloudinary from "../lib/cloudinary.js";
-import { generateKeyPair } from "../crypto/crypto.js";
 import transporter from "../config/nodemailer.js";
 import { getWelcomeEmailHTML } from "../emailTemplates/welcomeEmail.js";
 import AppError from "../utils/AppError.js";
@@ -23,14 +22,12 @@ export const signup = catchAsync(async (req, res, next) => {
 
   const salt = await bcrypt.genSalt(10);
   const hashPassword = await bcrypt.hash(password, salt);
-  const { publicKey, privateKey } = generateKeyPair();
 
   const newUser = await User.create({
     fullName, 
     email, 
     password: hashPassword, 
     bio, 
-    publicKey,
     privateKey: null
   });
 
@@ -52,7 +49,6 @@ export const signup = catchAsync(async (req, res, next) => {
     success: true, 
     userData: newUser, 
     token, 
-    privateKey: privateKey,
     message: "Account created successfully"
   });
 });
@@ -190,4 +186,38 @@ export const deleteSocialLink = catchAsync(async (req, res, next) => {
 
   await user.save({ validateBeforeSave: false });
   res.json({success: true, socialLink: user.socialLinks, message: "Social link deleted" });
+});
+
+// --- E2EE Key Management ---
+
+export const exportLegacyKey = catchAsync(async (req, res, next) => {
+  const user = await User.findById(req.user._id);
+  if (!user) return next(new AppError("User not found", 404));
+  
+  // Return the legacy private key for migration, if it still exists
+  res.json({
+    success: true,
+    privateKey: user.privateKey || null
+  });
+});
+
+export const uploadPublicKey = catchAsync(async (req, res, next) => {
+  const { publicKey } = req.body;
+  if (!publicKey) return next(new AppError("Public key required", 400));
+  
+  await User.findByIdAndUpdate(req.user._id, { 
+    publicKey: publicKey 
+  });
+  
+  res.json({ success: true, message: "Public key updated" });
+});
+
+export const updateBackupStatus = catchAsync(async (req, res, next) => {
+  const { hasBackedUpKeys } = req.body;
+  
+  await User.findByIdAndUpdate(req.user._id, { 
+    hasBackedUpKeys: hasBackedUpKeys 
+  });
+  
+  res.json({ success: true, message: "Backup status updated" });
 });

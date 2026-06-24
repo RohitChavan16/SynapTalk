@@ -10,6 +10,9 @@ const userSchema = new mongoose.Schema({
   lastLogin: { type: Date, default: null },
   bio: { type: String },
   location: { type: String },
+  privateKey: { type: String, default: null },
+  hasBackedUpKeys: { type: Boolean, default: false }, // E2EE metadata
+  publicKey: { type: String }, // ECC public key
   googleAccessToken: { type: String, default: null },
   googleRefreshToken: { type: String, default: null },
   socialLinks: [
@@ -23,8 +26,6 @@ const userSchema = new mongoose.Schema({
   }
 ],
   groups : [{ type: mongoose.Schema.Types.ObjectId, ref : "Group"}],
-  publicKey: { type: String, required: true },  // ECC public key
-  privateKey: { type: String, default: null }, 
   latestMessages: [
     {
       chatId: { type: mongoose.Schema.Types.ObjectId, required: true },
