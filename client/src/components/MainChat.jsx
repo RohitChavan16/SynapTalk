@@ -325,6 +325,19 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
 <img onClick={()=> {setSelectedUser(null); setSelectedGrp(null)}} src={assets.arrow_icon} alt="" className='md:hidden max-w-7'/>
 <img src={assets.help_icon} alt="" className='max-md:hidden max-w-5 mx-3'/>
 </div>
+
+{/* Migration State Banners */}
+{selectedGrp && selectedGrp.migrationState === 'UPGRADING' && (
+  <div className="bg-amber-500/20 backdrop-blur-md text-amber-300 px-4 py-2 text-xs flex justify-center items-center border-b border-amber-500/30 shadow-lg z-10">
+    <span>⚠️ This group is upgrading to End-to-End Encryption. Generating and distributing keys...</span>
+  </div>
+)}
+{selectedGrp && selectedGrp.migrationState === 'E2EE_ACTIVE' && (
+  <div className="bg-emerald-500/20 backdrop-blur-md text-emerald-400 px-4 py-2 text-xs flex justify-center items-center border-b border-emerald-500/30 shadow-lg z-10">
+    <span className="flex items-center gap-1">🔒 End-to-End Encryption is strictly enforced in this group.</span>
+  </div>
+)}
+
 {/*Chat Area*/}
 {loading ? (
       <div className="flex h-[calc(100%-120px)] items-center justify-center">
@@ -582,6 +595,18 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
 
 
 {/* Bottom Area */}
+{selectedGrp?.SECURITY_VIOLATION ? (
+  <div className='absolute bottom-0 left-0 right-0 bg-red-900/90 border-t border-red-500/50 p-4 flex flex-col items-center justify-center text-center backdrop-blur-md z-50'>
+      <div className="flex items-center gap-2 text-red-200 font-bold mb-1">
+        <span className="text-xl">🔒</span>
+        <span>Security Violation Detected</span>
+      </div>
+      <p className="text-red-200/80 text-xs">
+        {selectedGrp.SECURITY_VIOLATION}
+      </p>
+      <p className="text-red-300/60 text-[10px] mt-1 uppercase tracking-wider font-semibold">Messaging Suspended</p>
+  </div>
+) : (
 <div className='absolute bottom-0 left-0 right-0 flex items-center gap-3 p-3'>
   {/* TYPING INDICATOR - INDIVIDUAL CHAT */}
   {selectedUser && privateTypingUsers[selectedUser._id] && (
@@ -645,6 +670,7 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
 </div>
 <img onClick={handleSendMessage} src={assets.send_button} alt="" className="w-9 cursor-pointer hover:opacity-89" />
 </div>
+)}
 
 </div>
 ) : ( 

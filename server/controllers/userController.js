@@ -202,14 +202,15 @@ export const exportLegacyKey = catchAsync(async (req, res, next) => {
 });
 
 export const uploadPublicKey = catchAsync(async (req, res, next) => {
-  const { publicKey } = req.body;
+  const { publicKey, signaturePublicKey } = req.body;
   if (!publicKey) return next(new AppError("Public key required", 400));
   
   await User.findByIdAndUpdate(req.user._id, { 
-    publicKey: publicKey 
+    publicKey: publicKey,
+    ...(signaturePublicKey && { signaturePublicKey })
   });
   
-  res.json({ success: true, message: "Public key updated" });
+  res.json({ success: true, message: "Public keys updated" });
 });
 
 export const updateBackupStatus = catchAsync(async (req, res, next) => {

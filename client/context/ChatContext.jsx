@@ -67,6 +67,9 @@ const fetchGroups = async () => {
       try {
         const { data } = await axios.get("/api/group/get-groups");
         if (data.success) {
+          for (const grp of data.groups) {
+             await verifyAndPinGroupState(grp);
+          }
           setGroups(data.groups);
         }
       } catch (error) {
@@ -170,10 +173,40 @@ const sendMessage = async (messageData) => {
 
 const sendGrpMsg = async ({ text, image, groupId }) => {
   try {
-    const payload = { text, image, groupId };
+    const currentGrp = selectedGrpRef.current || groups.find(g => g._id === groupId);
+    if (!currentGrp) {
+      toast.error("Group context missing");
+      return;
+    }
+
+    let payload = { groupId };
+    
+    // Encrypt the group message
+    if (text) {
+      try {
+        const { encryptedPayload, distributions } = await encryptGroupMessage(text, currentGrp);
+        payload = { ...payload, ...encryptedPayload };
+
+        // Send 1:1 distributions
+        if (distributions && distributions.length > 0) {
+           for (const dist of distributions) {
+             axios.post(`/api/messages/send/${dist.receiverId}`, dist.payload).catch(console.error);
+           }
+        }
+      } catch (err) {
+         toast.error(`Encryption failed: ${err.message}`);
+         return;
+      }
+    }
+    if (image) payload.image = image;
+
     const { data } = await axios.post("/api/group/send-grpmsg", payload, { withCredentials: true });
     if (data) {
-      setMessages((prev) => [...prev, data]); // <--- add message to local state
+      const displayMessage = {
+        ...data,
+        text: text // Keep original text for immediate UI display
+      };
+      setMessages((prev) => [...prev, displayMessage]); 
       setLatestGrpMessages(prev => ({
         ...prev,
         [groupId]: {
@@ -186,7 +219,7 @@ const sendGrpMsg = async ({ text, image, groupId }) => {
     }
     return data;
   } catch (err) {
-    toast.error(err.message);
+    toast.error(err.response?.data?.message || err.message);
   }
 };
 
@@ -203,10 +236,22 @@ const getGrpMessages = async (groupId, cursor = null) => {
     }
     const { data } = await axios.get(url, { withCredentials: true });
      if (data.success) {
+       // Decrypt group messages
+       const decryptedMessages = await Promise.all(
+         data.messages.map(async (msg) => {
+           const senderId = msg.senderId?._id || msg.senderId;
+           if (msg.ciphertext) {
+             const decryptedText = await decryptGroupMessage(msg, senderId, msg.senderId?.publicKey);
+             return { ...msg, text: decryptedText };
+           }
+           return msg;
+         })
+       );
+
        if (cursor) {
-         setMessages(prev => [...data.messages, ...prev]);
+         setMessages(prev => [...decryptedMessages, ...prev]);
        } else {
-         setMessages(data.messages);
+         setMessages(decryptedMessages);
        }
        setNextCursor(data.nextCursor);
        setHasMoreMessages(!!data.nextCursor);
@@ -381,35 +426,37 @@ useEffect(() => {
     }
   });
 
-    socket.on("receiveGrpMsg", (msg) => {
-      
+  socket.on("receiveGrpMsg", async (msg) => {
       const currentGrp = selectedGrpRef.current;
-    
-    const senderId = msg.senderId?._id || msg.senderId;
-    if (senderId === authUser._id) return;
+      const senderId = msg.senderId?._id || msg.senderId;
+      if (senderId === authUser._id) return;
 
-   
-    if (currentGrp && msg.groupId === currentGrp._id) {
-     
-      setMessages((prev) => [...prev, msg]);
-    } else {
-    setUnseenGrpMessages((prev) => ({
-    ...prev,
-    [msg.groupId]: {
-      ...(prev[msg.groupId] || {}),
-      [authUser._id]: (prev[msg.groupId]?.[authUser._id] || 0) + 1,
-    },
-  }));
-    }
-    setLatestGrpMessages((prev) => ({
-    ...prev,
-    [msg.groupId]: {
-      text: msg.text || (msg.image ? "📷 Photo" : ""),
-      createdAt: msg.createdAt,
-      isSender: false,
-      senderName: msg.senderId?.fullName || msg.sender?.fullName || "Someone"
-    }
-  }));
+      let displayMessage = msg;
+      if (msg.ciphertext) {
+         const decryptedText = await decryptGroupMessage(msg, senderId, msg.senderId?.publicKey);
+         displayMessage = { ...msg, text: decryptedText };
+      }
+
+      if (currentGrp && msg.groupId === currentGrp._id) {
+        setMessages((prev) => [...prev, displayMessage]);
+      } else {
+        setUnseenGrpMessages((prev) => ({
+          ...prev,
+          [msg.groupId]: {
+            ...(prev[msg.groupId] || {}),
+            [authUser._id]: (prev[msg.groupId]?.[authUser._id] || 0) + 1,
+          },
+        }));
+      }
+      setLatestGrpMessages((prev) => ({
+        ...prev,
+        [msg.groupId]: {
+          text: displayMessage.text || (displayMessage.image ? "📷 Photo" : ""),
+          createdAt: displayMessage.createdAt,
+          isSender: false,
+          senderName: displayMessage.senderId?.fullName || displayMessage.sender?.fullName || "Someone"
+        }
+      }));
   });
 
   socket.on("newMessage", async (newMessage) => {
@@ -469,6 +516,35 @@ const senderId = newMessage.senderId._id || newMessage.senderId;
 
 });
 
+  socket.on("migrationStateChanged", async (data) => {
+    const { groupId, migrationData, owner } = data;
+    // We need to update the group in our local state
+    setGroups(prevGroups => {
+      return prevGroups.map(grp => {
+        if (grp._id === groupId) {
+          const updatedGrp = { ...grp, migrationData };
+          if (owner) updatedGrp.owner = owner;
+          
+          // Verify asynchronously
+          verifyAndPinGroupState(updatedGrp).then(isValid => {
+             if (!isValid) {
+               // We trigger a re-render by mutating state again if it's invalid
+               setGroups(curr => curr.map(g => g._id === groupId ? { ...g, SECURITY_VIOLATION: updatedGrp.SECURITY_VIOLATION } : g));
+             }
+          });
+          
+          return updatedGrp;
+        }
+        return grp;
+      });
+    });
+    
+    // Also update selectedGrp if it's the one currently open
+    if (selectedGrpRef.current && selectedGrpRef.current._id === groupId) {
+        setSelectedGrp(prev => ({ ...prev, migrationData, ...(owner ? { owner } : {}) }));
+    }
+  });
+
   // ✅ Cleanup: remove listeners when component unmounts
   return () => {
     socket.off("newMessage");
@@ -478,6 +554,7 @@ const senderId = newMessage.senderId._id || newMessage.senderId;
     socket.off("receiveGrpMsg");
     socket.off("messagesSeen");
     socket.off("messageSeen");
+    socket.off("migrationStateChanged");
   };
 }, [socket]); // ⚠️ Only depend on socket, not selectedUser/selectedGrp
 

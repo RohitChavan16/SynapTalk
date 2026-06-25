@@ -28,6 +28,9 @@ import GroupInfoCard from './GroupInfoCard';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 
+import { CryptoEngine } from "../lib/CryptoEngine";
+import { IndexedDBService } from "../lib/IndexedDBService";
+
 const GroupProfileSidebar = () => {
   const { selectedGrp, setSelectedGrp, messages, setSelectedProfileGrp, updateGrp, users, addExtraMem, deleteMember, setActive, setSelectedUser } = useContext(ChatContext);
   const {onlineUsers, authUser} = useContext(AuthContext);
@@ -96,9 +99,12 @@ const GroupProfileSidebar = () => {
   const isAYou = a._id === authUser._id;
   const isBYou = b._id === authUser._id;
 
-  const isAAdmin = selectedGrp?.admins?.some(admin =>
-    (admin._id ? admin._id.toString() : admin.toString()) === a._id
+  const isAdmin = selectedGrp?.admins?.some(admin =>
+    (admin._id ? admin._id.toString() : admin.toString()) === authUser._id
   );
+
+  const isOwner = selectedGrp?.owner === authUser._id || selectedGrp?.owner?._id === authUser._id;
+  const migrationState = selectedGrp?.migrationData?.state || selectedGrp?.migrationState || 'PLAINTEXT';
   const isBAdmin = selectedGrp?.admins?.some(admin =>
     (admin._id ? admin._id.toString() : admin.toString()) === b._id
   );
@@ -247,6 +253,75 @@ const handleFileChange = async (e) => {
      }
   }
 
+  const handleMigrationTransition = async (action) => {
+    let message = "Are you sure you want to proceed?";
+    let targetState = '';
+    if (action === 'start-migration') { message = "Start E2EE Upgrade? This will begin distributing keys to members."; targetState = 'UPGRADING'; }
+    if (action === 'verify-migration') { message = "Verify readiness? Ensure all members are online or have received keys."; targetState = 'READY'; }
+    if (action === 'activate-e2ee') { message = "Activate Strict E2EE? Plaintext messages will be rejected by the server."; targetState = 'E2EE_ACTIVE'; }
+    if (action === 'force-plaintext') { message = "EMERGENCY: Force Plaintext? This will downgrade the group's security."; targetState = 'UPGRADING'; }
+    if (action === 'rollback-e2ee') { message = "Rollback E2EE?"; targetState = 'READY'; }
+    
+    if (!window.confirm(message)) return;
+
+    try {
+      const activeKeyData = await IndexedDBService.getActiveKey();
+      if (!activeKeyData || !activeKeyData.signaturePrivateKey) {
+          throw new Error("Missing active cryptographic signature key for authorization.");
+      }
+
+      const nextEpoch = (selectedGrp.migrationData?.epoch || 0) + 1;
+      const dataToSign = `${selectedGrp._id}:${targetState}:${nextEpoch}`;
+      const signature = await CryptoEngine.signData(dataToSign, activeKeyData.signaturePrivateKey);
+
+      const res = await axios.post(`/api/group/${selectedGrp._id}/${action}`, {
+          epoch: nextEpoch,
+          signature: signature
+      });
+
+      if (res.data.success) {
+        toast.success(`Migration transition successful`);
+        setSelectedGrp(prev => ({ 
+          ...prev, 
+          migrationData: res.data.group.migrationData,
+          e2eeMemberStatus: res.data.group.e2eeMemberStatus || prev.e2eeMemberStatus
+        }));
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message);
+    }
+  };
+
+  const handleTransferOwnership = async () => {
+     const newOwnerId = prompt("Enter the precise User ID of the new owner:");
+     if (!newOwnerId) return;
+     if (!window.confirm("WARNING: This irreversibly transfers cryptographic authority of this group. Proceed?")) return;
+
+     try {
+        const activeKeyData = await IndexedDBService.getActiveKey();
+        if (!activeKeyData || !activeKeyData.signaturePrivateKey) {
+            throw new Error("Missing active cryptographic signature key for authorization.");
+        }
+
+        const nextEpoch = (selectedGrp.migrationData?.epoch || 0) + 1;
+        const dataToSign = `${selectedGrp._id}:TRANSFER:${newOwnerId}:${nextEpoch}`;
+        const signature = await CryptoEngine.signData(dataToSign, activeKeyData.signaturePrivateKey);
+
+        const res = await axios.post(`/api/group/${selectedGrp._id}/transfer-owner`, {
+            newOwnerId,
+            epoch: nextEpoch,
+            signature: signature
+        });
+
+        if (res.data.success) {
+            toast.success("Ownership transferred successfully");
+            setSelectedGrp(prev => ({ ...prev, owner: newOwnerId, migrationData: res.data.group.migrationData }));
+        }
+     } catch (err) {
+        toast.error(err.response?.data?.message || err.message);
+     }
+  };
+
 
 
   const addMember = () => {
@@ -382,6 +457,60 @@ const handleLeaveGrp = async () => {
          onSave={(newDesc) => handleSave(newDesc)}
         />
 
+      </div>
+
+      <hr className="border-[#ffffff50] my-4"/>
+
+      {/* Security Audit Panel */}
+      <div className="px-5 mb-4">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-white/90 text-sm font-semibold tracking-wide flex items-center gap-2">
+            <Shield className="w-4 h-4 text-emerald-400" /> Security Status
+          </h2>
+          <span className={`text-xs px-2 py-1 rounded-full font-medium border
+            ${migrationState === 'E2EE_ACTIVE' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
+              migrationState === 'READY' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' :
+              migrationState === 'UPGRADING' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
+              'bg-gray-500/20 text-gray-400 border-gray-500/30'}`}>
+            {migrationState || 'PLAINTEXT'}
+          </span>
+        </div>
+        <div className="bg-[#101020]/50 p-3 rounded-lg border border-white/5">
+           <div className="flex justify-between text-xs text-white/70 mb-2">
+             <span>Members Ready for E2EE:</span>
+             <span>
+               {selectedGrp.e2eeMemberStatus?.filter(m => m.status === 'READY').length || 0} / {selectedGrp.members?.length || 0}
+             </span>
+           </div>
+           
+           {isOwner && (
+             <div className="flex flex-col gap-2 mt-3 pt-3 border-t border-white/10">
+               {(!migrationState || migrationState === 'PLAINTEXT') && (
+                 <button onClick={() => handleMigrationTransition('start-migration')} className="w-full text-xs py-1.5 bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 rounded border border-amber-500/30 transition">
+                   Start E2EE Upgrade
+                 </button>
+               )}
+               {migrationState === 'UPGRADING' && (
+                 <button onClick={() => handleMigrationTransition('verify-migration')} className="w-full text-xs py-1.5 bg-blue-500/20 hover:bg-blue-500/40 text-blue-300 rounded border border-blue-500/30 transition">
+                   Verify E2EE Readiness
+                 </button>
+               )}
+               {migrationState === 'READY' && (
+                 <button onClick={() => handleMigrationTransition('activate-e2ee')} className="w-full text-xs py-1.5 bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 rounded border border-emerald-500/30 transition">
+                   Activate Strict E2EE
+                 </button>
+               )}
+               {(migrationState === 'READY' || migrationState === 'E2EE_ACTIVE') && (
+                 <button onClick={() => handleMigrationTransition('force-plaintext')} className="w-full text-xs py-1.5 bg-red-500/10 hover:bg-red-500/30 text-red-400 rounded border border-red-500/30 transition mt-1">
+                   Emergency: Force Plaintext
+                 </button>
+               )}
+               <button onClick={handleTransferOwnership} className="w-full text-xs py-1.5 bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 rounded border border-purple-500/30 transition mt-2">
+                   Transfer Ownership
+               </button>
+             </div>
+           )}
+        </div>
       </div>
 
       <hr className="border-[#ffffff50] my-4"/>

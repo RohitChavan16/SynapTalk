@@ -56,6 +56,61 @@ export const CryptoEngine = {
   },
 
   /**
+   * Derives a 256-bit Local Storage Key (LSK) from a recovery phrase
+   * used for encrypting IndexedDB backups.
+   */
+  async deriveLSK(recoveryPhrase) {
+    if (!bip39.validateMnemonic(recoveryPhrase)) {
+      throw new Error("Invalid recovery phrase");
+    }
+
+    const entropyHex = bip39.mnemonicToEntropy(recoveryPhrase);
+    const entropyBuffer = Buffer.from(entropyHex, 'hex');
+
+    const baseKey = await crypto.subtle.importKey(
+      "raw", entropyBuffer, { name: "PBKDF2" }, false, ["deriveKey"]
+    );
+
+    // Using PBKDF2 to stretch the entropy into an AES-GCM key
+    const lsk = await crypto.subtle.deriveKey(
+      {
+        name: "PBKDF2",
+        salt: new TextEncoder().encode("SynapTalk LSK Salt"),
+        iterations: 100000,
+        hash: "SHA-256"
+      },
+      baseKey,
+      { name: "AES-GCM", length: 256 },
+      true,
+      ["encrypt", "decrypt"]
+    );
+
+    return lsk;
+  },
+
+  async encryptBackup(lsk, dataString) {
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const encodedText = new TextEncoder().encode(dataString);
+    const ciphertextBuf = await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv: iv }, lsk, encodedText
+    );
+    return {
+      iv: arrayBufferToBase64(iv),
+      data: arrayBufferToBase64(ciphertextBuf)
+    };
+  },
+
+  async decryptBackup(lsk, encryptedBlob) {
+    const { iv, data } = encryptedBlob;
+    const plaintextBuf = await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: base64ToArrayBuffer(iv) },
+      lsk,
+      base64ToArrayBuffer(data)
+    );
+    return new TextDecoder().decode(plaintextBuf);
+  },
+
+  /**
    * Restores a WebCrypto Keypair deterministically from a 12-word mnemonic.
    */
   async restoreIdentity(mnemonic) {
@@ -103,13 +158,22 @@ export const CryptoEngine = {
       ext: true
     };
 
-    // Import into WebCrypto as NON-EXTRACTABLE
+    // Import into WebCrypto as NON-EXTRACTABLE for ECDH
     const privateKey = await crypto.subtle.importKey(
       "jwk",
       jwk,
       { name: "ECDH", namedCurve: "P-256" },
       false, // EXTRACTABLE: FALSE (Prevents XSS theft)
       ["deriveKey", "deriveBits"]
+    );
+
+    // Import into WebCrypto as NON-EXTRACTABLE for ECDSA Signatures
+    const signaturePrivateKey = await crypto.subtle.importKey(
+      "jwk",
+      jwk,
+      { name: "ECDSA", namedCurve: "P-256" },
+      false, 
+      ["sign"]
     );
 
     // Import Public Key separately for export
@@ -122,15 +186,156 @@ export const CryptoEngine = {
       []
     );
 
-    // Export SPKI Base64 for the server
+    const signaturePublicKey = await crypto.subtle.importKey(
+      "jwk",
+      jwkPub,
+      { name: "ECDSA", namedCurve: "P-256" },
+      true,
+      ["verify"]
+    );
+
+    // Export SPKI Base64 for the server (ECDH)
     const spki = await crypto.subtle.exportKey("spki", publicKey);
     const publicKeyBase64 = arrayBufferToBase64(spki);
 
-    // Fingerprint KeyId (SHA-256 of SPKI)
+    // Export SPKI Base64 for the server (ECDSA)
+    const sigSpki = await crypto.subtle.exportKey("spki", signaturePublicKey);
+    const signaturePublicKeyBase64 = arrayBufferToBase64(sigSpki);
+
+    // Fingerprint KeyId (SHA-256 of ECDH SPKI)
     const hashBuffer = await crypto.subtle.digest("SHA-256", spki);
     const keyId = arrayBufferToBase64(hashBuffer);
 
-    return { mnemonic, privateKey, publicKey, publicKeyBase64, keyId };
+    return { mnemonic, privateKey, publicKey, publicKeyBase64, signaturePrivateKey, signaturePublicKey, signaturePublicKeyBase64, keyId };
+  },
+
+  /**
+   * Signs data using the user's ECDSA signature key.
+   */
+  async signData(dataString, signaturePrivateKey) {
+    const encodedData = new TextEncoder().encode(dataString);
+    const signature = await crypto.subtle.sign(
+      { name: "ECDSA", hash: { name: "SHA-256" } },
+      signaturePrivateKey,
+      encodedData
+    );
+    return arrayBufferToBase64(signature);
+  },
+
+  /**
+   * Verifies a signature using the sender's ECDSA public key.
+   */
+  async verifySignature(dataString, signatureBase64, signaturePublicKeyBase64) {
+    const encodedData = new TextEncoder().encode(dataString);
+    const signature = base64ToArrayBuffer(signatureBase64);
+    
+    const spki = base64ToArrayBuffer(signaturePublicKeyBase64);
+    const signaturePublicKey = await crypto.subtle.importKey(
+      "spki",
+      spki,
+      { name: "ECDSA", namedCurve: "P-256" },
+      true,
+      ["verify"]
+    );
+
+    return await crypto.subtle.verify(
+      { name: "ECDSA", hash: { name: "SHA-256" } },
+      signaturePublicKey,
+      signature,
+      encodedData
+    );
+  },
+
+  /**
+   * Generates a new Group Sender Key (chainKey + epoch)
+   */
+  async generateGroupSenderKey(groupId, userId, signaturePrivateKey) {
+    const chainKeyBytes = crypto.getRandomValues(new Uint8Array(32));
+    const epoch = crypto.randomUUID(); // Deterministic per user epoch identifier
+
+    const chainKeyBase64 = arrayBufferToBase64(chainKeyBytes);
+    const dataToSign = `${groupId}:${userId}:${epoch}:${chainKeyBase64}`;
+    
+    // Sign to prove authorship
+    const signature = await this.signData(dataToSign, signaturePrivateKey);
+
+    return {
+      id: `${groupId}_${userId}`,
+      groupId,
+      userId,
+      keyId: epoch,
+      chainKey: chainKeyBase64,
+      signature,
+      ratchetIndex: 0,
+      distributedTo: [],
+      needsRotation: false,
+      createdAt: new Date().toISOString()
+    };
+  },
+
+  /**
+   * Derives a message key and the NEXT chain key using HKDF (Symmetric Ratchet)
+   */
+  async ratchetSenderKey(chainKeyBase64) {
+    const chainKeyBuffer = base64ToArrayBuffer(chainKeyBase64);
+    
+    const baseKey = await crypto.subtle.importKey(
+      "raw", chainKeyBuffer, { name: "HKDF" }, false, ["deriveBits"]
+    );
+
+    // Derive 64 bytes total (32 for message key, 32 for next chain key)
+    const derivedBits = await crypto.subtle.deriveBits(
+      {
+        name: "HKDF",
+        hash: "SHA-256",
+        salt: new Uint8Array(),
+        info: new TextEncoder().encode("GroupSenderKeyRatchet")
+      },
+      baseKey,
+      512 // 64 bytes
+    );
+
+    const derivedArray = new Uint8Array(derivedBits);
+    const messageKeyBytes = derivedArray.slice(0, 32);
+    const nextChainKeyBytes = derivedArray.slice(32, 64);
+
+    return {
+      messageKey: messageKeyBytes,
+      nextChainKeyBase64: arrayBufferToBase64(nextChainKeyBytes)
+    };
+  },
+
+  /**
+   * Encrypts a group message with the derived messageKey
+   */
+  async encryptGroupMessageV2(text, messageKeyBytes) {
+    const sessionKey = await crypto.subtle.importKey(
+      "raw", messageKeyBytes, { name: "AES-GCM" }, false, ["encrypt"]
+    );
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const encodedText = new TextEncoder().encode(text);
+    const ciphertextBuf = await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv: iv }, sessionKey, encodedText
+    );
+    return {
+      iv: arrayBufferToBase64(iv),
+      ciphertext: arrayBufferToBase64(ciphertextBuf)
+    };
+  },
+  
+  /**
+   * Decrypts a group message with the derived messageKey
+   */
+  async decryptGroupMessageV2(ciphertextBase64, ivBase64, messageKeyBytes) {
+    const sessionKey = await crypto.subtle.importKey(
+      "raw", messageKeyBytes, { name: "AES-GCM" }, false, ["decrypt"]
+    );
+    const plaintextBuf = await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: base64ToArrayBuffer(ivBase64) },
+      sessionKey,
+      base64ToArrayBuffer(ciphertextBase64)
+    );
+    return new TextDecoder().decode(plaintextBuf);
   },
 
   /**

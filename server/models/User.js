@@ -13,6 +13,7 @@ const userSchema = new mongoose.Schema({
   privateKey: { type: String, default: null },
   hasBackedUpKeys: { type: Boolean, default: false }, // E2EE metadata
   publicKey: { type: String }, // ECC public key
+  signaturePublicKey: { type: String }, // Base64 ECDSA P-256 Public Key
   googleAccessToken: { type: String, default: null },
   googleRefreshToken: { type: String, default: null },
   socialLinks: [
