@@ -200,5 +200,70 @@ export const IndexedDBService = {
       request.onsuccess = () => resolve();
       request.onerror = (event) => reject(event.target.error);
     });
+  },
+
+  async serializeAll() {
+    const db = await this.initDB();
+    const backup = {
+      keyring: [],
+      groupSenderKeys: [],
+      groupSkippedKeys: [],
+      groupSecurityPolicies: []
+    };
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORE_NAME, GROUP_SENDER_KEYS_STORE_NAME, GROUP_SKIPPED_KEYS_STORE_NAME, GROUP_SECURITY_POLICIES_STORE_NAME], 'readonly');
+      
+      const req0 = transaction.objectStore(STORE_NAME).getAll();
+      req0.onsuccess = () => { backup.keyring = req0.result; };
+
+      const req1 = transaction.objectStore(GROUP_SENDER_KEYS_STORE_NAME).getAll();
+      req1.onsuccess = () => { backup.groupSenderKeys = req1.result; };
+      
+      const req2 = transaction.objectStore(GROUP_SKIPPED_KEYS_STORE_NAME).getAll();
+      req2.onsuccess = () => { backup.groupSkippedKeys = req2.result; };
+
+      const req3 = transaction.objectStore(GROUP_SECURITY_POLICIES_STORE_NAME).getAll();
+      req3.onsuccess = () => { backup.groupSecurityPolicies = req3.result; };
+
+      transaction.oncomplete = () => resolve(JSON.stringify(backup));
+      transaction.onerror = (e) => reject(e.target.error);
+    });
+  },
+
+  async restoreAll(jsonString) {
+    const db = await this.initDB();
+    const backup = JSON.parse(jsonString);
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORE_NAME, GROUP_SENDER_KEYS_STORE_NAME, GROUP_SKIPPED_KEYS_STORE_NAME, GROUP_SECURITY_POLICIES_STORE_NAME], 'readwrite');
+      
+      if (backup.keyring) {
+        const store0 = transaction.objectStore(STORE_NAME);
+        store0.clear();
+        backup.keyring.forEach(item => store0.put(item));
+      }
+
+      if (backup.groupSenderKeys) {
+        const store1 = transaction.objectStore(GROUP_SENDER_KEYS_STORE_NAME);
+        store1.clear();
+        backup.groupSenderKeys.forEach(item => store1.put(item));
+      }
+      
+      if (backup.groupSkippedKeys) {
+        const store2 = transaction.objectStore(GROUP_SKIPPED_KEYS_STORE_NAME);
+        store2.clear();
+        backup.groupSkippedKeys.forEach(item => store2.put(item));
+      }
+
+      if (backup.groupSecurityPolicies) {
+        const store3 = transaction.objectStore(GROUP_SECURITY_POLICIES_STORE_NAME);
+        store3.clear();
+        backup.groupSecurityPolicies.forEach(item => store3.put(item));
+      }
+
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = (e) => reject(e.target.error);
+    });
   }
 };

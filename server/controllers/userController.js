@@ -222,3 +222,31 @@ export const updateBackupStatus = catchAsync(async (req, res, next) => {
   
   res.json({ success: true, message: "Backup status updated" });
 });
+
+export const uploadBackupBlob = catchAsync(async (req, res, next) => {
+  const { encryptedBlob } = req.body;
+  
+  if (!encryptedBlob || !encryptedBlob.iv || !encryptedBlob.data) {
+    return next(new AppError("Invalid backup blob format", 400));
+  }
+  
+  await User.findByIdAndUpdate(req.user._id, { 
+    encryptedBackupBlob: encryptedBlob,
+    hasBackedUpKeys: true
+  });
+  
+  res.json({ success: true, message: "Backup uploaded securely" });
+});
+
+export const downloadBackupBlob = catchAsync(async (req, res, next) => {
+  const user = await User.findById(req.user._id).select("encryptedBackupBlob hasBackedUpKeys");
+  
+  if (!user || !user.encryptedBackupBlob) {
+    return next(new AppError("No backup found", 404));
+  }
+  
+  res.json({ 
+    success: true, 
+    encryptedBlob: user.encryptedBackupBlob 
+  });
+});

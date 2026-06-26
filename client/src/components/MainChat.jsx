@@ -7,6 +7,9 @@ import toast from 'react-hot-toast';
 import Loading from './Loading';
 import { Reply, Trash2, Copy, Languages } from "lucide-react";
 import { useLayoutEffect } from 'react';
+import { MediaCryptoService } from '../lib/MediaCryptoService';
+import axios from 'axios';
+import { EncryptedMedia } from './EncryptedMedia';
 
 const MainChat = () => {
 
@@ -113,25 +116,72 @@ const handleSendMessage = async (e) => {
 // Handle sending an image
 
 const handleSendImage = async (e) =>{
-const file = e.target.files[0];
+  const file = e.target.files[0];
 
-if(!file || !file.type.startsWith("image/")){
-toast.error("select an image file");
-return;
-}
+  if(!file) {
+    return;
+  }
 
-const reader = new FileReader();
-reader.onloadend = async () => {
-  if (selectedUser) {
-    await sendMessage({image: reader.result});
-  } else if (selectedGrp) {
-      await sendGrpMsg({ image: reader.result, groupId: selectedGrp._id });
+  try {
+    const toastId = toast.loading("Encrypting and uploading...");
+    
+    // 1. Encrypt locally
+    const encryptedData = await MediaCryptoService.encryptMedia(file);
+    
+    // 2. Request Upload Signature
+    const { data: sigData } = await axios.post('/api/upload/signature', {
+      mimeType: encryptedData.mimeType,
+      size: encryptedData.size,
+      groupId: selectedGrp?._id || null
+    });
+
+    if (!sigData.success && sigData.status !== 'success') {
+      throw new Error("Failed to get upload signature");
     }
-    e.target.value = ""
-} 
-  reader.readAsDataURL(file);
-}
 
+    // 3. Upload to R2 directly
+    await axios.put(sigData.uploadUrl, encryptedData.encryptedBuffer, {
+      headers: {
+        'Content-Type': encryptedData.mimeType
+      }
+    });
+
+    // 4. Mark Complete
+    await axios.post('/api/upload/complete', {
+      attachmentId: sigData.attachmentId
+    });
+
+    // 5. Construct E2EE Payload
+    const mediaPayload = {
+      type: "media",
+      media: {
+        url: sigData.uploadUrl.split('?')[0], // strip query params
+        aesKey: encryptedData.aesKey,
+        iv: encryptedData.iv,
+        sha256: encryptedData.sha256,
+        mimeType: encryptedData.mimeType,
+        size: encryptedData.size,
+        name: encryptedData.name
+      }
+    };
+
+    const textPayload = JSON.stringify(mediaPayload);
+
+    // 6. Send as standard text message (which gets encrypted by the context)
+    if (selectedUser) {
+      await sendMessage({ text: textPayload });
+    } else if (selectedGrp) {
+      await sendGrpMsg({ text: textPayload, groupId: selectedGrp._id });
+    }
+    
+    toast.success("Media sent securely!", { id: toastId });
+  } catch (err) {
+    console.error("Upload error:", err);
+    toast.error(err.message || "Failed to send media");
+  } finally {
+    e.target.value = "";
+  }
+}
 
 const getSenderId = (mes) => {
   return typeof mes.senderId === "object" ? mes.senderId._id : mes.senderId;
@@ -368,92 +418,84 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
             </div>
           )}
 
-          {/* Message */}
-          <div 
-            className={`flex items-end gap-3 transition-all duration-300 ease-out animate-fadeIn ${
-              getSenderId(mes) !== authUser._id ? "justify-start" : "justify-end"
-            }`}
-            style={{animationDelay: `${i * 0.05}s`}}
-          >
+          <div className={`flex items-end gap-2 my-2 ${getSenderId(mes) === authUser._id ? "justify-end" : "justify-start"}`}>
             
             {/* Avatar for received messages (left side) */}
             {getSenderId(mes) !== authUser._id && (
               <div className="flex flex-col items-center gap-1 flex-shrink-0">
-                {selectedGrp ? (
-                  mes.senderId?.profilePic ? (
-                    <img
-                      src={mes.senderId.profilePic}
-                      alt={mes.senderId.fullName}
-                      className="w-[33px] h-[33px] rounded-full object-cover border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)]"
-                    />
-                  ) : (
-                    <div
-                      className="w-[33px] h-[33px] rounded-full flex items-center justify-center 
-                        text-white text-[11px] font-bold border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)] 
-                        bg-gradient-to-r from-[#ff4800] via-pink-500 to-[#d31b74]"
-                    >
-                      {mes.senderId?.fullName
-                        ?.split(" ")
-                        .map((n) => n[0])
-                        .join("")
-                        .toUpperCase()
-                        .slice(0, 2)}
-                    </div>
-                  )
-                ) : selectedUser ? (
-                  selectedUser.profilePic ? (
-                    <img
-                      src={selectedUser.profilePic}
-                      alt={selectedUser.fullName}
-                      className="w-[33px] h-[33px] rounded-full object-cover border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)]"
-                    />
-                  ) : (
-                    <div
-                      className="w-[33px] h-[33px] rounded-full flex items-center justify-center 
-                        text-white text-[11px] font-bold border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)] 
-                        bg-gradient-to-r from-[#ff4800] via-pink-500 to-[#d31b74]"
-                    >
-                      {selectedUser.fullName
-                        ?.split(" ")
-                        .map((n) => n[0])
-                        .join("")
-                        .toUpperCase()
-                        .slice(0, 2)}
-                    </div>
-                  )
-                ) : null}
-
-                {/* Show sender name in group chat */}
-                {selectedGrp ? (
-                  <p className="text-xs text-purple-400 font-semibold">
-                    {mes.senderId?.fullName || "Unknown"} 
-                  </p>
+                {selectedUser && selectedUser?.profilePic ? (
+                  <img
+                    src={selectedUser?.profilePic}
+                    alt={selectedUser?.fullName}
+                    className="w-[33px] h-[33px] rounded-full object-cover border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)]"
+                  />
+                ) : selectedGrp && mes.senderId?.profilePic ? (
+                  <img
+                    src={mes.senderId?.profilePic}
+                    alt={mes.senderId?.fullName}
+                    className="w-[33px] h-[33px] rounded-full object-cover border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)]"
+                  />
                 ) : (
+                  <div className="w-[33px] h-[33px] rounded-full flex items-center justify-center 
+                    text-white text-[11px] font-bold border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)] 
+                    bg-gradient-to-r from-[#ff4800] via-pink-500 to-[#d31b74]">
+                    {selectedGrp ? 
+                       (mes.senderId?.fullName
+                        ?.split(" ")
+                        .map((n) => n[0])
+                        .join("")
+                        .toUpperCase()
+                        .slice(0, 2) || "U") 
+                       : 
+                       (selectedUser?.fullName
+                        ?.split(" ")
+                        .map((n) => n[0])
+                        .join("")
+                        .toUpperCase()
+                        .slice(0, 2) || "U")
+                    }
+                  </div>
+                )}
+                {selectedGrp && (
                   <p className="text-xs text-purple-400 font-semibold">
-                    {selectedUser.fullName || "Unknown"}
+                    {mes.senderId?.fullName?.split(" ")[0] || "User"}
                   </p>
                 )}
-                <p className="text-xs text-gray-400 font-medium">
-                  {formatMessageTime(mes.createdAt)}
-                </p>
+                <p className="text-xs text-gray-400 font-medium">{formatMessageTime(mes.createdAt)}</p>
               </div>
             )}
 
-            {/* Message Content */}
-            <div className={`flex flex-col max-w-[320px] ${mes.senderId === authUser._id ? 'items-end' : 'items-start'}`}>
-              {/* Message Image (if exists) */}
+            {/* Message Bubble Container */}
+            <div className={`relative max-w-[75%] sm:max-w-[65%] md:max-w-[55%] ${getSenderId(mes) === authUser._id ? "order-1" : "order-2"}`}>
+              {/* Legacy Image Rendering */}
               {mes.image ? (
-                <div className={`relative group overflow-hidden rounded-2xl shadow-xl border-2 transition-all duration-300 hover:shadow-2xl hover:scale-[1.02] ${
+                <div className={`relative group rounded-xl overflow-hidden shadow-lg border-2 ${
                   getSenderId(mes) === authUser._id 
-                    ? 'border-purple-500/40 bg-gradient-to-br from-purple-600/10 to-violet-600/10' 
-                    : 'border-gray-600/40 bg-gradient-to-br from-gray-700/10 to-gray-800/10'
+                    ? "border-purple-500/30" 
+                    : "border-gray-600/30"
                 }`}>
                   <img 
                     src={mes.image} 
                     alt="Shared image" 
                     className="max-w-[230px] w-full h-auto object-cover transition-transform duration-300 group-hover:scale-105" 
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  {getSenderId(mes) === authUser._id && !selectedGrp && (
+                    <div className="absolute bottom-2 right-2 bg-black/40 backdrop-blur-md px-1.5 py-0.5 rounded-full text-[10px]">
+                      {mes.seen ? (
+                        <span className="text-blue-400 font-bold">✓✓</span>
+                      ) : (
+                        <span className="text-white font-bold">✓</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : mediaPayload ? (
+                <div className={`relative group rounded-xl overflow-hidden shadow-lg border-2 ${
+                  getSenderId(mes) === authUser._id 
+                    ? "border-purple-500/30" 
+                    : "border-gray-600/30"
+                }`}>
+                  <EncryptedMedia payload={mediaPayload} />
                   
                   {getSenderId(mes) === authUser._id && !selectedGrp && (
                     <div className="absolute bottom-2 right-2 bg-black/40 backdrop-blur-md px-1.5 py-0.5 rounded-full text-[10px]">
@@ -464,18 +506,6 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
                       )}
                     </div>
                   )}
-                  
-                  {/* Image overlay icons */}
-                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    <div className="flex gap-1">
-                      <div className="w-6 h-6 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center">
-                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                      </div>
-                    </div>
-                  </div>
                 </div>
               ) : (
                 <div className="relative mt-6">

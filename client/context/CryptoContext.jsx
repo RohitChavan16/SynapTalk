@@ -2,6 +2,8 @@ import React, { createContext, useState, useEffect, useContext } from "react";
 import { AuthContext } from "./AuthContext";
 import { CryptoEngine, arrayBufferToBase64, base64ToArrayBuffer } from "../src/lib/CryptoEngine";
 import { IndexedDBService } from "../src/lib/IndexedDBService";
+import toast from "react-hot-toast";
+import * as bip39 from "bip39";
 
 export const CryptoContext = createContext();
 
@@ -108,10 +110,62 @@ export const CryptoContextProvider = ({ children }) => {
 
   const confirmBackup = async () => {
     try {
-      await axios.post("/api/auth/keys/backup-status", { hasBackedUpKeys: true });
+      if (!mnemonicToBackup) {
+        throw new Error("No mnemonic available to generate backup key.");
+      }
+      
+      const lsk = await CryptoEngine.deriveLSK(mnemonicToBackup);
+      const dbState = await IndexedDBService.serializeAll();
+      const encryptedBlob = await CryptoEngine.encryptBackup(lsk, dbState);
+      
+      await axios.post("/api/auth/keys/backup", { encryptedBlob });
+      
       setMnemonicToBackup(null);
+      // Ensure local user state reflects it
+      authUser.hasBackedUpKeys = true;
     } catch (err) {
-      console.error("Failed to update backup status:", err);
+      console.error("Failed to backup keys:", err);
+      toast.error("Failed to securely backup keys to the cloud.");
+    }
+  };
+
+  const restoreFromPhrase = async (phrase) => {
+    try {
+      if (!bip39.validateMnemonic(phrase)) {
+        throw new Error("Invalid recovery phrase");
+      }
+
+      // Restore WebCrypto Keypair
+      const identity = await CryptoEngine.restoreIdentity(phrase);
+      
+      // Fetch backup from backend
+      const { data } = await axios.get("/api/auth/keys/backup");
+      if (data.success && data.encryptedBlob) {
+        const lsk = await CryptoEngine.deriveLSK(phrase);
+        const decryptedJsonStr = await CryptoEngine.decryptBackup(lsk, data.encryptedBlob);
+        
+        // Restore all IndexedDB states
+        await IndexedDBService.restoreAll(decryptedJsonStr);
+      }
+      
+      // Set the active User KeyPair (which overwrites if one exists)
+      await IndexedDBService.saveKey(
+        identity.keyId, 
+        identity.privateKey, 
+        'v2', 
+        identity.mnemonic,
+        identity.publicKeyBase64,
+        identity.signaturePrivateKey,
+        identity.signaturePublicKeyBase64
+      );
+
+      setMigrationState("MIGRATION_COMPLETE");
+      setIsCryptoReady(true);
+      toast.success("Identity and keys restored successfully!");
+    } catch (err) {
+      console.error("Restore failed:", err);
+      toast.error("Failed to restore keys. " + err.message);
+      throw err;
     }
   };
 
@@ -430,6 +484,8 @@ export const CryptoContextProvider = ({ children }) => {
       migrationState, 
       mnemonicToBackup, 
       setMnemonicToBackup, 
+      confirmBackup,
+      restoreFromPhrase,
       encryptMessage, 
       decryptMessage, 
       encryptGroupMessage, 

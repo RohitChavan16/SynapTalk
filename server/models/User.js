@@ -12,6 +12,7 @@ const userSchema = new mongoose.Schema({
   location: { type: String },
   privateKey: { type: String, default: null },
   hasBackedUpKeys: { type: Boolean, default: false }, // E2EE metadata
+  encryptedBackupBlob: { type: Object, default: null }, // Opaque IndexedDB backup
   publicKey: { type: String }, // ECC public key
   signaturePublicKey: { type: String }, // Base64 ECDSA P-256 Public Key
   googleAccessToken: { type: String, default: null },

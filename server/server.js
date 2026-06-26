@@ -4,7 +4,9 @@ import cors from "cors";
 import http from "http";
 import { connectDB } from "./lib/mongodb.js";
 import userRouter from "./routes/userRoutes.js";
+import uploadRouter from "./routes/uploadRoutes.js";
 import messageRouter from "./routes/messageRoutes.js";
+import { cleanupAttachments } from "./jobs/attachmentCron.js";
 import { Server } from "socket.io";
 import session from "express-session";
 import passport from "./lib/passport.js";
@@ -711,6 +713,7 @@ app.use(passport.session());
 
 //Main Routes
 app.use("/api/auth", userRouter);
+app.use("/api/upload", uploadRouter);
 app.use("/api/messages", messageRouter);
 app.use("/api/group", groupRouter);
 app.use("/api/ai", aiRouter);
@@ -832,6 +835,12 @@ app.get("/api/call/stats", (req, res) => {
 
 
 app.use("/api/healthz", healthRouter);
+
+// Start cron jobs
+setInterval(() => {
+  cleanupAttachments();
+}, 60 * 60 * 1000); // Run every hour
+
 
 app.get("/", (req, res) => {
   res.send("API is working with Video Calling Support 🚀📹");

@@ -1,5 +1,5 @@
 import express from 'express';
-import { addSocialLink, checkAuth, deleteSocialLink, editSocialLink, getSocialLink, login, signup, updateProfile, exportLegacyKey, uploadPublicKey, updateBackupStatus } from '../controllers/userController.js';
+import { addSocialLink, checkAuth, deleteSocialLink, editSocialLink, getSocialLink, login, signup, updateProfile, exportLegacyKey, uploadPublicKey, updateBackupStatus, uploadBackupBlob, downloadBackupBlob } from '../controllers/userController.js';
 import { protectRoute } from '../middleware/auth.js';
 import { globalRateLimitMiddleware, strictRateLimitMiddleware } from "../middleware/rateLimiter.js";
 import logger from "../lib/logger.js";
@@ -25,6 +25,8 @@ userRouter.put("/edit-links", protectRoute, editSocialLink);
 userRouter.get("/keys/export-legacy", protectRoute, exportLegacyKey);
 userRouter.post("/keys/upload", protectRoute, uploadPublicKey);
 userRouter.post("/keys/backup-status", protectRoute, updateBackupStatus);
+userRouter.post("/keys/backup", protectRoute, uploadBackupBlob);
+userRouter.get("/keys/backup", protectRoute, downloadBackupBlob);
 
 // Google OAuth login
 userRouter.get(
