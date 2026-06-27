@@ -17,7 +17,9 @@ hmac: { type: String },
 image: {type: String },
 reactions: [{ emoji: String, reactedBy: {type: mongoose.Schema.Types.ObjectId, ref: 'User'}}],
 seen: {type: Boolean, default: false},
-seenBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }]
+seenBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+status: { type: String, enum: ['SENT', 'DELIVERED', 'READ'], default: 'SENT' },
+idempotencyKey: { type: String, required: true }
 }, {timestamps: true});
 
 // Performance Indexes
@@ -25,6 +27,7 @@ messageSchema.index({ senderId: 1, receiverId: 1 }); // Used by getMessages 1:1 
 messageSchema.index({ senderId: 1, createdAt: -1 }); // Used by getLatestMessages $or
 messageSchema.index({ receiverId: 1, createdAt: -1 }); // Used by getLatestMessages $or
 messageSchema.index({ receiverId: 1, seen: 1, senderId: 1 }); // Used by getUsersForSidebar aggregate
+messageSchema.index({ senderId: 1, receiverId: 1, idempotencyKey: 1 }, { unique: true });
 
 const Message = mongoose.model("Message", messageSchema);
 

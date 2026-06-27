@@ -1,7 +1,8 @@
 import User from "../models/User.js";
 import Message from "../models/Message.js";
 import cloudinary from "../lib/cloudinary.js";
-import {io, userSocketMap} from "../server.js";
+import {io} from "../server.js";
+import { publishMessageEvent } from "../lib/messageBus.js";
 import logger from "../lib/logger.js";
 import mongoose from "mongoose";
 import AppError from "../utils/AppError.js";
@@ -131,10 +132,14 @@ export const sendMessage = catchAsync(async (req, res, next) => {
       iv,
       encryptedMessage,
       image,
-      text 
+      text,
+      idempotencyKey 
     } = req.body;
     
-    // Fail Closed: Reject plaintext text if this is a V2 message.
+    if (!idempotencyKey) {
+        return next(new AppError("idempotencyKey is required", 400));
+    }
+
     if ((cryptoVersion === 2 || !cryptoVersion) && text) {
       return next(new AppError("Plaintext payload forbidden for E2EE messaging", 400));
     }
@@ -154,34 +159,39 @@ export const sendMessage = catchAsync(async (req, res, next) => {
       }
     }
 
-    const newMessage = await Message.create({
-      senderId,
-      receiverId,
-      cryptoVersion: cryptoVersion || 2,
-      senderKeyId,
-      receiverKeyId,
-      ephemeralPublicKey,
-      wrappedAESKey,
-      iv,
-      encryptedMessage,
-      image: imageUrl
-    });
+    let newMessage;
+    try {
+        newMessage = await Message.create({
+          senderId,
+          receiverId,
+          cryptoVersion: cryptoVersion || 2,
+          senderKeyId,
+          receiverKeyId,
+          ephemeralPublicKey,
+          wrappedAESKey,
+          iv,
+          encryptedMessage,
+          image: imageUrl,
+          idempotencyKey,
+          status: 'SENT'
+        });
+    } catch (err) {
+        if (err.code === 11000) {
+            // Idempotency: duplicate message detected, return existing
+            newMessage = await Message.findOne({ senderId, receiverId, idempotencyKey });
+        } else {
+            throw err;
+        }
+    }
 
     const populatedMessage = await Message.findById(newMessage._id)
       .populate("senderId", "fullName profilePic")
       .populate("receiverId", "fullName profilePic");
       
-    const receiverRoom = `user_${receiverId}`;
-   
-    // Socket payload ONLY contains ciphertext
-    const socketMessage = {
-      ...populatedMessage._doc,
-      isRealTime: true
-    };
+    // Publish to Redis Stream instead of direct Socket.io emit
+    await publishMessageEvent('direct', newMessage._id, receiverId);
     
-    req.io.to(receiverRoom).emit("newMessage", socketMessage);
-    
-    res.json({success: true, newMessage});
+    res.json({success: true, newMessage: populatedMessage});
 });
 
 

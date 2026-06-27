@@ -13,11 +13,13 @@ const groupMessageSchema = new mongoose.Schema(
     senderKeyId: { type: String },
     signature: { type: String },
     ratchetIndex: { type: Number },
+    idempotencyKey: { type: String, required: true },
   },
   { timestamps: true }
 );
 
 // Performance Indexes
 groupMessageSchema.index({ groupId: 1, createdAt: -1 });
+groupMessageSchema.index({ senderId: 1, groupId: 1, idempotencyKey: 1 }, { unique: true });
 
 export const GroupMessage = mongoose.model("GroupMessage", groupMessageSchema);

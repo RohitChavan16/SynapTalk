@@ -2,7 +2,8 @@ import express from 'express';
 import Group from '../models/Group.js';
 import User from '../models/User.js';
 import { GroupMessage } from '../models/GroupMsg.js';
-import { io, userSocketMap } from '../server.js';
+import { io } from '../server.js';
+import { publishMessageEvent } from '../lib/messageBus.js';
 import cloudinary from "../lib/cloudinary.js";
 import AppError from "../utils/AppError.js";
 import { catchAsync } from "../utils/catchAsync.js";
@@ -72,13 +73,12 @@ export const getGroups = catchAsync(async(req, res, next) => {
 });
 
 export const sendGrpMsg = catchAsync(async (req, res, next) => {
-    const { groupId, text, image, ciphertext, iv, senderKeyId, signature, ratchetIndex } = req.body;
+    const { groupId, text, image, ciphertext, iv, senderKeyId, signature, ratchetIndex, idempotencyKey } = req.body;
 
-    if (!groupId || (!text && !image && !ciphertext)) {
-      return next(new AppError("groupId and message required", 400));
+    if (!groupId || (!text && !image && !ciphertext) || !idempotencyKey) {
+      return next(new AppError("groupId, message, and idempotencyKey required", 400));
     }
 
-    // Ensure user is part of the group
     const group = await Group.findById(groupId).populate("members", "_id");
     if (!group) return next(new AppError("Group not found", 404));
 
@@ -106,22 +106,31 @@ export const sendGrpMsg = catchAsync(async (req, res, next) => {
       }
     }
 
-    // Save plain message or E2EE message
-    const message = await GroupMessage.create({
-      senderId: req.user._id,
-      groupId,
-      text,
-      image: imageUrl,
-      ciphertext,
-      iv,
-      senderKeyId,
-      signature,
-      ratchetIndex
-    });
+    let message;
+    try {
+        message = await GroupMessage.create({
+          senderId: req.user._id,
+          groupId,
+          text,
+          image: imageUrl,
+          ciphertext,
+          iv,
+          senderKeyId,
+          signature,
+          ratchetIndex,
+          idempotencyKey
+        });
+    } catch (err) {
+        if (err.code === 11000) {
+            message = await GroupMessage.findOne({ senderId: req.user._id, groupId, idempotencyKey });
+        } else {
+            throw err;
+        }
+    }
 
     const populatedMsg = await message.populate("senderId", "fullName profilePic");
    
-    io.to(groupId.toString()).emit("receiveGrpMsg", populatedMsg);
+    await publishMessageEvent('group', message._id, groupId);
    
     res.status(201).json(populatedMsg);
 });

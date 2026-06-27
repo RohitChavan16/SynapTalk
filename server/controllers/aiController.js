@@ -1,13 +1,12 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { userSocketMap, io } from "../server.js";
+import { io } from "../server.js";
 import Message from "../models/Message.js";
 import { GroupMessage } from "../models/GroupMsg.js";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-const getReceiverSocketId = (receiverId) => {
-  return userSocketMap[receiverId];
-};
+import crypto from "crypto";
+import { publishMessageEvent } from "../lib/messageBus.js";
 
 export const handleAIMessage = async (req, res) => {
   try {
@@ -35,24 +34,20 @@ export const handleAIMessage = async (req, res) => {
 
     
     if (receiverId) {
-      
       savedMessage = new Message({
         senderId: senderId,
         receiverId: receiverId,
         text: `🤖 Saras AI: ${aiResponse}`,
         seen: false,
+        status: 'SENT',
+        idempotencyKey: crypto.randomUUID()
       });
 
       await savedMessage.save();
       await savedMessage.populate("senderId", "fullName profilePic");
       await savedMessage.populate("receiverId", "fullName profilePic");
 
-      const receiverSocketId = getReceiverSocketId(receiverId);
-      if (receiverSocketId) {
-        io.to(receiverSocketId).emit("newMessage", savedMessage);
-       
-      }
-
+      await publishMessageEvent('direct', savedMessage._id, receiverId);
     }
    
     else if (groupId) {
@@ -60,14 +55,13 @@ export const handleAIMessage = async (req, res) => {
         groupId: groupId,
         senderId: senderId,
         text: `🤖 Saras AI: ${aiResponse}`,
+        idempotencyKey: crypto.randomUUID()
       });
 
       await savedMessage.save();
       await savedMessage.populate("senderId", "fullName profilePic");
 
-
-      io.to(groupId.toString()).except(`user_${senderId}`).emit("receiveGrpMsg", savedMessage);
-      
+      await publishMessageEvent('group', savedMessage._id, groupId);
     }
 
     res.status(200).json(savedMessage);
