@@ -5,7 +5,7 @@ import { ChatContext } from '../../context/ChatContext';
 import { AuthContext } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import Loading from './Loading';
-import { Reply, Trash2, Copy, Languages, Loader2 } from "lucide-react";
+import { Reply, Trash2, Copy, Languages, Loader2, X } from "lucide-react";
 import { useLayoutEffect } from 'react';
 import { MediaCryptoService } from '../lib/MediaCryptoService';
 import axios from 'axios';
@@ -23,6 +23,8 @@ const MainChat = () => {
   const [loading, setLoading] = useState(true);
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [selectedImageFile, setSelectedImageFile] = useState(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
   const [dropDownMsg, setDropDownMsg] = useState(false);
   const [optMsg, setOptMsg] = useState(null);
   const messagesEndRef = useRef(null);
@@ -49,168 +51,145 @@ const MainChat = () => {
 // Handle sending a message
 const handleSendMessage = async (e) => {
   e?.preventDefault();
-  if (input.trim() === "") return;
+  if (input.trim() === "" && !selectedImageFile) return;
   if (isSending) return;
 
   setIsSending(true);
 
   try {
-    // Check if message starts with @saras (case insensitive)
     const isAIMessage = input.trim().toLowerCase().startsWith("@saras");
 
-    if (isAIMessage) {
-      // Handle AI message
-      if (selectedUser) {
-        if (!selectedUser?.publicKey) {
-          toast.error("Receiver's public key not available!");
-          return;
+    if (selectedImageFile) {
+      let toastId = toast.loading("Encrypting and uploading...");
+      try {
+        const encryptedData = await MediaCryptoService.encryptMedia(selectedImageFile);
+        
+        const { data: sigData } = await axios.post('/api/upload/signature', {
+          size: encryptedData.size,
+          groupId: selectedGrp?._id || null,
+          attachmentId: activeAttachmentRef.current
+        });
+        
+        if (sigData.attachmentId) {
+          activeAttachmentRef.current = sigData.attachmentId;
+        }
+
+        if (!sigData.success && sigData.status !== 'success') {
+          throw new Error("Failed to get upload signature");
+        }
+
+        const uploadResponse = await fetch(sigData.uploadUrl, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/octet-stream'
+          },
+          body: encryptedData.encryptedBuffer
+        });
+        
+        if (!uploadResponse.ok) {
+          const errorText = await uploadResponse.text();
+          throw new Error(`Upload failed (${uploadResponse.status}): ${errorText.substring(0, 50)}`);
+        }
+
+        await axios.post('/api/upload/complete', {
+          attachmentId: sigData.attachmentId
+        });
+
+        const mediaPayload = {
+          type: "media",
+          media: {
+            url: sigData.downloadUrl,
+            aesKey: encryptedData.aesKey,
+            iv: encryptedData.iv,
+            sha256: encryptedData.sha256,
+            mimeType: encryptedData.mimeType,
+            size: encryptedData.size,
+            name: encryptedData.name
+          }
+        };
+        
+        if (input.trim() !== "") {
+          mediaPayload.text = input.trim();
+        }
+
+        const textPayload = JSON.stringify(mediaPayload);
+
+        if (selectedUser) {
+          await sendMessage({ text: textPayload, attachmentId: sigData.attachmentId, receiverPublicKey: selectedUser.publicKey });
+        } else if (selectedGrp) {
+          await sendGrpMsg({ text: textPayload, attachmentId: sigData.attachmentId, groupId: selectedGrp._id });
         }
         
-        // Show loading toast
-        toast.loading("🤖 Saras AI is thinking...", { id: "ai-loading" });
-        await sendMessage({
-          text: input.trim(),
-          receiverPublicKey: selectedUser.publicKey,
-        });
-        await sendAIMessage({
-          text: input.trim(),
-          receiverId: selectedUser._id,
-        });
+        activeAttachmentRef.current = null;
+        toast.success("Media sent securely!", { id: toastId });
         
-        // Remove loading toast
-        toast.dismiss("ai-loading");
-      } else if (selectedGrp) {
-        // Show loading toast
-        toast.loading("🤖 Saras AI is thinking...", { id: "ai-loading" });
-        await sendGrpMsg({
-          text: input.trim(),
-          groupId: selectedGrp._id,
-        });
-        await sendAIMessage({
-          text: input.trim(),
-          groupId: selectedGrp._id,
-        });
-        
-        // Remove loading toast
-        toast.dismiss("ai-loading");
+        setSelectedImageFile(null);
+        setImagePreviewUrl(null);
+        setInput("");
+      } catch (err) {
+        console.error("FULL UPLOAD ERROR:", err);
+        toast.error(err.response?.data?.message || err.message || "Failed to send media", { id: toastId });
       }
     } else {
-      // Handle normal message
-      if (selectedUser) {
-        if (!selectedUser?.publicKey) {
-          toast.error("Receiver's public key not available!");
-          return;
+      if (isAIMessage) {
+        if (selectedUser) {
+          if (!selectedUser?.publicKey) {
+            toast.error("Receiver's public key not available!");
+            return;
+          }
+          toast.loading("🤖 Saras AI is thinking...", { id: "ai-loading" });
+          await sendMessage({
+            text: input.trim(),
+            receiverPublicKey: selectedUser.publicKey,
+          });
+          await sendAIMessage({
+            text: input.trim(),
+            receiverId: selectedUser._id,
+          });
+          toast.dismiss("ai-loading");
+        } else if (selectedGrp) {
+          toast.loading("🤖 Saras AI is thinking...", { id: "ai-loading" });
+          await sendGrpMsg({
+            text: input.trim(),
+            groupId: selectedGrp._id,
+          });
+          await sendAIMessage({
+            text: input.trim(),
+            groupId: selectedGrp._id,
+          });
+          toast.dismiss("ai-loading");
         }
-
-        await sendMessage({
-          text: input.trim(),
-          receiverPublicKey: selectedUser.publicKey,
-        });
-      } else if (selectedGrp) {
-        await sendGrpMsg({
-          text: input.trim(),
-          groupId: selectedGrp._id,
-        });
+      } else {
+        if (selectedUser) {
+          if (!selectedUser?.publicKey) {
+            toast.error("Receiver's public key not available!");
+            return;
+          }
+          await sendMessage({
+            text: input.trim(),
+            receiverPublicKey: selectedUser.publicKey,
+          });
+        } else if (selectedGrp) {
+          await sendGrpMsg({
+            text: input.trim(),
+            groupId: selectedGrp._id,
+          });
+        }
       }
+      setInput("");
     }
-
-    setInput("");
   } finally {
     setIsSending(false);
   }
 };
 
-
-
-// Handle sending an image
-
-const handleSendImage = async (e) =>{
+const handleImageSelect = (e) => {
   const file = e.target.files[0];
-
-  if(!file) {
-    return;
-  }
-
-  let toastId;
-
-  try {
-    toastId = toast.loading("Encrypting and uploading...");
-    
-    // 1. Encrypt locally
-    const encryptedData = await MediaCryptoService.encryptMedia(file);
-    
-    // 2. Request Upload Signature
-    const { data: sigData } = await axios.post('/api/upload/signature', {
-      size: encryptedData.size,
-      groupId: selectedGrp?._id || null,
-      attachmentId: activeAttachmentRef.current
-    });
-    
-    if (sigData.attachmentId) {
-      activeAttachmentRef.current = sigData.attachmentId;
-    }
-
-    if (!sigData.success && sigData.status !== 'success') {
-      throw new Error("Failed to get upload signature");
-    }
-
-    // 3. Upload to R2 directly
-    const uploadResponse = await fetch(sigData.uploadUrl, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/octet-stream'
-      },
-      body: encryptedData.encryptedBuffer
-    });
-    
-    if (!uploadResponse.ok) {
-      const errorText = await uploadResponse.text();
-      console.error("Minio/S3 Upload Error:", errorText);
-      throw new Error(`Upload failed (${uploadResponse.status}): ${errorText.substring(0, 50)}`);
-    }
-
-    // 4. Mark Complete
-    await axios.post('/api/upload/complete', {
-      attachmentId: sigData.attachmentId
-    });
-
-    // 5. Construct E2EE Payload
-    const mediaPayload = {
-      type: "media",
-      media: {
-        url: sigData.downloadUrl,
-        aesKey: encryptedData.aesKey,
-        iv: encryptedData.iv,
-        sha256: encryptedData.sha256,
-        mimeType: encryptedData.mimeType,
-        size: encryptedData.size,
-        name: encryptedData.name
-      }
-    };
-
-    const textPayload = JSON.stringify(mediaPayload);
-
-    // 6. Send as standard text message (which gets encrypted by the context)
-    if (selectedUser) {
-      await sendMessage({ text: textPayload, attachmentId: sigData.attachmentId, receiverPublicKey: selectedUser.publicKey });
-    } else if (selectedGrp) {
-      await sendGrpMsg({ text: textPayload, attachmentId: sigData.attachmentId, groupId: selectedGrp._id });
-    }
-    
-    // Clear idempotency ref on success
-    activeAttachmentRef.current = null;
-    
-    toast.success("Media sent securely!", { id: toastId });
-  } catch (err) {
-    console.error("FULL UPLOAD ERROR:", err);
-    if (err.response) {
-       console.error("ERROR RESPONSE DATA:", err.response.data);
-    }
-    toast.error(err.response?.data?.message || err.message || "Failed to send media", { id: toastId });
-  } finally {
-    e.target.value = "";
-  }
-}
+  if (!file) return;
+  setSelectedImageFile(file);
+  setImagePreviewUrl(URL.createObjectURL(file));
+  e.target.value = "";
+};
 
 const getSenderId = (mes) => {
   return typeof mes.senderId === "object" ? mes.senderId._id : mes.senderId;
@@ -501,15 +480,15 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
             <div className={`relative max-w-[75%] sm:max-w-[65%] md:max-w-[55%] ${getSenderId(mes) === authUser._id ? "order-1" : "order-2"}`}>
               {/* Legacy Image Rendering */}
               {mes.image ? (
-                <div className={`relative group rounded-xl overflow-hidden shadow-lg border-2 ${
+                <div className={`relative group flex flex-col overflow-hidden shadow-lg border-2 max-w-[280px] ${
                   getSenderId(mes) === authUser._id 
-                    ? "border-purple-500/30" 
-                    : "border-gray-600/30"
+                    ? "bg-gradient-to-br from-[#296dff] to-[#4f029d] border-purple-400/30 shadow-purple-500/20 rounded-2xl rounded-br-md" 
+                    : "bg-gradient-to-br from-gray-600/80 to-gray-900/90 border-gray-600/30 shadow-gray-500/20 rounded-2xl rounded-bl-md"
                 }`}>
                   <img 
                     src={mes.image} 
                     alt="Shared image" 
-                    className="max-w-[230px] w-full h-auto object-cover transition-transform duration-300 group-hover:scale-105" 
+                    className="w-full h-auto object-cover transition-transform duration-300 group-hover:scale-105" 
                   />
                   {getSenderId(mes) === authUser._id && !selectedGrp && (
                     <div className="absolute bottom-2 right-2 bg-black/40 backdrop-blur-md px-1.5 py-0.5 rounded-full text-[10px]">
@@ -524,13 +503,19 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
                   )}
                 </div>
               ) : mes.mediaPayload ? (
-                <div className={`relative group rounded-xl overflow-hidden shadow-lg border-2 ${
+                <div className={`relative group flex flex-col overflow-hidden shadow-lg border-2 max-w-[280px] ${
                   getSenderId(mes) === authUser._id 
-                    ? "border-purple-500/30" 
-                    : "border-gray-600/30"
+                    ? "bg-gradient-to-br from-[#296dff] to-[#4f029d] border-purple-400/30 shadow-purple-500/20 rounded-2xl rounded-br-md" 
+                    : "bg-gradient-to-br from-gray-600/80 to-gray-900/90 border-gray-600/30 shadow-gray-500/20 rounded-2xl rounded-bl-md"
                 }`}>
-                  <EncryptedMedia payload={mes.mediaPayload} />
+                  <EncryptedMedia payload={mes.mediaPayload.media} className="!max-w-none w-full" />
                   
+                  {mes.mediaPayload.text && (
+                    <div className="px-3 py-2 text-white text-sm font-light break-words border-t border-white/10">
+                      {mes.mediaPayload.text}
+                    </div>
+                  )}
+
                   {getSenderId(mes) === authUser._id && !selectedGrp && (
                     <div className="absolute bottom-2 right-2 bg-black/40 backdrop-blur-md px-1.5 py-0.5 rounded-full text-[10px]">
                       {mes.seen || mes.status === 'READ' ? (
@@ -727,10 +712,24 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
     </div>
   )}
 
-<div className='flex-1 flex items-center bg-gray-100/12 px-3 rounded-full'>
+{imagePreviewUrl && (
+  <div className="absolute bottom-[100%] left-4 mb-2 bg-gray-800/90 p-2 rounded-xl shadow-xl border border-gray-600 z-50 flex flex-col gap-2 backdrop-blur-md animate-in fade-in slide-in-from-bottom-2">
+    <div className="relative group">
+      <img src={imagePreviewUrl} alt="Preview" className="h-32 w-auto max-w-[200px] rounded-lg object-cover border border-gray-500/50" />
+      <button 
+        onClick={() => { setSelectedImageFile(null); setImagePreviewUrl(null); }}
+        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600 hover:scale-110 transition-all shadow-lg cursor-pointer"
+      >
+        <X className="w-4 h-4" />
+      </button>
+    </div>
+  </div>
+)}
+
+<div className='flex-1 flex items-center bg-gray-100/12 px-3 rounded-full relative'>
 
           <input onChange={handleTyping} value={input} onKeyDown={(e) => e.key === "Enter" ? handleSendMessage(e) : null } type="text" placeholder="Send a message" className='flex-1 text-sm p-3 border-none rounded-lg outline-none text-white placeholder-gray-400'/>
-          <input onChange={handleSendImage} type="file" id='image' accept='image/png, image/jpeg' hidden/>
+          <input onChange={handleImageSelect} type="file" id='image' accept='image/png, image/jpeg' hidden/>
           <label htmlFor="image">
                   <img src={assets.gallery_icon} alt="" className="w-5 mr-2 hover:w-5.5 cursor-pointer"/>
           </label>
