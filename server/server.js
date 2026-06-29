@@ -101,7 +101,14 @@ io.on("connection", async (socket) => {
 
   socket.on("message_ack", async (messageId) => {
       try {
-          await Message.findByIdAndUpdate(messageId, { status: 'DELIVERED' });
+          console.log(`[SOCKET] message_ack received for messageId: ${messageId}`);
+          const msg = await Message.findByIdAndUpdate(messageId, { status: 'DELIVERED' }, { new: true });
+          if (msg) {
+              io.to(`user_${msg.senderId}`).emit("messageDelivered", { 
+                  messageId: msg._id, 
+                  receiverId: msg.receiverId.toString() 
+              });
+          }
       } catch (err) {
           logger.error("Error updating message status to DELIVERED:", err);
       }
@@ -272,7 +279,8 @@ io.on("connection", async (socket) => {
 });
 
 // Middleware
-app.use(express.json({ limit: "4mb" }));
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.use(
   cors({
     origin: process.env.CLIENT_URL, // frontend URL
@@ -396,7 +404,7 @@ app.use(globalErrorHandler);
 await connectDB();
 
 const PORT = process.env.PORT || 5001;
-server.listen(PORT, () => {
+server.listen(PORT, "0.0.0.0", () => {
   logger.info(`Server with Video Calling is running on port ${PORT} 🚀📹`);
   logger.info(`WebSocket signaling server ready for video calls`);
 });

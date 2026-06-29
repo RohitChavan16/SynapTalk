@@ -10,8 +10,7 @@ const attachmentSchema = new mongoose.Schema({
     enum: ["UPLOADING", "UPLOADED", "ATTACHED", "ORPHANED", "DELETED"],
     default: "UPLOADING"
   },
-  size: { type: Number },
-  mimeType: { type: String }
+  size: { type: Number }
 }, { timestamps: true });
 
 // Index for garbage collection of orphaned uploads

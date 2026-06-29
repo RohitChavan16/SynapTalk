@@ -5,8 +5,12 @@ const GROUP_SENDER_KEYS_STORE_NAME = 'group_sender_keys';
 const GROUP_SKIPPED_KEYS_STORE_NAME = 'group_skipped_keys';
 const GROUP_SECURITY_POLICIES_STORE_NAME = 'group_security_policies';
 
+let dbInstance = null;
+let activeKeyCache = null;
+
 export const IndexedDBService = {
   async initDB() {
+    if (dbInstance) return dbInstance;
     return new Promise((resolve, reject) => {
       const request = indexedDB.open(DB_NAME, DB_VERSION);
 
@@ -26,7 +30,10 @@ export const IndexedDBService = {
         }
       };
 
-      request.onsuccess = (event) => resolve(event.target.result);
+      request.onsuccess = (event) => {
+        dbInstance = event.target.result;
+        resolve(dbInstance);
+      };
       request.onerror = (event) => reject(event.target.error);
     });
   },
@@ -49,7 +56,12 @@ export const IndexedDBService = {
       };
       
       const request = store.put(data);
-      request.onsuccess = () => resolve();
+      request.onsuccess = () => {
+        if (type === 'v2') {
+          activeKeyCache = data;
+        }
+        resolve();
+      };
       request.onerror = (event) => reject(event.target.error);
     });
   },
@@ -83,6 +95,7 @@ export const IndexedDBService = {
   },
 
   async getActiveKey() {
+    if (activeKeyCache) return activeKeyCache;
     const db = await this.initDB();
     return new Promise((resolve, reject) => {
       const transaction = db.transaction([STORE_NAME], 'readonly');
@@ -93,16 +106,21 @@ export const IndexedDBService = {
         const keys = event.target.result;
         // Find the most recently created v2 key
         const v2Keys = keys.filter(k => k.type === 'v2');
-        if (v2Keys.length === 0) return resolve(null);
-        
-        v2Keys.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-        resolve(v2Keys[0]);
+        if (v2Keys.length > 0) {
+          v2Keys.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+          const activeKey = v2Keys[0];
+          activeKeyCache = activeKey;
+          resolve(activeKey);
+        } else {
+          resolve(null);
+        }
       };
       request.onerror = (event) => reject(event.target.error);
     });
   },
   
   async clearKeyring() {
+    activeKeyCache = null;
     const db = await this.initDB();
     return new Promise((resolve, reject) => {
       const transaction = db.transaction([STORE_NAME], 'readwrite');

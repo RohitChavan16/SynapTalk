@@ -1,6 +1,5 @@
-import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import Attachment from "../models/Attachment.js";
-import s3Client, { bucketName } from "../lib/s3.js";
+import { StorageService } from "../lib/StorageService.js";
 
 // Garbage collect orphaned or deleted attachments
 export const cleanupAttachments = async () => {
@@ -22,10 +21,7 @@ export const cleanupAttachments = async () => {
 
     for (const attachment of toDelete) {
       try {
-        await s3Client.send(new DeleteObjectCommand({
-          Bucket: bucketName,
-          Key: attachment.r2Key
-        }));
+        await StorageService.deleteAttachment(attachment.r2Key);
         
         attachment.status = "DELETED";
         await attachment.save();

@@ -40,6 +40,16 @@ export const AuthProvider = ({ children }) => {
     newSocket.on("getOnlineUsers", (userIds) => setOnlineUsers(userIds));
   };
 
+  useEffect(() => {
+    if (!socket) return;
+    const interval = setInterval(() => {
+      if (socket.connected) {
+        socket.emit("ping");
+      }
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [socket]);
+
 
   const checkAuth = async (jwtToken) => {
     try {

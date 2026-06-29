@@ -7,7 +7,7 @@ dotenv.config();
 // This works for AWS S3 or Cloudflare R2 if endpoint is provided.
 const s3Client = new S3Client({
   region: process.env.AWS_REGION || "auto",
-  endpoint: process.env.AWS_ENDPOINT || undefined, // For R2, e.g., https://<ACCOUNT_ID>.r2.cloudflarestorage.com
+  endpoint: process.env.AWS_ENDPOINT_INTERNAL || process.env.AWS_ENDPOINT || undefined, // For R2, e.g., https://<ACCOUNT_ID>.r2.cloudflarestorage.com
   credentials: {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID || "dummy",
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || "dummy",

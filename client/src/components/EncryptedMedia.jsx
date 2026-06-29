@@ -15,25 +15,33 @@ export const EncryptedMedia = ({ payload, className }) => {
       try {
         setLoading(true);
         // 1. Download the encrypted blob from R2/S3
-        const response = await axios.get(payload.url, { responseType: 'arraybuffer' });
+        const downloadResponse = await fetch(payload.url);
+        if (!downloadResponse.ok) {
+          throw new Error(`Download failed with status ${downloadResponse.status}`);
+        }
+        const arrayBuffer = await downloadResponse.arrayBuffer();
         
         // 2. Decrypt using MediaCryptoService
-        const url = await MediaCryptoService.decryptMedia(
-          response.data,
-          payload.aesKey,
-          payload.iv,
-          payload.sha256,
-          payload.mimeType
-        );
-        
-        if (active) {
-          setBlobUrl(url);
-          setLoading(false);
+        try {
+          const url = await MediaCryptoService.decryptMedia(
+            arrayBuffer,
+            payload.aesKey,
+            payload.iv,
+            payload.sha256,
+            payload.mimeType
+          );
+          if (active) {
+            setBlobUrl(url);
+            setLoading(false);
+          }
+        } catch (decryptErr) {
+          console.error("Decryption error details:", decryptErr, "ArrayBuffer size:", arrayBuffer.byteLength, "Original size:", payload.size);
+          throw decryptErr;
         }
       } catch (err) {
         if (active) {
           console.error("Decryption failed:", err);
-          setError("Failed to decrypt media");
+          setError(`Failed to decrypt media: ${err.message}`);
           setLoading(false);
         }
       }

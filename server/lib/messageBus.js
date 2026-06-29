@@ -137,6 +137,9 @@ const handleEvent = async (eventId, eventData, io) => {
                     payload = { ...message, isRealTime: true };
                     emitEvent = "newMessage";
                     targetRoom = `user_${receiverId}`;
+                    logger.info(`Routing direct message ${messageId} to room ${targetRoom}`);
+                } else {
+                    logger.warn(`Message ${messageId} not found in DB during routing`);
                 }
             } else if (type === 'group') {
                 const message = await GroupMessage.findById(messageId)

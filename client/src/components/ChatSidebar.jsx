@@ -717,11 +717,14 @@ useEffect(() => {
                 {latestMsg.isSender && <span className="text-blue-400">You: </span>}
                 {latestMsg.text.length > 25 ? latestMsg.text.slice(0, 25) + "..." : latestMsg.text}
               </p>
-              {!latestMsg.seen && latestMsg.isSender && (
-                <span className="text-gray-500 text-xs">✓</span>
-              )}
-              {latestMsg.seen && latestMsg.isSender && (
-                <span className="text-blue-400 text-xs">✓✓</span>
+              {latestMsg.isSender && (
+                latestMsg.seen || latestMsg.status === 'READ' ? (
+                  <span className="text-blue-400 text-xs">✓✓</span>
+                ) : latestMsg.status === 'DELIVERED' ? (
+                  <span className="text-gray-500 text-xs">✓✓</span>
+                ) : (
+                  <span className="text-gray-500 text-xs">✓</span>
+                )
               )}
             </div>
           ) : (

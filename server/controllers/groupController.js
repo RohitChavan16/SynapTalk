@@ -4,6 +4,7 @@ import User from '../models/User.js';
 import { GroupMessage } from '../models/GroupMsg.js';
 import { io } from '../server.js';
 import { publishMessageEvent } from '../lib/messageBus.js';
+import Attachment from "../models/Attachment.js";
 import cloudinary from "../lib/cloudinary.js";
 import AppError from "../utils/AppError.js";
 import { catchAsync } from "../utils/catchAsync.js";
@@ -73,7 +74,7 @@ export const getGroups = catchAsync(async(req, res, next) => {
 });
 
 export const sendGrpMsg = catchAsync(async (req, res, next) => {
-    const { groupId, text, image, ciphertext, iv, senderKeyId, signature, ratchetIndex, idempotencyKey } = req.body;
+    const { groupId, text, image, ciphertext, iv, senderKeyId, signature, ratchetIndex, attachmentId, idempotencyKey } = req.body;
 
     if (!groupId || (!text && !image && !ciphertext) || !idempotencyKey) {
       return next(new AppError("groupId, message, and idempotencyKey required", 400));
@@ -126,6 +127,13 @@ export const sendGrpMsg = catchAsync(async (req, res, next) => {
         } else {
             throw err;
         }
+    }
+
+    if (attachmentId) {
+        await Attachment.findOneAndUpdate(
+            { _id: attachmentId, userId: req.user._id },
+            { status: "ATTACHED", groupId: groupId }
+        );
     }
 
     const populatedMsg = await message.populate("senderId", "fullName profilePic");

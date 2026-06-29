@@ -13,7 +13,7 @@ Built with end-to-end encryption, low-latency infrastructure, and modern web tec
 ✅ Online Presence – Realtime user status (online/offline) tracking.</br>
 ✅ AI Assistant — Responds only when tagged, offering smart, context-aware replies while keeping chats fully end-to-end encrypted.</br>
 ✅ User Authentication – Secure JWT-based authentication stored in localStorage, enabling persistent sessions and fast client-side access.</br>
-✅End-to-End Encryption – Implements a zero-knowledge messaging architecture using ECDH P-256 key exchange, AES-GCM encryption, and HKDF-derived session keys, ensuring the server only routes ciphertext without access to message content. </br>
+✅End-to-End Encryption – Implements a zero-knowledge messaging architecture using ECDH P-256 key exchange, AES-GCM encryption, and HKDF-derived session keys. For messages, the server only routes ciphertext. For Media E2EE, the backend retains only operational metadata (attachment ID, owner, timestamps, object size) and has absolutely zero knowledge of the media contents, original filename, MIME type, encryption key, IV, or SHA hash. </br>
 ✅ Screen Share — Share your screen in real time during video calls for seamless collaboration.</br>
 ✅ Dynamic Group Management – Create, Add, and manage groups all functionalities.</br>
 ✅ Login with Google (OAuth 2.0) — Sign-in via Google using OAuth2.</br>

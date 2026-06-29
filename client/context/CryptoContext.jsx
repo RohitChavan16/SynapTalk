@@ -83,7 +83,8 @@ export const CryptoContextProvider = ({ children }) => {
         identity.privateKey, 
         identity.keyId, 
         identity.publicKeyBase64, 
-        identity.keyId
+        identity.keyId,
+        identity.publicKeyBase64
       );
       const decrypted = await CryptoEngine.decryptV2(encryptedPayload, identity.privateKey);
       
@@ -191,10 +192,11 @@ export const CryptoContextProvider = ({ children }) => {
       let decryptedText;
       if (messagePayload.cryptoVersion === 2) {
         const myActiveKey = await IndexedDBService.getActiveKey();
+        if (!myActiveKey) return "🔒 [Key unavailable]";
+        
         decryptedText = await CryptoEngine.decryptV2(messagePayload, myActiveKey.privateKey, isSender);
       } else {
-        // v1 Legacy Decryption
-        const legacyPrivKey = await IndexedDBService.getLegacyKey();
+        const legacyPrivKey = await IndexedDBService.getKey('legacy_secp256k1');
         if (!legacyPrivKey) return "[Legacy key unavailable]";
         
         decryptedText = await CryptoEngine.decryptLegacy(
@@ -237,6 +239,9 @@ export const CryptoContextProvider = ({ children }) => {
 
       return decryptedText;
     } catch (err) {
+      if (err.name === "OperationError" || err.message.includes("OperationError")) {
+        return "🔒 [Encrypted with previous key]";
+      }
       console.error("Failed to decrypt message:", messagePayload._id, err);
       return "🔒 [Message unavailable]";
     }

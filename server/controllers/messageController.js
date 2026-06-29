@@ -1,5 +1,6 @@
 import User from "../models/User.js";
 import Message from "../models/Message.js";
+import Attachment from "../models/Attachment.js";
 import cloudinary from "../lib/cloudinary.js";
 import {io} from "../server.js";
 import { publishMessageEvent } from "../lib/messageBus.js";
@@ -133,6 +134,7 @@ export const sendMessage = catchAsync(async (req, res, next) => {
       encryptedMessage,
       image,
       text,
+      attachmentId,
       idempotencyKey 
     } = req.body;
     
@@ -182,6 +184,13 @@ export const sendMessage = catchAsync(async (req, res, next) => {
         } else {
             throw err;
         }
+    }
+
+    if (attachmentId) {
+        await Attachment.findOneAndUpdate(
+            { _id: attachmentId, userId: senderId },
+            { status: "ATTACHED", messageId: newMessage._id }
+        );
     }
 
     const populatedMessage = await Message.findById(newMessage._id)
@@ -276,6 +285,7 @@ export const getLatestMessages = catchAsync(async (req, res, next) => {
           encryptedKey: 1,
           image: 1,
           seen: 1,
+          status: 1,
           createdAt: 1,
           sender: "$senderInfo",
           receiver: "$receiverInfo",

@@ -28,7 +28,7 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=5001
-      - MONGODB_URI=mongodb://mongo:27017
+      # - MONGODB_URI=mongodb://mongo:27017
       - REDIS_URI=redis://redis:6379
     env_file:
       - ./server/.env
@@ -49,7 +49,7 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=5002
-      - MONGODB_URI=mongodb://mongo:27017
+      # - MONGODB_URI=mongodb://mongo:27017
       - REDIS_URI=redis://redis:6379
     env_file:
       - ./server/.env
@@ -60,6 +60,34 @@ services:
       - ./server:/app
       - /app/node_modules
 
+  minio:
+    image: minio/minio:latest
+    container_name: synaptalk-minio
+    ports:
+      - "9002:9000"
+      - "9003:9001"
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+      - MINIO_API_CORS_ALLOW_ORIGIN=*
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+
+  minio-setup:
+    image: minio/mc:latest
+    container_name: synaptalk-minio-setup
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      sleep 5;
+      /usr/bin/mc alias set myminio http://minio:9000 minioadmin minioadmin &&
+      /usr/bin/mc mb myminio/synaptalk-media --ignore-existing &&
+      /usr/bin/mc anonymous set download myminio/synaptalk-media
+      "
+
 volumes:
   mongo_data:
   redis_data:
+  minio_data:

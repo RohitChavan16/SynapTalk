@@ -1,47 +1,46 @@
-import { PutObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { v4 as uuidv4 } from "uuid";
-import s3Client, { bucketName } from "../lib/s3.js";
+import { StorageService } from "../lib/StorageService.js";
 import Attachment from "../models/Attachment.js";
 import { catchAsync } from "../utils/catchAsync.js";
 import AppError from "../utils/AppError.js";
 
 // Generates a pre-signed URL for direct-to-S3/R2 uploads
 export const getUploadSignature = catchAsync(async (req, res, next) => {
-  const { mimeType, size } = req.body;
-  
-  if (!mimeType) {
-    return next(new AppError("mimeType is required", 400));
-  }
+  const { size, attachmentId } = req.body;
   
   const MAX_SIZE = 50 * 1024 * 1024; // 50MB
   if (size && size > MAX_SIZE) {
     return next(new AppError("File size exceeds 50MB limit", 400));
   }
 
-  const r2Key = uuidv4();
-  
-  const command = new PutObjectCommand({
-    Bucket: bucketName,
-    Key: r2Key,
-    ContentType: mimeType,
-  });
+  let r2Key;
+  let attachment;
 
-  // URL expires in 15 minutes
-  const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 900 });
+  // Idempotency: reuse existing UPLOADING attachment if provided
+  if (attachmentId) {
+    attachment = await Attachment.findOne({ _id: attachmentId, userId: req.user._id, status: "UPLOADING" });
+  }
 
-  const attachment = await Attachment.create({
-    r2Key,
-    userId: req.user._id,
-    groupId: req.body.groupId || null,
-    status: "UPLOADING",
-    size,
-    mimeType
-  });
+  if (attachment) {
+    r2Key = attachment.r2Key;
+  } else {
+    r2Key = uuidv4();
+    attachment = await Attachment.create({
+      r2Key,
+      userId: req.user._id,
+      groupId: req.body.groupId || null,
+      status: "UPLOADING",
+      size
+    });
+  }
+
+  // Generate signature using abstract StorageService
+  const { uploadUrl, downloadUrl } = await StorageService.generateUploadSignature(r2Key);
 
   res.status(200).json({
     status: "success",
     uploadUrl,
+    downloadUrl,
     r2Key,
     attachmentId: attachment._id
   });

@@ -5,7 +5,7 @@ import { ChatContext } from '../../context/ChatContext';
 import { AuthContext } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import Loading from './Loading';
-import { Reply, Trash2, Copy, Languages } from "lucide-react";
+import { Reply, Trash2, Copy, Languages, Loader2 } from "lucide-react";
 import { useLayoutEffect } from 'react';
 import { MediaCryptoService } from '../lib/MediaCryptoService';
 import axios from 'axios';
@@ -22,9 +22,11 @@ const MainChat = () => {
   const scrollEnd = useRef();
   const [loading, setLoading] = useState(true);
   const [input, setInput] = useState('');
+  const [isSending, setIsSending] = useState(false);
   const [dropDownMsg, setDropDownMsg] = useState(false);
   const [optMsg, setOptMsg] = useState(null);
   const messagesEndRef = useRef(null);
+  const activeAttachmentRef = useRef(null);
 
   const handleScroll = async (e) => {
     const { scrollTop, scrollHeight } = e.target;
@@ -46,69 +48,76 @@ const MainChat = () => {
   // Handle sending a message
 // Handle sending a message
 const handleSendMessage = async (e) => {
-  e.preventDefault();
+  e?.preventDefault();
   if (input.trim() === "") return;
+  if (isSending) return;
 
-  // Check if message starts with @saras (case insensitive)
-  const isAIMessage = input.trim().toLowerCase().startsWith("@saras");
+  setIsSending(true);
 
-  if (isAIMessage) {
-    // Handle AI message
-    if (selectedUser) {
-      if (!selectedUser?.publicKey) {
-        toast.error("Receiver's public key not available!");
-        return;
+  try {
+    // Check if message starts with @saras (case insensitive)
+    const isAIMessage = input.trim().toLowerCase().startsWith("@saras");
+
+    if (isAIMessage) {
+      // Handle AI message
+      if (selectedUser) {
+        if (!selectedUser?.publicKey) {
+          toast.error("Receiver's public key not available!");
+          return;
+        }
+        
+        // Show loading toast
+        toast.loading("🤖 Saras AI is thinking...", { id: "ai-loading" });
+        await sendMessage({
+          text: input.trim(),
+          receiverPublicKey: selectedUser.publicKey,
+        });
+        await sendAIMessage({
+          text: input.trim(),
+          receiverId: selectedUser._id,
+        });
+        
+        // Remove loading toast
+        toast.dismiss("ai-loading");
+      } else if (selectedGrp) {
+        // Show loading toast
+        toast.loading("🤖 Saras AI is thinking...", { id: "ai-loading" });
+        await sendGrpMsg({
+          text: input.trim(),
+          groupId: selectedGrp._id,
+        });
+        await sendAIMessage({
+          text: input.trim(),
+          groupId: selectedGrp._id,
+        });
+        
+        // Remove loading toast
+        toast.dismiss("ai-loading");
       }
-      
-      // Show loading toast
-      toast.loading("🤖 Saras AI is thinking...", { id: "ai-loading" });
-      await sendMessage({
-        text: input.trim(),
-        receiverPublicKey: selectedUser.publicKey,
-      });
-      await sendAIMessage({
-        text: input.trim(),
-        receiverId: selectedUser._id,
-      });
-      
-      // Remove loading toast
-      toast.dismiss("ai-loading");
-    } else if (selectedGrp) {
-      // Show loading toast
-      toast.loading("🤖 Saras AI is thinking...", { id: "ai-loading" });
-      await sendGrpMsg({
-        text: input.trim(),
-        groupId: selectedGrp._id,
-      });
-      await sendAIMessage({
-        text: input.trim(),
-        groupId: selectedGrp._id,
-      });
-      
-      // Remove loading toast
-      toast.dismiss("ai-loading");
-    }
-  } else {
-    // Handle normal message
-    if (selectedUser) {
-      if (!selectedUser?.publicKey) {
-        toast.error("Receiver's public key not available!");
-        return;
-      }
+    } else {
+      // Handle normal message
+      if (selectedUser) {
+        if (!selectedUser?.publicKey) {
+          toast.error("Receiver's public key not available!");
+          return;
+        }
 
-      await sendMessage({
-        text: input.trim(),
-        receiverPublicKey: selectedUser.publicKey,
-      });
-    } else if (selectedGrp) {
-      await sendGrpMsg({
-        text: input.trim(),
-        groupId: selectedGrp._id,
-      });
+        await sendMessage({
+          text: input.trim(),
+          receiverPublicKey: selectedUser.publicKey,
+        });
+      } else if (selectedGrp) {
+        await sendGrpMsg({
+          text: input.trim(),
+          groupId: selectedGrp._id,
+        });
+      }
     }
+
+    setInput("");
+  } finally {
+    setIsSending(false);
   }
-
-  setInput("");
 };
 
 
@@ -122,29 +131,43 @@ const handleSendImage = async (e) =>{
     return;
   }
 
+  let toastId;
+
   try {
-    const toastId = toast.loading("Encrypting and uploading...");
+    toastId = toast.loading("Encrypting and uploading...");
     
     // 1. Encrypt locally
     const encryptedData = await MediaCryptoService.encryptMedia(file);
     
     // 2. Request Upload Signature
     const { data: sigData } = await axios.post('/api/upload/signature', {
-      mimeType: encryptedData.mimeType,
       size: encryptedData.size,
-      groupId: selectedGrp?._id || null
+      groupId: selectedGrp?._id || null,
+      attachmentId: activeAttachmentRef.current
     });
+    
+    if (sigData.attachmentId) {
+      activeAttachmentRef.current = sigData.attachmentId;
+    }
 
     if (!sigData.success && sigData.status !== 'success') {
       throw new Error("Failed to get upload signature");
     }
 
     // 3. Upload to R2 directly
-    await axios.put(sigData.uploadUrl, encryptedData.encryptedBuffer, {
+    const uploadResponse = await fetch(sigData.uploadUrl, {
+      method: 'PUT',
       headers: {
-        'Content-Type': encryptedData.mimeType
-      }
+        'Content-Type': 'application/octet-stream'
+      },
+      body: encryptedData.encryptedBuffer
     });
+    
+    if (!uploadResponse.ok) {
+      const errorText = await uploadResponse.text();
+      console.error("Minio/S3 Upload Error:", errorText);
+      throw new Error(`Upload failed (${uploadResponse.status}): ${errorText.substring(0, 50)}`);
+    }
 
     // 4. Mark Complete
     await axios.post('/api/upload/complete', {
@@ -155,7 +178,7 @@ const handleSendImage = async (e) =>{
     const mediaPayload = {
       type: "media",
       media: {
-        url: sigData.uploadUrl.split('?')[0], // strip query params
+        url: sigData.downloadUrl,
         aesKey: encryptedData.aesKey,
         iv: encryptedData.iv,
         sha256: encryptedData.sha256,
@@ -169,15 +192,21 @@ const handleSendImage = async (e) =>{
 
     // 6. Send as standard text message (which gets encrypted by the context)
     if (selectedUser) {
-      await sendMessage({ text: textPayload });
+      await sendMessage({ text: textPayload, attachmentId: sigData.attachmentId, receiverPublicKey: selectedUser.publicKey });
     } else if (selectedGrp) {
-      await sendGrpMsg({ text: textPayload, groupId: selectedGrp._id });
+      await sendGrpMsg({ text: textPayload, attachmentId: sigData.attachmentId, groupId: selectedGrp._id });
     }
+    
+    // Clear idempotency ref on success
+    activeAttachmentRef.current = null;
     
     toast.success("Media sent securely!", { id: toastId });
   } catch (err) {
-    console.error("Upload error:", err);
-    toast.error(err.message || "Failed to send media");
+    console.error("FULL UPLOAD ERROR:", err);
+    if (err.response) {
+       console.error("ERROR RESPONSE DATA:", err.response.data);
+    }
+    toast.error(err.response?.data?.message || err.message || "Failed to send media", { id: toastId });
   } finally {
     e.target.value = "";
   }
@@ -250,15 +279,18 @@ useEffect(() => {
 
 
   useEffect(() => {
-    if(selectedUser){
-      setLoading(true); 
-      getMessages(selectedUser._id);
-      setTimeout(() => setLoading(false), 1000);
-    } else if (selectedGrp) {
-    setLoading(true);
-    getGrpMessages(selectedGrp._id, true); // pass a flag to indicate group chat
-    setTimeout(() => setLoading(false), 1000);
-  }
+    const loadMessages = async () => {
+      if (selectedUser) {
+        setLoading(true); 
+        await getMessages(selectedUser._id);
+        setLoading(false);
+      } else if (selectedGrp) {
+        setLoading(true);
+        await getGrpMessages(selectedGrp._id, true); // pass a flag to indicate group chat
+        setLoading(false);
+      }
+    };
+    loadMessages();
   }, [selectedUser, selectedGrp]);
 
 const scrollToBottom = (ref) => {
@@ -481,26 +513,30 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
                   />
                   {getSenderId(mes) === authUser._id && !selectedGrp && (
                     <div className="absolute bottom-2 right-2 bg-black/40 backdrop-blur-md px-1.5 py-0.5 rounded-full text-[10px]">
-                      {mes.seen ? (
+                      {mes.seen || mes.status === 'READ' ? (
                         <span className="text-blue-400 font-bold">✓✓</span>
+                      ) : mes.status === 'DELIVERED' ? (
+                        <span className="text-white font-bold">✓✓</span>
                       ) : (
                         <span className="text-white font-bold">✓</span>
                       )}
                     </div>
                   )}
                 </div>
-              ) : mediaPayload ? (
+              ) : mes.mediaPayload ? (
                 <div className={`relative group rounded-xl overflow-hidden shadow-lg border-2 ${
                   getSenderId(mes) === authUser._id 
                     ? "border-purple-500/30" 
                     : "border-gray-600/30"
                 }`}>
-                  <EncryptedMedia payload={mediaPayload} />
+                  <EncryptedMedia payload={mes.mediaPayload} />
                   
                   {getSenderId(mes) === authUser._id && !selectedGrp && (
                     <div className="absolute bottom-2 right-2 bg-black/40 backdrop-blur-md px-1.5 py-0.5 rounded-full text-[10px]">
-                      {mes.seen ? (
+                      {mes.seen || mes.status === 'READ' ? (
                         <span className="text-blue-400 font-bold">✓✓</span>
+                      ) : mes.status === 'DELIVERED' ? (
+                        <span className="text-white font-bold">✓✓</span>
                       ) : (
                         <span className="text-white font-bold">✓</span>
                       )}
@@ -548,8 +584,10 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
                       <span className="inline-block">{mes.text}</span>
                       {getSenderId(mes) === authUser._id && !selectedGrp && (
                         <span className="float-right ml-2 mt-1 flex items-center text-[10px] opacity-90">
-                          {mes.seen ? (
+                          {mes.seen || mes.status === 'READ' ? (
                             <span className="text-blue-300 font-bold drop-shadow-md">✓✓</span>
+                          ) : mes.status === 'DELIVERED' ? (
+                            <span className="text-gray-300 font-bold drop-shadow-md">✓✓</span>
                           ) : (
                             <span className="text-gray-300 font-bold drop-shadow-md">✓</span>
                           )}
@@ -698,7 +736,11 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
           </label>
           
 </div>
-<img onClick={handleSendMessage} src={assets.send_button} alt="" className="w-9 cursor-pointer hover:opacity-89" />
+{isSending ? (
+  <Loader2 className="w-9 h-9 animate-spin text-white opacity-80" />
+) : (
+  <img onClick={handleSendMessage} src={assets.send_button} alt="" className="w-9 cursor-pointer hover:opacity-89" />
+)}
 </div>
 )}
 

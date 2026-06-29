@@ -13,6 +13,11 @@ export const globalErrorHandler = (err, req, res, next) => {
     err.message = `${field} already exists.`;
   }
 
+  if (err.http_code) {
+    err.statusCode = err.http_code;
+    err.isOperational = true;
+  }
+
   err.statusCode = err.statusCode || 500;
   err.status = err.status || 'error';
 

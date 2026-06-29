@@ -13,12 +13,19 @@ const Login = () => {
   const [isDataSubmitted, setIsDataSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [isAgreed, setIsAgreed] = useState(false);
   const navigate = useNavigate();
   const {login} = useContext(AuthContext);
 
   const onSubmitHandler = async (event)=>{
-    setLoading(true);
     event.preventDefault();
+
+    if (!isAgreed) {
+      import("react-hot-toast").then((module) => module.default.error("You must agree to the terms of use & privacy policy."));
+      return;
+    }
+
+    setLoading(true);
     try {
       
     if (currState === 'Sign up' && !isDataSubmitted) {
@@ -42,10 +49,20 @@ const Login = () => {
 
 
 
- const handleGoogleLogin = () => {
-  setGoogleLoading(true);
+ const handleGoogleLogin = (e) => {
+   e.preventDefault();
+   if (!isAgreed) {
+      import("react-hot-toast").then((module) => module.default.error("You must agree to the terms of use & privacy policy."));
+      return;
+   }
+   setGoogleLoading(true);
    const backendUrl = import.meta.env.VITE_BACKEND_URL;
-  window.location.href = backendUrl + "/api/auth/google";
+   window.location.href = backendUrl + "/api/auth/google";
+   
+   // Safety reset in case redirection gets blocked
+   setTimeout(() => {
+     setGoogleLoading(false);
+   }, 3000);
 };
 
 
@@ -100,6 +117,7 @@ placeholder='provide a short bio...' required></textarea>)
 
 {/* Google Button */}
 <button
+  type="button"
   onClick={handleGoogleLogin}  // your Google handler
   disabled={googleLoading}      // disable while redirecting
   className="bg-blue-500 text-white hover:text-white hover:font-bold px-4 py-3 cursor-pointer hover:opacity-89 rounded flex items-center justify-center disabled:cursor-not-allowed disabled:opacity-60"
@@ -119,7 +137,7 @@ placeholder='provide a short bio...' required></textarea>)
 </button>
 
 <div className="flex item-center gap-2 text-sm text-gray-300">
-<input type="checkbox" />
+<input type="checkbox" checked={isAgreed} onChange={(e) => setIsAgreed(e.target.checked)} className="cursor-pointer" />
 <p>Agree to the terms of use & privacy policy.</p>
 </div>
 <div className='flex flex-col gap-2'>

@@ -17,7 +17,14 @@ const [selectedProfileGrp, setSelectedProfileGrp] = useState(false);
 const [unseenMessages, setUnseenMessages] = useState({});
 const [unseenGrpMessages, setUnseenGrpMessages] = useState({});
 const {socket, axios, authUser, token} = useContext(AuthContext); // Removed privateKey
-const { encryptMessage, decryptMessage, isCryptoReady } = useContext(CryptoContext);
+const { 
+  encryptMessage, 
+  decryptMessage, 
+  encryptGroupMessage,
+  decryptGroupMessage,
+  verifyAndPinGroupState,
+  isCryptoReady 
+} = useContext(CryptoContext);
 const [groups, setGroups] = useState([]);
 const [active, setActive] = useState("My Chat");
 const [typingUsers, setTypingUsers] = useState({});
@@ -36,7 +43,9 @@ const [isGroupsLoading, setIsGroupsLoading] = useState(true);
 // function to get all users for sidebar
 
 const selectedUserRef = useRef(null);
-const selectedGrpRef = useRef(null);
+const selectedGrpRef = useRef(selectedGrp);
+const seenMessageIds = useRef(new Set());
+const deliveredMessageIds = useRef(new Set());
 
 useEffect(() => {
   selectedUserRef.current = selectedUser;
@@ -86,6 +95,7 @@ const getMessages = async (userId, cursor = null) => {
     if (cursor) {
       url += `?cursor=${cursor}`;
     } else {
+      setMessages([]);
       setHasMoreMessages(true);
       setNextCursor(null);
     }
@@ -96,9 +106,19 @@ const getMessages = async (userId, cursor = null) => {
       // Local Decryption Phase
       const decryptedMessages = await Promise.all(
         data.messages.map(async (msg) => {
-          const isSender = msg.senderId === authUser._id || msg.senderId?._id === authUser._id;
+          const msgSenderId = typeof msg.senderId === 'object' && msg.senderId !== null ? msg.senderId._id : msg.senderId;
+          const isSender = String(msgSenderId) === String(authUser._id);
           const decryptedText = await decryptMessage(msg, isSender);
-          return { ...msg, text: decryptedText };
+          let parsedMsg = { ...msg, text: decryptedText };
+          try {
+            if (decryptedText && decryptedText.startsWith("{")) {
+              const parsed = JSON.parse(decryptedText);
+              if (parsed.type === "media") {
+                parsedMsg.mediaPayload = parsed;
+              }
+            }
+          } catch (e) {}
+          return parsedMsg;
         })
       );
 
@@ -123,7 +143,10 @@ const sendMessage = async (messageData) => {
       return;
     }
 
-    let payload = { ...messageData };
+    let payload = { 
+      ...messageData,
+      idempotencyKey: crypto.randomUUID()
+    };
 
     // Local Encryption Phase
     if (messageData.text) {
@@ -144,8 +167,20 @@ const sendMessage = async (messageData) => {
         text: messageData.text // Keep original text for immediate UI display
       };
       
+      try {
+        if (messageData.text && messageData.text.startsWith("{")) {
+          const parsed = JSON.parse(messageData.text);
+          if (parsed.type === "media") {
+            displayMessage.mediaPayload = parsed;
+          }
+        }
+      } catch (e) {}
+      
       if (seenMessageIds.current.has(String(displayMessage._id))) {
         displayMessage.seen = true;
+      }
+      if (deliveredMessageIds.current.has(String(displayMessage._id))) {
+        displayMessage.status = 'DELIVERED';
       }
       
       setMessages((prevMessages) => [...prevMessages, displayMessage]);
@@ -154,8 +189,9 @@ const sendMessage = async (messageData) => {
         [selectedUser._id]: {
           text: messageData.text || (messageData.image ? "📷 Photo" : ""),
           createdAt: new Date().toISOString(),
-          seen: false,
+          seen: displayMessage.seen || false,
           isSender: true,
+          status: displayMessage.status || 'SENT',
         },
       }));
     } else {
@@ -171,7 +207,7 @@ const sendMessage = async (messageData) => {
 
 
 
-const sendGrpMsg = async ({ text, image, groupId }) => {
+const sendGrpMsg = async ({ text, image, groupId, attachmentId }) => {
   try {
     const currentGrp = selectedGrpRef.current || groups.find(g => g._id === groupId);
     if (!currentGrp) {
@@ -179,7 +215,11 @@ const sendGrpMsg = async ({ text, image, groupId }) => {
       return;
     }
 
-    let payload = { groupId };
+    let payload = { 
+      groupId,
+      idempotencyKey: crypto.randomUUID(),
+      attachmentId
+    };
     
     // Encrypt the group message
     if (text) {
@@ -190,7 +230,11 @@ const sendGrpMsg = async ({ text, image, groupId }) => {
         // Send 1:1 distributions
         if (distributions && distributions.length > 0) {
            for (const dist of distributions) {
-             axios.post(`/api/messages/send/${dist.receiverId}`, dist.payload).catch(console.error);
+             const distPayload = {
+               ...dist.payload,
+               idempotencyKey: crypto.randomUUID()
+             };
+             axios.post(`/api/messages/send/${dist.receiverId}`, distPayload).catch(console.error);
            }
         }
       } catch (err) {
@@ -206,6 +250,14 @@ const sendGrpMsg = async ({ text, image, groupId }) => {
         ...data,
         text: text // Keep original text for immediate UI display
       };
+      try {
+        if (text && text.startsWith("{")) {
+          const parsed = JSON.parse(text);
+          if (parsed.type === "media") {
+            displayMessage.mediaPayload = parsed;
+          }
+        }
+      } catch (e) {}
       setMessages((prev) => [...prev, displayMessage]); 
       setLatestGrpMessages(prev => ({
         ...prev,
@@ -231,6 +283,7 @@ const getGrpMessages = async (groupId, cursor = null) => {
     if (cursor) {
       url += `?cursor=${cursor}`;
     } else {
+      setMessages([]);
       setHasMoreMessages(true);
       setNextCursor(null);
     }
@@ -239,10 +292,20 @@ const getGrpMessages = async (groupId, cursor = null) => {
        // Decrypt group messages
        const decryptedMessages = await Promise.all(
          data.messages.map(async (msg) => {
-           const senderId = msg.senderId?._id || msg.senderId;
+           const senderIdObj = msg.senderId?._id || msg.senderId;
+           const senderIdStr = String(senderIdObj);
            if (msg.ciphertext) {
-             const decryptedText = await decryptGroupMessage(msg, senderId, msg.senderId?.publicKey);
-             return { ...msg, text: decryptedText };
+             const decryptedText = await decryptGroupMessage(msg, senderIdStr, msg.senderId?.publicKey);
+             let parsedMsg = { ...msg, text: decryptedText };
+             try {
+               if (decryptedText && decryptedText.startsWith("{")) {
+                 const parsed = JSON.parse(decryptedText);
+                 if (parsed.type === "media") {
+                   parsedMsg.mediaPayload = parsed;
+                 }
+               }
+             } catch (e) {}
+             return parsedMsg;
            }
            return msg;
          })
@@ -313,7 +376,6 @@ const sendAIMessage = async ({ text, receiverId, groupId }) => {
   }
 };
 
-  const seenMessageIds = useRef(new Set());
 
 // Register socket listeners ONCE when socket connects
 useEffect(() => {
@@ -371,6 +433,35 @@ useEffect(() => {
       }
       return prev;
     });
+  });
+
+  socket.on("messageDelivered", ({ messageId, receiverId }) => {
+    console.log("🔥 RECEIVED messageDelivered for msg:", messageId, "receiverId:", receiverId);
+    deliveredMessageIds.current.add(String(messageId));
+    
+    setMessages((prev) => 
+      prev.map((msg) => {
+        if (String(msg._id) === String(messageId)) {
+          return { ...msg, status: 'DELIVERED' };
+        }
+        return msg;
+      })
+    );
+
+    if (receiverId) {
+      setLatestMessages((prev) => {
+        const recIdStr = String(receiverId);
+        console.log("checking prev latest message for recIdStr:", recIdStr, prev[recIdStr]);
+        if (prev[recIdStr] && prev[recIdStr].isSender && !prev[recIdStr].seen) {
+          console.log("updating latest message to DELIVERED");
+          return {
+            ...prev,
+            [recIdStr]: { ...prev[recIdStr], status: 'DELIVERED' }
+          };
+        }
+        return prev;
+      });
+    }
   });
 
 
@@ -435,6 +526,14 @@ useEffect(() => {
       if (msg.ciphertext) {
          const decryptedText = await decryptGroupMessage(msg, senderId, msg.senderId?.publicKey);
          displayMessage = { ...msg, text: decryptedText };
+         try {
+           if (decryptedText && decryptedText.startsWith("{")) {
+             const parsed = JSON.parse(decryptedText);
+             if (parsed.type === "media") {
+               displayMessage.mediaPayload = parsed;
+             }
+           }
+         } catch (e) {}
       }
 
       if (currentGrp && msg.groupId === currentGrp._id) {
@@ -460,32 +559,45 @@ useEffect(() => {
   });
 
   socket.on("newMessage", async (newMessage) => {
+    // Let the server know the message reached the client
+    socket.emit("message_ack", newMessage._id);
+
     const currentUser = selectedUserRef.current;
    
     let displayMessage = newMessage;
     
-    
-    if (currentUser && newMessage.senderId._id === currentUser._id) {
-      
-     
-      if (newMessage.encryptedMessage) {
+    if (newMessage.encryptedMessage) {
+      try {
+        const isSender = false; // We are receiving
+        const decryptedText = await decryptMessage(newMessage, isSender);
+        displayMessage = { ...newMessage, text: decryptedText };
+        
         try {
-          const isSender = false; // We are receiving it from socket
-          const decryptedText = await decryptMessage(newMessage, isSender);
-          displayMessage = { ...newMessage, text: decryptedText };
-        } catch (error) {
-          console.error("Local decryption failed for socket message:", error);
-          displayMessage = { ...newMessage, text: '[Unable to decrypt message]' };
-        }
+          if (decryptedText && decryptedText.startsWith("{")) {
+            const parsed = JSON.parse(decryptedText);
+            if (parsed.type === "media") {
+              displayMessage.mediaPayload = parsed;
+            }
+          }
+        } catch (e) {}
+      } catch (error) {
+        console.error("Local decryption failed for socket message:", error);
+        displayMessage = { ...newMessage, text: '[Unable to decrypt message]' };
       }
-      
+    }
+    
+    const senderIdStr = String(newMessage.senderId?._id || newMessage.senderId);
+    const currentUserIdStr = currentUser ? String(currentUser._id) : null;
+    
+    console.log("🔥 newMessage received. senderIdStr:", senderIdStr, "currentUserIdStr:", currentUserIdStr);
+    
+    if (currentUser && senderIdStr === currentUserIdStr) {
       displayMessage.seen = true;
       setMessages((prevMessages) => [...prevMessages, displayMessage]);
       axios.put(`/api/messages/mark/${newMessage._id}`);
-    
     } else {
       
-      const senderId = newMessage.senderId._id || newMessage.senderId;
+      const senderId = newMessage.senderId?._id || newMessage.senderId;
      setUnseenMessages(prev => {
   const updated = {
     ...prev,
@@ -497,8 +609,8 @@ useEffect(() => {
  }
 
 
-const senderId = newMessage.senderId._id || newMessage.senderId;
-  const receiverId = newMessage.receiverId._id || newMessage.receiverId;
+  const senderId = newMessage.senderId?._id || newMessage.senderId;
+  const receiverId = newMessage.receiverId?._id || newMessage.receiverId;
   
   // Determine the "other user" ID based on current user
   const otherUserId = senderId === authUser._id ? receiverId : senderId;
@@ -509,10 +621,10 @@ const senderId = newMessage.senderId._id || newMessage.senderId;
       text: displayMessage.text || (displayMessage.image ? "📷 Photo" : ""),
       createdAt: displayMessage.createdAt,
       seen: displayMessage.seen || false,
-      isSender: senderId === authUser._id
+      isSender: senderId === authUser._id,
+      status: displayMessage.status || 'SENT'
     }
   }));
-
 
 });
 
@@ -554,6 +666,7 @@ const senderId = newMessage.senderId._id || newMessage.senderId;
     socket.off("receiveGrpMsg");
     socket.off("messagesSeen");
     socket.off("messageSeen");
+    socket.off("messageDelivered");
     socket.off("migrationStateChanged");
   };
 }, [socket]); // ⚠️ Only depend on socket, not selectedUser/selectedGrp
@@ -685,14 +798,15 @@ const fetchLatestMessages = async () => {
 
       for (const msg of decryptedResults) {
         const otherUserId = msg.isSender ? 
-          (msg.receiver._id || msg.receiver) : 
-          (msg.sender._id || msg.sender);
+          (msg.receiver?._id || msg.receiver) : 
+          (msg.sender?._id || msg.sender);
 
         latest[otherUserId] = {
           text: msg.text,
           createdAt: msg.createdAt,
           seen: msg.seen || false,
-          isSender: msg.isSender
+          isSender: msg.isSender,
+          status: msg.status
         };
       }
 
