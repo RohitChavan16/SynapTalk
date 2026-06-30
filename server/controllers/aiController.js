@@ -1,5 +1,4 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { io } from "../server.js";
 import Message from "../models/Message.js";
 import { GroupMessage } from "../models/GroupMsg.js";
 
@@ -24,7 +23,8 @@ export const handleAIMessage = async (req, res) => {
     }
 
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-2.5-flash-lite"
+      model: "gemini-2.5-flash-lite",
+      systemInstruction: "You are Saras AI, a helpful, smart, and friendly AI assistant integrated into SynapTalk. You are inspired by Devi Saraswati. Provide concise, clear, and well-formatted answers."
     });
     
     const result = await model.generateContent(aiQuery);
@@ -38,7 +38,7 @@ export const handleAIMessage = async (req, res) => {
         senderId: senderId,
         receiverId: receiverId,
         text: `🤖 Saras AI: ${aiResponse}`,
-        seen: false,
+        seen: true, // Don't trigger unread badges for AI responses
         status: 'SENT',
         idempotencyKey: crypto.randomUUID()
       });

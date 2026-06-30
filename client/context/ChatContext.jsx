@@ -612,17 +612,18 @@ useEffect(() => {
       setMessages((prevMessages) => [...prevMessages, displayMessage]);
       axios.put(`/api/messages/mark/${newMessage._id}`);
     } else {
-      
-      const senderId = newMessage.senderId?._id || newMessage.senderId;
-     setUnseenMessages(prev => {
-  const updated = {
-    ...prev,
-    [senderId]: prev[senderId] ? prev[senderId] + 1 : 1
-  };
- 
-  return updated;
-  });
- }
+      // Skip incrementing unseen count for AI responses so it doesn't trigger a badge
+      if (!newMessage.text?.startsWith("🤖 Saras AI:")) {
+        const senderId = newMessage.senderId?._id || newMessage.senderId;
+        setUnseenMessages(prev => {
+          const updated = {
+            ...prev,
+            [senderId]: prev[senderId] ? prev[senderId] + 1 : 1
+          };
+          return updated;
+        });
+      }
+    }
 
 
   const senderId = newMessage.senderId?._id || newMessage.senderId;
