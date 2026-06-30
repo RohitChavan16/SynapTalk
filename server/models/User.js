@@ -37,9 +37,13 @@ const userSchema = new mongoose.Schema({
       sender: { type: mongoose.Schema.Types.ObjectId, ref: "User" }, 
       seenBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
       createdAt: { type: Date, default: Date.now },
-      notificationType: { type: String, default: null }, 
     }
-  ], 
+  ],
+  groupLastSeen: {
+    type: Map,
+    of: Date,
+    default: {}
+  }
 }, { timestamps: true });
 
 const User = mongoose.model('User', userSchema);

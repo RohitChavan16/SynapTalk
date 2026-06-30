@@ -80,6 +80,11 @@ const fetchGroups = async () => {
              await verifyAndPinGroupState(grp);
           }
           setGroups(data.groups);
+          
+          if (socket) {
+            const groupIds = data.groups.map(g => g._id);
+            socket.emit("joinMultipleGroups", groupIds);
+          }
         }
       } catch (error) {
         console.error("Error fetching groups:", error.response?.data?.message || error.message);
@@ -508,7 +513,7 @@ useEffect(() => {
         }
         return copy;
       });
-    } else {
+} else {
       setPrivateTypingUsers(prev => {
       const updated = { ...prev };
       delete updated[senderId];
@@ -518,9 +523,15 @@ useEffect(() => {
   });
 
   socket.on("receiveGrpMsg", async (msg) => {
+      console.log(`[PIPELINE - FRONTEND] 6. receiveGrpMsg triggered on socket! msg.groupId: ${msg.groupId}`);
       const currentGrp = selectedGrpRef.current;
+      console.log(`[PIPELINE - FRONTEND] 7. currentGrp._id: ${currentGrp?._id}`);
+      
       const senderId = msg.senderId?._id || msg.senderId;
-      if (senderId === authUser._id) return;
+      if (senderId === authUser._id) {
+         console.log(`[PIPELINE - FRONTEND] Ignoring own message.`);
+         return;
+      }
 
       let displayMessage = msg;
       if (msg.ciphertext) {
@@ -536,9 +547,12 @@ useEffect(() => {
          } catch (e) {}
       }
 
+      console.log(`[PIPELINE - FRONTEND] 8. Evaluating state update...`);
       if (currentGrp && msg.groupId === currentGrp._id) {
+        console.log(`[PIPELINE - FRONTEND] 9. Updating messages array (current chat is open).`);
         setMessages((prev) => [...prev, displayMessage]);
       } else {
+        console.log(`[PIPELINE - FRONTEND] 9. Updating unseen count (chat is not open).`);
         setUnseenGrpMessages((prev) => ({
           ...prev,
           [msg.groupId]: {
@@ -547,6 +561,8 @@ useEffect(() => {
           },
         }));
       }
+
+      console.log(`[PIPELINE - FRONTEND] 10. Updating latestGrpMessages sidebar.`);
       setLatestGrpMessages((prev) => ({
         ...prev,
         [msg.groupId]: {
@@ -657,8 +673,18 @@ useEffect(() => {
     }
   });
 
+  socket.on("newGroup", (groupData) => {
+    setGroups(prevGroups => {
+      if (prevGroups.some(g => g._id === groupData._id)) return prevGroups;
+      return [...prevGroups, groupData];
+    });
+    // Immediately join the socket room for the new group
+    socket.emit("joinMultipleGroups", [groupData._id]);
+  });
+
   // ✅ Cleanup: remove listeners when component unmounts
   return () => {
+    socket.off("newGroup");
     socket.off("newMessage");
     socket.off("newGroupMessage");
     socket.off("userTyping");
@@ -670,6 +696,27 @@ useEffect(() => {
     socket.off("migrationStateChanged");
   };
 }, [socket]); // ⚠️ Only depend on socket, not selectedUser/selectedGrp
+
+// Re-join groups if socket reconnects
+useEffect(() => {
+  if (!socket) return;
+  const handleReconnect = () => {
+    if (groups && groups.length > 0) {
+      const groupIds = groups.map(g => g._id);
+      socket.emit("joinMultipleGroups", groupIds);
+    }
+  };
+  
+  // If already connected, run it immediately!
+  if (socket.connected) {
+    handleReconnect();
+  }
+  
+  socket.on("connect", handleReconnect);
+  return () => {
+    socket.off("connect", handleReconnect);
+  };
+}, [socket, groups]);
 
 // Remove the old subscribeToMessages and unsubscribeFromMessages functions
 
@@ -686,7 +733,7 @@ useEffect(() => {
         if(data.success){
            toast.success("Group created successfully");
            await fetchGroups();
-           return ;
+           return data.group;
         }
         toast.error(data.message);
       } catch(error) {
@@ -826,7 +873,7 @@ const fetchLatestMessages = async () => {
 
 const fetchLatestGrpMessages = async () => {
   try {
-    const res = await axios.get("/api/group/latest-grpmsg");
+    const res = await axios.get("/api/group/latest-grpmsg", { withCredentials: true });
     
     if (res.data.success && Array.isArray(res.data.messages)) {
       const latest = {};
@@ -842,6 +889,17 @@ const fetchLatestGrpMessages = async () => {
       }
 
       setLatestGrpMessages(latest);
+      
+      if (res.data.unseenCounts) {
+        const unseenFormatted = {};
+        for (const [groupId, count] of Object.entries(res.data.unseenCounts)) {
+          if (count > 0) {
+            unseenFormatted[groupId] = { [authUser._id]: count };
+          }
+        }
+        setUnseenGrpMessages(unseenFormatted);
+      }
+
       return latest;
     }
     return {};

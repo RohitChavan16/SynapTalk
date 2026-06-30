@@ -249,6 +249,28 @@ export const IndexedDBService = {
     });
   },
 
+  async getGroupSecurityPolicy(groupId) {
+    const db = await this.initDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([GROUP_SECURITY_POLICIES_STORE_NAME], 'readonly');
+      const store = transaction.objectStore(GROUP_SECURITY_POLICIES_STORE_NAME);
+      const request = store.get(groupId);
+      request.onsuccess = (event) => resolve(event.target.result);
+      request.onerror = (event) => reject(event.target.error);
+    });
+  },
+
+  async saveGroupSecurityPolicy(policy) {
+    const db = await this.initDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([GROUP_SECURITY_POLICIES_STORE_NAME], 'readwrite');
+      const store = transaction.objectStore(GROUP_SECURITY_POLICIES_STORE_NAME);
+      const request = store.put(policy);
+      request.onsuccess = () => resolve();
+      request.onerror = (event) => reject(event.target.error);
+    });
+  },
+
   async restoreAll(jsonString) {
     const db = await this.initDB();
     const backup = JSON.parse(jsonString);

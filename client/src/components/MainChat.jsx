@@ -265,7 +265,7 @@ useEffect(() => {
         setLoading(false);
       } else if (selectedGrp) {
         setLoading(true);
-        await getGrpMessages(selectedGrp._id, true); // pass a flag to indicate group chat
+        await getGrpMessages(selectedGrp._id); // removed true argument which was acting as cursor
         setLoading(false);
       }
     };
@@ -280,22 +280,7 @@ useLayoutEffect(() => {
   // Scroll whenever messages or selected chat changes
   scrollToBottom(messagesEndRef);
 }, [messages, selectedUser?._id, selectedGrp?._id]);
-// Add this useEffect RIGHT AFTER your existing useEffects in MainChat.jsx
-// This ensures users join group rooms for proper socket communication
 
-useEffect(() => {
-  if (socket && authUser && authUser.groups?.length) {
-    const groupIds = authUser.groups.map(g => g._id || g);
-    
-    socket.emit("joinMultipleGroups", groupIds);
-
-    // Optional cleanup when disconnecting
-    return () => {
-      
-      socket.emit("leaveMultipleGroups", groupIds);
-    };
-  }
-}, [socket, authUser]);
 
 
 // Also add this debug useEffect to check if socket events are registered

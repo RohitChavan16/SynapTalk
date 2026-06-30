@@ -26,6 +26,7 @@ import { markUserOnline, markUserOffline, getOnlineUsers, handleHeartbeat } from
 import { startMessageConsumer, initializeMessageBus } from "./lib/messageBus.js";
 import * as callRoomManager from "./lib/callRoomManager.js";
 import Message from "./models/Message.js";
+import Group from "./models/Group.js";
 
 const app = express();
 const server = http.createServer(app);
@@ -74,8 +75,20 @@ io.on("connection", async (socket) => {
 
   if (userId) {
     socket.userId = userId;
-    const personalRoom = `user_${userId}`;
-    socket.join(personalRoom);
+    socket.join(`user_${userId}`);
+    
+    // Automatically join all groups the user is a part of to ensure robust delivery
+    try {
+      const Group = mongoose.model('Group');
+      const groups = await Group.find({ members: userId }).select('_id');
+      groups.forEach(group => {
+        socket.join(group._id.toString());
+        console.log(`[SOCKET] Auto-joined user ${userId} to group ${group._id.toString()}`);
+      });
+    } catch (err) {
+      console.error(`[SOCKET] Failed to auto-join groups for user ${userId}:`, err);
+    }
+    
     await markUserOnline(userId);
   }
 
@@ -115,8 +128,12 @@ io.on("connection", async (socket) => {
   });
 
   socket.on("joinMultipleGroups", (groupIds) => {
+    console.log(`[SOCKET] joinMultipleGroups received from ${socket.id} for groups:`, groupIds);
     if (!Array.isArray(groupIds)) return;
-    groupIds.forEach((groupId) => socket.join(groupId));
+    groupIds.forEach((groupId) => {
+      socket.join(groupId);
+      console.log(`[SOCKET] ${socket.id} joined room ${groupId}`);
+    });
   });
 
   socket.on("leaveMultipleGroups", (groupIds) => {

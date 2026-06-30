@@ -50,9 +50,16 @@ export const newGroup = catchAsync(async (req, res, next) => {
         $addToSet: { groups: savedGroup._id },
       });
     }
-    
+        const populatedGroup = await Group.findById(savedGroup._id)
+      .populate("admins", "fullName email profilePic")
+      .populate("members", "fullName email profilePic publicKey");
+      
+    allMembers.forEach(memberId => {
+      const room = `user_${memberId}`;
+      req.io.to(room).emit("newGroup", populatedGroup);
+    });
 
-    res.status(201).json({success: true, message: "New Group Created Successfully"});
+    res.status(201).json({success: true, message: "New Group Created Successfully", group: populatedGroup});
 });
 
 export const getGroups = catchAsync(async(req, res, next) => {
@@ -112,7 +119,7 @@ export const sendGrpMsg = catchAsync(async (req, res, next) => {
         message = await GroupMessage.create({
           senderId: req.user._id,
           groupId,
-          text,
+          text: ciphertext ? undefined : text,
           image: imageUrl,
           ciphertext,
           iv,
@@ -121,9 +128,12 @@ export const sendGrpMsg = catchAsync(async (req, res, next) => {
           ratchetIndex,
           idempotencyKey
         });
+        console.log(`[PIPELINE - CONTROLLER] 3. Message saved to MongoDB: ${message._id}`);
     } catch (err) {
         if (err.code === 11000) {
-            message = await GroupMessage.findOne({ senderId: req.user._id, groupId, idempotencyKey });
+            console.log(`[PIPELINE - CONTROLLER] Duplicate message detected: ${idempotencyKey}`);
+            message = await GroupMessage.findOne({ senderId: req.user._id, groupId, idempotencyKey }).populate("senderId", "fullName profilePic");
+            return res.status(200).json(message);
         } else {
             throw err;
         }
@@ -138,14 +148,12 @@ export const sendGrpMsg = catchAsync(async (req, res, next) => {
 
     const populatedMsg = await message.populate("senderId", "fullName profilePic");
    
+    console.log(`[PIPELINE - CONTROLLER] 4. Message populated. Calling publishMessageEvent...`);
     await publishMessageEvent('group', message._id, groupId);
+    console.log(`[PIPELINE - CONTROLLER] 5. publishMessageEvent completed successfully.`);
    
     res.status(201).json(populatedMsg);
 });
-
-
-
-
 
 
 export const getGrpMessages = catchAsync(async (req, res, next) => {
@@ -318,13 +326,24 @@ export const getLatestGrpMsg = catchAsync(async (req, res, next) => {
 
     const groupIds = groups.map(g => g._id);
 
-    // Get the latest message for each group
+    // Get the latest message for each group and calculate unseen counts
+    const unseenCounts = {};
+    const groupLastSeen = req.user.groupLastSeen || new Map();
+    
     const latestMessages = await Promise.all(
       groupIds.map(async (groupId) => {
         const latestMsg = await GroupMessage.findOne({ groupId })
           .sort({ createdAt: -1 })
           .populate('senderId', 'fullName profilePic')
           .lean();
+          
+        const lastSeen = groupLastSeen.get(groupId.toString()) || new Date(0);
+        const unseenCount = await GroupMessage.countDocuments({
+          groupId,
+          createdAt: { $gt: lastSeen },
+          senderId: { $ne: userId }
+        });
+        unseenCounts[groupId.toString()] = unseenCount;
 
         if (!latestMsg) return null;
 
@@ -343,7 +362,16 @@ export const getLatestGrpMsg = catchAsync(async (req, res, next) => {
     // Filter out null values (groups with no messages)
     const validMessages = latestMessages.filter(msg => msg !== null);
 
-    return res.json({ success: true, messages: validMessages });
+    return res.json({ success: true, messages: validMessages, unseenCounts });
+});
+
+export const markGroupSeen = catchAsync(async (req, res, next) => {
+    const { id: groupId } = req.params;
+    const user = await User.findById(req.user._id);
+    if (!user.groupLastSeen) user.groupLastSeen = new Map();
+    user.groupLastSeen.set(groupId, new Date());
+    await user.save();
+    res.json({ success: true });
 });
 
 // --- Phase C: Migration State Machine ---

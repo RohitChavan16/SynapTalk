@@ -119,9 +119,11 @@ const handleEvent = async (eventId, eventData, io) => {
     const { type, messageId, receiverId } = eventData;
 
     try {
-        const isOnline = await isUserOnline(receiverId);
+        let isOnline = true;
+        if (type === 'direct') {
+            isOnline = await isUserOnline(receiverId);
+        }
 
-        // We only attempt to fetch the payload and emit if the user is online.
         if (isOnline) {
             let payload = null;
             let emitEvent = "";
@@ -137,11 +139,10 @@ const handleEvent = async (eventId, eventData, io) => {
                     payload = { ...message, isRealTime: true };
                     emitEvent = "newMessage";
                     targetRoom = `user_${receiverId}`;
-                    logger.info(`Routing direct message ${messageId} to room ${targetRoom}`);
-                } else {
-                    logger.warn(`Message ${messageId} not found in DB during routing`);
+                    console.log(`[PIPELINE - BUS] DIRECT Routing message ${messageId} to room ${targetRoom}`);
                 }
             } else if (type === 'group') {
+                console.log(`[PIPELINE - BUS] GROUP Fetching message ${messageId} from DB`);
                 const message = await GroupMessage.findById(messageId)
                     .populate('senderId', 'fullName profilePic')
                     .lean();
@@ -150,11 +151,16 @@ const handleEvent = async (eventId, eventData, io) => {
                     payload = message;
                     emitEvent = "receiveGrpMsg";
                     targetRoom = receiverId; // For groups, receiverId is groupId
+                    console.log(`[PIPELINE - BUS] GROUP Routing message ${messageId} to room ${targetRoom}`);
+                } else {
+                    console.error(`[PIPELINE - BUS] GROUP Message ${messageId} NOT FOUND in DB!`);
                 }
             }
 
             if (payload && targetRoom) {
-                // Redis adapter will broadcast this to the node where the user is connected
+                console.log(`[PIPELINE - SOCKET] Emitting ${emitEvent} to room ${targetRoom} (io object present: ${!!io})`);
+                const socketsInRoom = await io.in(targetRoom).fetchSockets();
+                console.log(`[PIPELINE - SOCKET] Sockets currently in room ${targetRoom}:`, socketsInRoom.map(s => s.id));
                 io.to(targetRoom).emit(emitEvent, payload);
             }
         }

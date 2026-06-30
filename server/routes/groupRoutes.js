@@ -1,5 +1,5 @@
 import express from 'express';
-import { addExtraMem, deleteMember, getGroups, getGrpMessages, getLatestGrpMsg, newGroup, updateGrp, sendGrpMsg, startMigration, markReady, verifyMigration, activateE2EE, rollbackE2EE, forcePlaintext, transferOwnership } from '../controllers/groupController.js';
+import { addExtraMem, deleteMember, getGroups, getGrpMessages, getLatestGrpMsg, newGroup, updateGrp, sendGrpMsg, startMigration, markReady, verifyMigration, activateE2EE, rollbackE2EE, forcePlaintext, transferOwnership, markGroupSeen } from '../controllers/groupController.js';
 import { protectRoute } from '../middleware/auth.js';
 
 const groupRouter = express.Router();
@@ -11,6 +11,7 @@ groupRouter.post("/send-grpmsg", protectRoute, sendGrpMsg);
 groupRouter.get("/get-grpmsg/:groupId", protectRoute, getGrpMessages);
 groupRouter.put("/updateGrp/:id", protectRoute, updateGrp);
 groupRouter.put("/add-extra-mem", protectRoute, addExtraMem);
+groupRouter.post("/mark-seen/:id", protectRoute, markGroupSeen);
 groupRouter.delete("/delete-mem/:id", protectRoute, deleteMember);
 
 // Migration State Machine Routes

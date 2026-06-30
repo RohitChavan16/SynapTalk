@@ -153,19 +153,27 @@ const ChatSidebar = () => {
     setShowModal(false);
     setSelectedNewGroupMembers([]);
     
-    if(!selectedGrpImg){
-      await newGroupHandle({groupData});
+    const afterCreate = (newGrp) => {
+      if (newGrp) {
+        setActive("My Groups");
+        setSelectedUser(null);
+        setSelectedGrp(newGrp);
+        selectedGrpRef.current = newGrp;
+      }
       navigate("/");
+    };
+
+    if(!selectedGrpImg){
+      const newGrp = await newGroupHandle({groupData});
+      afterCreate(newGrp);
       return;
     }
     const reader = new FileReader();
     reader.readAsDataURL(selectedGrpImg);
     reader.onload = async () => {
       const base64Image = reader.result;
-      await newGroupHandle({groupPic: base64Image, groupData});
-      await fetchGroups(); 
-      navigate("/");
-      
+      const newGrp = await newGroupHandle({groupPic: base64Image, groupData});
+      afterCreate(newGrp);
     }
   }
 
@@ -278,7 +286,7 @@ useEffect(() => {
 
   return (
     <div className={`bg-transparent relative h-full p-5 overflow-y-scroll border-r-2 border-r-gray-600 text-white  
-      ${selectedUser ? "max-md:hidden" : ""} 
+      ${(selectedUser || selectedGrp) ? "max-md:hidden" : ""} 
       scrollbar-thin scrollbar-thumb-violet-500 scrollbar-track-transparent`}>
        
       {/* Header */}
@@ -573,7 +581,7 @@ useEffect(() => {
       
 
 
-      <p className="font-bold text-[13px] w-full flex items-center justify-center mb-3 mt-[-7px] text-[#00acd6d4]">{active}</p>
+      <p className={`font-bold text-[13px] w-full flex items-center justify-center mb-3 mt-[-7px] text-[#00acd6d4] ${newGroup ? "hidden" : ""}`}>{active}</p>
 
 
 
@@ -780,19 +788,26 @@ useEffect(() => {
             </div>
           ))
       ) : filteredGrps.length === 0 ? (
-          <div className="flex justify-center items-center h-40 text-gray-500 text-sm font-medium">
-            No groups available
+          <div className="flex flex-col justify-center items-center h-40 gap-4">
+            <p className="text-gray-400 text-sm font-medium">No groups available</p>
+            <button
+              onClick={handleClickGroup}
+              className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white rounded-xl transition-all duration-300 font-medium text-sm shadow-lg shadow-violet-600/25 hover:shadow-violet-600/40 hover:-translate-y-0.5 cursor-pointer"
+            >
+              <Users className="w-4 h-4" />
+              Create your first group
+            </button>
           </div>
         ) : (
           filteredGrps
         .sort((a, b) => {
-    // First sort by latest message time
+    // First sort by latest message time, fallback to group creation time
     const timeA = latestGrpMessages[a._id]?.createdAt 
       ? new Date(latestGrpMessages[a._id].createdAt).getTime() 
-      : 0;
+      : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
     const timeB = latestGrpMessages[b._id]?.createdAt 
       ? new Date(latestGrpMessages[b._id].createdAt).getTime() 
-      : 0;
+      : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
     return timeB - timeA;
   })
         .map((group) => {
@@ -822,7 +837,9 @@ useEffect(() => {
                   }
                  return updated;
                 });
-                
+                import("axios").then(axios => {
+                  axios.default.post(`/api/group/mark-seen/${group._id}`, {}, { withCredentials: true }).catch(console.error);
+                });
               }}
               className={`relative flex items-center gap-3 p-3 cursor-pointer transition-all duration-300 rounded-lg
                 ${isSelected
@@ -1000,11 +1017,11 @@ useEffect(() => {
         {/* Members Section */}
         <div className="mb-4">
           <label className="block text-gray-300 text-sm mb-2">Members</label>
-          <div className="flex flex-wrap gap-3">
+          <div className="flex gap-3 overflow-x-auto colorful-scrollbar pb-2 scroll-smooth">
             {selectedNewGroupMembers.map((member) => (
               <div
                 key={member._id}
-                className="flex items-center gap-1 rounded-full"
+                className="flex items-center gap-1 rounded-full flex-shrink-0 transition-transform hover:scale-105"
               >
                  {member?.profilePic ? (
                 <img
@@ -1029,13 +1046,13 @@ useEffect(() => {
           </div>
         </div>
 
-      <div className="flex justify-end space-x-13">
+      <div className="flex justify-end space-x-4">
         
-        <button onClick={handleCreateGroup} className="px-4 py-2 cursor-pointer bg-green-600 text-white rounded">
-          Create Group
-        </button>
-        <button onClick={cancelNewGroup} className="px-4 py-2 bg-red-600/90  cursor-pointer rounded">
+        <button onClick={cancelNewGroup} className="w-32 px-4 py-2 bg-red-600/90 hover:bg-red-700 cursor-pointer text-white transition-colors rounded">
           Cancel
+        </button>
+        <button onClick={handleCreateGroup} className="w-32 px-4 py-2 cursor-pointer bg-green-600 hover:bg-green-700 text-white transition-colors rounded">
+          Create
         </button>
       </div>
     </div>

@@ -38,3 +38,22 @@
   animation: gradientMove 8s ease-in-out infinite;
   filter: blur(3px);
 }
+
+.colorful-scrollbar::-webkit-scrollbar {
+  display: block;
+  height: 6px;
+}
+
+.colorful-scrollbar::-webkit-scrollbar-track {
+  background: rgba(139, 92, 246, 0.1); 
+  border-radius: 10px;
+}
+
+.colorful-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(90deg, #8b5cf6, #ec4899);
+  border-radius: 10px;
+}
+
+.colorful-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(90deg, #7c3aed, #db2777);
+}
