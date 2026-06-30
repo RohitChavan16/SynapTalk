@@ -3,6 +3,10 @@ import assets from '../assets/assets';
 import { ChatContext } from '../../context/ChatContext';
 import { AuthContext } from '../../context/AuthContext';
 import { 
+  FaInstagram, FaFacebook, FaLinkedin, FaGithub, FaTwitter, FaYoutube, FaReddit, FaDiscord, FaPinterest, FaSnapchatGhost, FaTelegramPlane, FaMedium, FaDribbble, FaBehance, FaDev, FaStackOverflow, FaKaggle, FaCodepen, FaTwitch, FaSpotify
+} from 'react-icons/fa';
+import { SiLeetcode, SiHackerrank, SiNotion } from "react-icons/si";
+import { 
   Phone, 
   Video, 
   Search, 
@@ -39,6 +43,36 @@ const ProfileSidebar = () => {
   const { handleJoinCall, isInCall } = useContext(CallContext);
 
   const profileUserId = selectedUser?._id;
+
+  const iconMap = {
+    Instagram: <FaInstagram className="text-pink-500" />,
+    Facebook: <FaFacebook className="text-blue-500" />,
+    LinkedIn: <FaLinkedin className="text-blue-400 w-10" />,
+    GitHub: <FaGithub className="text-gray-300" />,
+    Twitter: <FaTwitter className="text-sky-400" />,
+    YouTube: <FaYoutube className="text-red-600" />,
+    Reddit: <FaReddit className="text-orange-500" />,
+    Discord: <FaDiscord className="text-indigo-500" />,
+    Pinterest: <FaPinterest className="text-red-500" />,
+    Snapchat: <FaSnapchatGhost className="text-yellow-400" />,
+    Telegram: <FaTelegramPlane className="text-sky-500" />,
+    Medium: <FaMedium className="text-gray-200" />,
+    Dribbble: <FaDribbble className="text-pink-400" />,
+    Behance: <FaBehance className="text-blue-400" />,
+    "Dev.to": <FaDev className="text-white" />,
+    "Stack Overflow": <FaStackOverflow className="text-orange-400" />,
+    Kaggle: <FaKaggle className="text-sky-500" />,
+    LeetCode: <SiLeetcode className="text-yellow-500" />,
+    HackerRank: <SiHackerrank className="text-green-500" />,
+    CodePen: <FaCodepen className="text-gray-400" />,
+    Twitch: <FaTwitch className="text-purple-500" />,
+    Spotify: <FaSpotify className="text-green-400" />,
+    Notion: <SiNotion className="text-white" />,
+  };
+
+  const publicLinks = (selectedUser?.socialLinks || [])
+    .filter(sl => sl.isVisible && sl.url)
+    .sort((a, b) => b.priority - a.priority);
 
   const onCallClick = () => {
     if (!profileUserId) return;
@@ -190,6 +224,29 @@ const ProfileSidebar = () => {
       </div>
 
       <hr className="border-[#ffffff50] my-4"/>
+
+      {/* Social Links */}
+      {publicLinks.length > 0 && (
+        <div className="px-5 text-xs mb-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-white/80">Social Media</p>
+          </div>
+          <div className="flex gap-3 overflow-x-auto scrollbar-thin scrollbar-thumb-emerald-600 scrollbar-track-transparent py-2">
+            {publicLinks.map(sl => (
+              <a
+                key={sl.platform}
+                href={sl.url.startsWith("http") ? sl.url : `https://${sl.url}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="relative w-10 h-10 flex text-[20px] bg-white/10 rounded-full hover:bg-white/20 items-center justify-center text-gray-200 hover:text-blue-500 transition-transform transform hover:scale-110 flex-shrink-0 shadow-sm"
+                title={sl.platform}
+              >
+                {iconMap[sl.platform] || sl.platform}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Enhanced Media Sections */}
       <MediaSection title="Media" icon={VideoIcon} items={msgImages} type="images" />

@@ -12,10 +12,10 @@ import { catchAsync } from "../utils/catchAsync.js";
 export const getUsersForSidebar = catchAsync(async (req, res, next) => {
     const userId = req.user._id;
 
-    // Include publicKey when fetching users
+    // Include publicKey and socialLinks when fetching users
     const filteredUsers = await User.find(
       { _id: { $ne: userId } },
-      "fullName email publicKey profilePic bio"
+      "fullName email publicKey profilePic bio socialLinks"
     );
 
     // Aggregate unseen messages grouped by senderId

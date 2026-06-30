@@ -23,11 +23,6 @@ const Home = () => {
           {showMenu ? <X size={22} /> : <Menu size={22} />}
         </button>
 
-      {/* 💻 Desktop Menu (always visible) */}
-      <div className="absolute left-9 top-1/2 -translate-y-1/2 hidden md:block">
-        <MenuOption />
-      </div>
-
       {/* 📱 Mobile Sidebar */}
       <AnimatePresence>
         {showMenu && (
@@ -55,9 +50,12 @@ const Home = () => {
         )}
       </AnimatePresence>
       </div>
-      <div className="absolute left-9 ">
+
+      {/* 💻 Desktop Menu (always visible on desktop) */}
+      <div className="absolute left-9 top-1/2 -translate-y-1/2 hidden md:block z-50">
         <MenuOption />
       </div>
+
       <div className={`backdrop-blur-xl border-2  border-gray-600 rounded-2xl overflow-hidden h-full grid relative
         ${selectedUser || selectedGrp ? 
           `${(selectedProfile || selectedProfileGrp) ? 

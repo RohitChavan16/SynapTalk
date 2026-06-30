@@ -105,6 +105,11 @@ const GroupProfileSidebar = () => {
 
   const isOwner = selectedGrp?.owner === authUser._id || selectedGrp?.owner?._id === authUser._id;
   const migrationState = selectedGrp?.migrationData?.state || selectedGrp?.migrationState || 'PLAINTEXT';
+  
+  const isAAdmin = selectedGrp?.admins?.some(admin =>
+    (admin._id ? admin._id.toString() : admin.toString()) === a._id
+  );
+
   const isBAdmin = selectedGrp?.admins?.some(admin =>
     (admin._id ? admin._id.toString() : admin.toString()) === b._id
   );

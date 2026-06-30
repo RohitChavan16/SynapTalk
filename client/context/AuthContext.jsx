@@ -161,9 +161,7 @@ export const AuthProvider = ({ children }) => {
 
     const deleteSocialLink = async (platform) => {
        try {
-         const token = localStorage.getItem("token");
-         const { data } = await axios.delete("/api/auth/delete-links", { headers: { Authorization: `Bearer ${token}` }, data : { platform },
-        });
+         const { data } = await axios.delete("/api/auth/delete-links", { data : { platform } });
          if(data.success){
             setSocialLinks(data.socialLink);
             toast.success("Deleted it successfully");

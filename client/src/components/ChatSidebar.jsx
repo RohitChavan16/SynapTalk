@@ -114,26 +114,30 @@ const ChatSidebar = () => {
   setSelectedProfile(true);    // make sure profile sidebar is visible
 };
 
+  const handleCloseModal = () => {
+     setSocialMedia(false);
+     setIsEdit(false);
+     setCurrentLink({ platform: "", url: "", privacy: "Public" });
+     setEditPlatform("");
+  };
+
   const handleDeleteLink = async (platform) => {
     if (!platform) {
-    toast.error("Platform not selected");
-    return;
-  }
-  await deleteSocialLink(platform);
-  await getSocialLink();
+      toast.error("Platform not selected");
+      return;
+    }
+    await deleteSocialLink(platform);
   }
 
   const handleAddLink = async () => {
-     await addSocialLink(currentLink);
-     getSocialLink();
+     await addSocialLink({ ...currentLink, isVisible: currentLink.privacy === "Public" });
   }
 
   const handleEditLink = async () => {
-    currentLink.platform = editPlatform;
-     await editSocialLink({ ...currentLink});
+     currentLink.platform = editPlatform;
+     await editSocialLink({ ...currentLink, isVisible: currentLink.privacy === "Public" });
      setEditPlatform("");
      setIsEdit(false);
-     getSocialLink();
   }
 
   const cancelNewGroup = () => {
@@ -335,7 +339,13 @@ useEffect(() => {
 
   {/* Fixed Plus Button */}
   <Plus
-    onClick={() => setSocialMedia((prev) => !prev)}
+    onClick={() => {
+      if (socialMedia) {
+        handleCloseModal();
+      } else {
+        setSocialMedia(true);
+      }
+    }}
     className="absolute bg-amber-500 rounded-[3px] right-3 top-[9px] w-5 h-5 max-md:top-[8px] max-md:h-4 max-md:w-4 hover:scale-115 cursor-pointer z-10"
   />
 </div>
@@ -346,7 +356,7 @@ useEffect(() => {
             
             {/* Close Button */}
             <button
-              onClick={() => setSocialMedia(false)}
+              onClick={handleCloseModal}
               className="absolute top-4 right-4 text-gray-200 hover:text-white"
             >
               <X className="w-6 cursor-pointer h-6" />
@@ -380,7 +390,7 @@ useEffect(() => {
 
   {/* Right side */}
   <div className="flex cursor-pointer items-center gap-3">
-    {sl.privacy === "Public" ? (
+    {sl.isVisible !== false ? (
       <Globe className="w-5 h-5 text-green-300" />
     ) : (
       <Lock className="w-5 h-5 text-red-300" />
@@ -395,7 +405,7 @@ useEffect(() => {
     {/* Edit Button */}
     <button
       onClick={() => {
-        setCurrentLink(sl);
+        setCurrentLink({ ...sl, privacy: sl.isVisible !== false ? "Public" : "Private" });
         setEditPlatform(sl.platform);
         setIsEdit(true);
       }
@@ -438,7 +448,8 @@ useEffect(() => {
   <select
     value={currentLink.platform}
     onChange={(e) => setCurrentLink({ ...currentLink, platform: e.target.value })}
-    className="p-2 rounded bg-white/20 border border-white/30 text-white placeholder-gray-300"
+    className="p-2 rounded bg-white/20 border border-white/30 text-white placeholder-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+    disabled={isEdit}
   >
   <option value="" className="bg-amber-500">Select Platform</option>
      
@@ -447,8 +458,8 @@ useEffect(() => {
     .filter(
       (platform) => !sortedLinks.some((sl) => sl.platform === platform)
     )
-    .map((platform) => (
-      <option className="bg-indigo-400" key={platform} value={platform}>
+    .map((platform, index) => (
+      <option className={index % 2 === 0 ? "bg-indigo-500 text-white" : "bg-indigo-600 text-white"} key={platform} value={platform}>
         {platform}
       </option>
     ))}
@@ -465,8 +476,8 @@ useEffect(() => {
     onChange={(e) => setCurrentLink({ ...currentLink, privacy: e.target.value })}
     className="p-2 cursor-pointer rounded bg-white/20 border border-white/30 text-white"
   >
-    <option>Public</option>
-    <option>Private</option>
+    <option className="bg-emerald-600 text-white">Public</option>
+    <option className="bg-rose-600 text-white">Private</option>
   </select>
 </div>
 <button
@@ -877,24 +888,33 @@ useEffect(() => {
               <div className="flex-1  min-w-0">
                 <div className="flex">
                 <p className="truncate font-semibold text-sm drop-shadow-[0_0_4px_rgba(255,255,255,0.6)]">{group.name}</p>
-                <p className={`ml-2 mt-1 text-xs text-emerald-300`}>
+                <p className={`ml-2 mt-1 text-xs text-emerald-300 md:hidden xl:block`}>
                     {onlineCount > 1 ? `( ${onlineCount-1} Online )` : "(⚫ Offline)"}
                   </p>
                   </div>
-                {latestGrpMessages[group._id]?.text ? (
-                  <p className="truncate text-xs text-gray-400 max-w-[180px]">
-                    {latestGrpMessages[group._id].isSender ? (
-                      <span className="text-blue-400">You: </span>
-                    ) : (
-                      <span className="text-green-400">{latestGrpMessages[group._id].senderName}: </span>
-                    )}
-                    {latestGrpMessages[group._id].text.length > 25 
-                      ? latestGrpMessages[group._id].text.slice(0, 25) + "..." 
-                      : latestGrpMessages[group._id].text}
-                  </p>
-                ) : (
-                  <p className={`text-xs`}>
-                    No message yet...
+                
+                <div className={usersTyping && Object.keys(usersTyping).length > 0 ? "block md:hidden xl:block" : "block"}>
+                  {latestGrpMessages[group._id]?.text ? (
+                    <p className="truncate text-xs text-gray-400 max-w-[180px]">
+                      {latestGrpMessages[group._id].isSender ? (
+                        <span className="text-blue-400">You: </span>
+                      ) : (
+                        <span className="text-green-400">{latestGrpMessages[group._id].senderName}: </span>
+                      )}
+                      {latestGrpMessages[group._id].text.length > 25 
+                        ? latestGrpMessages[group._id].text.slice(0, 25) + "..." 
+                        : latestGrpMessages[group._id].text}
+                    </p>
+                  ) : (
+                    <p className={`text-xs`}>
+                      No message yet...
+                    </p>
+                  )}
+                </div>
+
+                {usersTyping && Object.keys(usersTyping).length > 0 && (
+                  <p className="hidden md:block xl:hidden truncate text-xs text-green-400 font-medium">
+                    {Object.values(usersTyping).slice(0, 2).join(', ')} {Object.keys(usersTyping).length > 1 ? 'are' : 'is'} typing...
                   </p>
                 )}
               </div>
@@ -914,7 +934,7 @@ useEffect(() => {
 
  {/* Typing indicator */}
           {usersTyping && Object.keys(usersTyping).length > 0 && (
-           <div className="absolute bottom-2 right-8 z-100  flex items-center gap-2 text-xs text-green-300 bg-gray-800/70 px-3 py-1.5 rounded-full backdrop-blur-sm border border-gray-600/50 shadow-lg">
+           <div className="absolute bottom-2 right-8 z-100 flex md:hidden xl:flex items-center gap-2 text-xs text-green-300 bg-gray-800/70 px-3 py-1.5 rounded-full backdrop-blur-sm border border-gray-600/50 shadow-lg">
            <span className="font-medium text-green-400">
             {Object.values(usersTyping).slice(0, 2).join(', ')}
             {Object.keys(usersTyping).length > 2 && 

@@ -3,9 +3,10 @@ import assets, { messagesDummyData } from '../assets/assets';
 import { formatMessageTime, formatDateLabel, isDifferentDay } from '../lib/formatDateTime';
 import { ChatContext } from '../../context/ChatContext';
 import { AuthContext } from '../../context/AuthContext';
+import { CallContext } from '../../context/CallContext';
 import toast from 'react-hot-toast';
 import Loading from './Loading';
-import { Reply, Trash2, Copy, Languages, Loader2, X } from "lucide-react";
+import { Reply, Trash2, Copy, Languages, Loader2, X, Smile, SendHorizonal, ImagePlus, Paperclip } from "lucide-react";
 import { useLayoutEffect } from 'react';
 import { MediaCryptoService } from '../lib/MediaCryptoService';
 import axios from 'axios';
@@ -19,6 +20,7 @@ const MainChat = () => {
     typingUsers, setTypingUsers, setMessages, setUnseenMessages, privateTypingUsers, sendAIMessage,
     hasMoreMessages, nextCursor } = useContext(ChatContext);
   const {authUser, onlineUsers, socket} = useContext(AuthContext);
+  const { handleJoinCall, isInCall } = useContext(CallContext);
   const scrollEnd = useRef();
   const [loading, setLoading] = useState(true);
   const [input, setInput] = useState('');
@@ -302,22 +304,25 @@ useLayoutEffect(() => {
   
   
   return selectedUser || selectedGrp ? (
-<div className={`h-full max-md:h-screen ${selectedGrp && "max-md:mt-[-41px]"} bg-[url("./src/assets/chatbg.png")] overflow-scroll relative backdrop-blur-lg`}>
+<div className={`flex flex-col h-full max-md:h-screen ${selectedGrp && "max-md:mt-[-41px]"} bg-[url("./src/assets/chatbg.png")] bg-cover bg-center bg-no-repeat bg-fixed overflow-hidden relative backdrop-blur-lg`}>
 
-<div className='flex items-center gap-3 backdrop-blur-[2px] py-3 mx-1 border-b border-stone-500'>
-<div className="flex ">
+<div className='flex items-center gap-3 bg-gradient-to-r from-white/10 to-transparent backdrop-blur-2xl py-3 px-4 mx-2 mt-2 rounded-2xl border border-white/10 shadow-lg relative z-20 transition-all'>
+<button onClick={()=> {setSelectedUser(null); setSelectedGrp(null)}} className='md:hidden p-2 -ml-2 rounded-full hover:bg-white/10 transition-colors'>
+  <img src={assets.arrow_icon} alt="Back" className='w-5 h-5'/>
+</button>
+
+<div className="flex relative cursor-pointer" onClick={() => { if(selectedGrp) setSelectedProfileGrp(prev => !prev); else setSelectedProfile(prev => !prev); }}>
   {/* User Avatar */}
   {selectedUser && (
     selectedUser.profilePic ? (
       <img
         src={selectedUser.profilePic}
         alt={selectedUser.fullName}
-        onClick={() => setSelectedProfile(prev => !prev)}
-        className="w-[33px] h-[33px] rounded-full object-cover border border-violet-500 ml-4 shadow-[0_0_8px_rgba(138,43,226,0.7)]"
+        className="w-[42px] h-[42px] rounded-full object-cover border-2 border-violet-500 shadow-[0_0_10px_rgba(138,43,226,0.5)]"
       />
     ) : (
       <div
-        className="w-[33px] h-[33px] ml-4 rounded-full flex items-center justify-center text-white text-[11px] font-bold border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)] bg-gradient-to-r from-[#ff4800] via-pink-500 to-[#d31b74]"
+        className="w-[42px] h-[42px] rounded-full flex items-center justify-center text-white text-[13px] font-bold border-2 border-violet-500 shadow-[0_0_10px_rgba(138,43,226,0.5)] bg-gradient-to-br from-[#ff4800] via-pink-500 to-[#d31b74]"
       >
         {selectedUser.fullName
           ?.split(" ")
@@ -329,20 +334,17 @@ useLayoutEffect(() => {
     )
   )}
 
-
-
   {/* Group Avatar */}
   {selectedGrp && (
     selectedGrp.groupPic ? (
       <img
         src={selectedGrp.groupPic}
         alt={selectedGrp.groupName}
-        onClick={() => setSelectedProfileGrp(prev => !prev)}  
-        className="w-[33px] h-[33px] rounded-full object-cover border border-violet-500 ml-4 shadow-[0_0_8px_rgba(138,43,226,0.7)]"
+        className="w-[42px] h-[42px] rounded-full object-cover border-2 border-violet-500 shadow-[0_0_10px_rgba(138,43,226,0.5)]"
       />
     ) : (
       <div
-        className="w-[33px] h-[33px] ml-4 rounded-full flex items-center justify-center text-white text-[11px] font-bold border border-violet-500 shadow-[0_0_8px_rgba(138,43,226,0.7)] bg-gradient-to-r from-[#ff4800] via-pink-500 to-[#d31b74]"
+        className="w-[42px] h-[42px] rounded-full flex items-center justify-center text-white text-[13px] font-bold border-2 border-violet-500 shadow-[0_0_10px_rgba(138,43,226,0.5)] bg-gradient-to-br from-[#ff4800] via-pink-500 to-[#d31b74]"
       >
         {selectedGrp.groupName
           ?.split(" ")
@@ -355,21 +357,48 @@ useLayoutEffect(() => {
   )}
 </div>
 
-<p 
-onClick={() => {
-  if(selectedGrp) setSelectedProfileGrp(prev => !prev)
+<div 
+  onClick={() => {
+    if(selectedGrp) setSelectedProfileGrp(prev => !prev);
     else setSelectedProfile(prev => !prev);
-}}
-className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
-{selectedUser ? selectedUser.fullName : selectedGrp?.name}
- {selectedUser && onlineUsers.includes(selectedUser._id) && 
-    <span className="w-2 h-2 rounded-full bg-green-500"></span>
-  }
-</p>
+  }}
+  className='flex-1 cursor-pointer flex flex-col justify-center min-w-0'
+>
+  <div className="flex items-center gap-2">
+    <h2 className='text-[17px] font-semibold text-white truncate drop-shadow-md'>
+      {selectedUser ? selectedUser.fullName : selectedGrp?.name}
+    </h2>
+    {selectedUser && onlineUsers.includes(selectedUser._id) && 
+      <span className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)] flex-shrink-0"></span>
+    }
+  </div>
+  <span className={`text-[12px] font-medium truncate ${selectedUser && onlineUsers.includes(selectedUser._id) ? 'text-green-400' : 'text-white/60'}`}>
+    {selectedUser 
+      ? (onlineUsers.includes(selectedUser._id) ? "Online now" : "Offline") 
+      : (selectedGrp?.members?.length ? `${selectedGrp.members.length} members` : "Group chat")
+    }
+  </span>
+</div>
 
-
-<img onClick={()=> {setSelectedUser(null); setSelectedGrp(null)}} src={assets.arrow_icon} alt="" className='md:hidden max-w-7'/>
-<img src={assets.help_icon} alt="" className='max-md:hidden max-w-5 mx-3'/>
+<div className="flex items-center gap-1 sm:gap-2 text-gray-300">
+  <button className="p-2.5 rounded-full hover:bg-white/10 hover:text-white transition-colors cursor-pointer max-sm:hidden" title="Search">
+    <svg className="w-[20px] h-[20px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+  </button>
+  <button onClick={() => { if (selectedUser && !isInCall) handleJoinCall(selectedUser._id, selectedUser.fullName); }} disabled={isInCall} className="p-2.5 rounded-full hover:bg-white/10 hover:text-green-400 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed" title="Voice Call">
+    <svg className="w-[20px] h-[20px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
+  </button>
+  <button onClick={() => { if (selectedUser && !isInCall) handleJoinCall(selectedUser._id, selectedUser.fullName); }} disabled={isInCall} className="p-2.5 rounded-full hover:bg-white/10 hover:text-blue-400 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed" title="Video Call">
+    <svg className="w-[22px] h-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+  </button>
+  <button 
+    onClick={() => {
+      if(selectedGrp) setSelectedProfileGrp(prev => !prev);
+      else setSelectedProfile(prev => !prev);
+    }}
+    className="p-2.5 rounded-full hover:bg-white/10 hover:text-white transition-colors cursor-pointer" title="More Options">
+    <svg className="w-[22px] h-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path></svg>
+  </button>
+</div>
 </div>
 
 {/* Migration State Banners */}
@@ -392,7 +421,7 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
     ) : (
 <div 
   onScroll={handleScroll}
-  className="flex flex-col h-[calc(100%-120px)] overflow-y-scroll p-4 pb-6 space-y-4 scrollbar-thin scrollbar-thumb-purple-600/30 scrollbar-track-transparent"
+  className="flex flex-col flex-1 overflow-y-scroll p-4 pb-4 space-y-4 scrollbar-thin scrollbar-thumb-purple-600/30 scrollbar-track-transparent"
 >
  
 {messages.length > 0 ? (
@@ -551,13 +580,13 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
                         }}
                         className="absolute cursor-pointer hover:scale-115 h-4 top-1.5 right-0 z-20"
                       />
-                      <span className="inline-block">{mes.text}</span>
+                      <span className="break-words whitespace-pre-wrap">{mes.text}</span>
                       {getSenderId(mes) === authUser._id && !selectedGrp && (
-                        <span className="float-right ml-2 mt-1 flex items-center text-[10px] opacity-90">
+                        <span className="inline-flex items-center ml-2 text-[11px] opacity-90 align-bottom relative top-[2px]">
                           {mes.seen || mes.status === 'READ' ? (
-                            <span className="text-blue-300 font-bold drop-shadow-md">✓✓</span>
+                            <span className="text-blue-300 font-bold drop-shadow-md tracking-tighter">✓✓</span>
                           ) : mes.status === 'DELIVERED' ? (
-                            <span className="text-gray-300 font-bold drop-shadow-md">✓✓</span>
+                            <span className="text-gray-300 font-bold drop-shadow-md tracking-tighter">✓✓</span>
                           ) : (
                             <span className="text-gray-300 font-bold drop-shadow-md">✓</span>
                           )}
@@ -645,7 +674,7 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
       <p className="text-red-300/60 text-[10px] mt-1 uppercase tracking-wider font-semibold">Messaging Suspended</p>
   </div>
 ) : (
-<div className='absolute bottom-0 left-0 right-0 flex items-center gap-3 p-3'>
+<div className='flex items-center gap-3 p-3 bg-transparent backdrop-blur-2xl border border-white/20 mx-2 mb-2 rounded-full relative z-20 flex-shrink-0 shadow-lg'>
   {/* TYPING INDICATOR - INDIVIDUAL CHAT */}
   {selectedUser && privateTypingUsers[selectedUser._id] && (
     <div className="absolute bottom-16 left-6 flex items-center" >
@@ -709,7 +738,10 @@ className='flex-1 text-lg cursor-pointer text-white flex items-center gap-2'>
       </button>
     </div>
   </div>
+
 )}
+
+
 
 <div className='flex-1 flex items-center bg-gray-100/12 px-3 rounded-full relative'>
 
